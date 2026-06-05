@@ -23,19 +23,31 @@ export async function submitScorePrediction(formData: FormData) {
 
     // 3. Deadline Validation: Query the fixture and its parent gameweek
     const { data: fixture, error: fixtureError } = await supabase
-      .from('fixtures')
-      .select('gameweek_id, gameweeks(deadline_time)')
-      .eq('id', fixtureId)
-      .single()
+    .from('fixtures')
+    .select(`
+        gameweek_id,
+        gameweeks:gameweek_id (
+        deadline_time
+        )
+    `)
+    .eq('id', fixtureId)
+    .single()
 
     if (fixtureError || !fixture) throw new Error('Fixture not found.')
 
+    // Cast the joined data to handle Supabase's auto-generated join typing
+    const gameweekData = fixture.gameweeks as unknown as { deadline_time: string } | null;
+
+    if (!gameweekData?.deadline_time) {
+    throw new Error('Gameweek deadline configuration missing.')
+    }
+
     // Ensure the current time is strictly BEFORE the official FPL deadline
-    const deadline = new Date(fixture.gameweeks.deadline_time)
+    const deadline = new Date(gameweekData.deadline_time)
     const now = new Date()
 
     if (now >= deadline) {
-      throw new Error('Gameweek deadline has passed. Predictions are locked.')
+    throw new Error('Gameweek deadline has passed. Predictions are locked.')
     }
 
     // 4. Save to Database
