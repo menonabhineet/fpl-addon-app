@@ -9,7 +9,7 @@ import FantasticFourUI from './fantastic-four-ui'
 
 type TabState = 'score' | 'team' | 'fantastic'
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -60,11 +60,11 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
       {/* Render the Active Game UI */}
       <div className="min-h-[400px]">
         {activeTab === 'score' && (
-          <ScorePredictionsUI fixtures={fixtures} currentGw={currentGw} />
+          <ScorePredictionsUI fixtures={fixtures} currentGw={currentGw} initialScorePicks={initialScorePicks} />
         )}
         
         {activeTab === 'team' && (
-          <TeamPredictionUI teams={teams} currentGw={currentGw} />
+          <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} />
         )}
         
         {activeTab === 'fantastic' && (
