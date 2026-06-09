@@ -13,6 +13,7 @@ export async function GET(request: Request) {
       id: team.id,
       name: team.name,
       short_name: team.short_name,
+      code: team.code,
     }));
     
     const { error: teamsError } = await supabase
