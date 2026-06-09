@@ -4,10 +4,12 @@
 import { useState } from 'react'
 import ScorePredictionsUI from './score-predictions-ui'
 import TeamPredictionUI from './team-prediction-ui'
+import FantasticFourUI from './fantastic-four-ui'
+
 
 type TabState = 'score' | 'team' | 'fantastic'
 
-export default function DashboardTabs({ currentGw, fixtures, teams }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -66,9 +68,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams }: any) {
         )}
         
         {activeTab === 'fantastic' && (
-          <div className="rounded-xl bg-white dark:bg-slate-900 p-12 text-center text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
-            [Fantastic Four Football Pitch UI will go here.]
-          </div>
+          <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks}/>
         )}
       </div>
     </div>

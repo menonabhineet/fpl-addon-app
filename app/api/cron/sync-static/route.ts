@@ -36,8 +36,26 @@ export async function GET(request: Request) {
 
     if (gwError) throw gwError;
 
+    // 3. Transform and Load Players
+    // FPL API maps positions as numbers: 1=GK, 2=DEF, 3=MID, 4=FWD
+    const positionMap: Record<number, string> = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
+    
+    const playersData = data.elements.map((player: any) => ({
+      id: player.id,
+      name: player.web_name,
+      team_id: player.team,
+      position: positionMap[player.element_type] || 'FWD',
+    }));
+
+    const { error: playersError } = await supabase
+      .from('players')
+      .upsert(playersData);
+
+    if (playersError) throw playersError;
+
     return NextResponse.json({ success: true, message: 'Static data synced successfully' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    
   }
 }
