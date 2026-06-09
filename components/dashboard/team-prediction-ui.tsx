@@ -1,18 +1,25 @@
 // components/dashboard/team-prediction-ui.tsx
 'use client'
 
-import { useState, useActionState } from 'react'
+import { useState, useActionState, useEffect } from 'react'
 import { submitTeamPrediction } from '@/lib/actions/team-prediction'
 
-export default function TeamPredictionUI({ teams, currentGw }: any) {
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null)
+export default function TeamPredictionUI({ teams, currentGw, initialTeamPick }: any) {
+  // Initialize state with the existing pick if it exists
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeamPick?.team_id || null)
   
+  // Keep local state in sync if the server data updates after a refresh/submission
+  useEffect(() => {
+    if (initialTeamPick?.team_id) {
+      setSelectedTeamId(initialTeamPick.team_id)
+    }
+  }, [initialTeamPick?.team_id])
+
   const initialState = { success: false, message: '', error: '' }
   const [state, formAction, isPending] = useActionState(
     async (prevState: any, formData: FormData) => {
       if (!selectedTeamId) return { success: false, message: '', error: 'Please select a team first.' }
       
-      // Inject the React state into the FormData before sending to server
       formData.append('teamId', selectedTeamId.toString())
       formData.append('gameweekId', currentGw.id.toString())
       
@@ -23,13 +30,24 @@ export default function TeamPredictionUI({ teams, currentGw }: any) {
     initialState
   )
 
+  const hasExistingPick = !!initialTeamPick;
+  const isSelectionChanged = initialTeamPick?.team_id !== selectedTeamId;
+
   return (
     <div className="space-y-6">
       <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 text-sm text-indigo-900 dark:text-indigo-300">
-        📌 <strong>Gameweek {currentGw.id} Rules:</strong> Select ONE team to win this gameweek. You can only pick a specific team <strong>twice per season</strong>. Make it count!
+        📌 <strong>Gameweek {currentGw.id} Rules:</strong> Select ONE team to win this gameweek. Max 2 picks per team per season.
       </div>
 
       <form action={formAction} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+        
+        {/* If they already have a pick, show a nice status banner */}
+        {hasExistingPick && !isSelectionChanged && (
+          <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg text-center">
+            <span className="text-green-700 dark:text-green-400 font-bold text-sm">✓ Your team is securely locked in for Gameweek {currentGw.id}.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8">
           {teams.map((team: any) => (
             <div 
@@ -55,10 +73,10 @@ export default function TeamPredictionUI({ teams, currentGw }: any) {
         <div className="flex flex-col items-center border-t border-slate-100 dark:border-slate-800 pt-6">
           <button
             type="submit"
-            disabled={isPending || !selectedTeamId}
+            disabled={isPending || !selectedTeamId || (!isSelectionChanged && hasExistingPick)}
             className="w-full sm:w-1/2 bg-indigo-600 text-white font-bold text-lg px-6 py-3 rounded-xl hover:bg-indigo-500 transition-colors disabled:bg-slate-400 dark:disabled:bg-slate-700"
           >
-            {isPending ? 'Validating...' : 'Lock In Team'}
+            {isPending ? 'Validating...' : (hasExistingPick && isSelectionChanged) ? 'Update Team Pick' : hasExistingPick ? 'Team Locked' : 'Lock In Team'}
           </button>
 
           <div className="mt-4 min-h-[1.5rem]">

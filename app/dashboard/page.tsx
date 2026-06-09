@@ -15,6 +15,18 @@ export default async function DashboardPage() {
   const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true })
   const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code)').order('name', { ascending: true })
   const { data: userPicks } = await supabase.from('fantastic_four').select('player_id, player_name, position').eq('user_id', user.id).eq('gameweek_id', currentGw?.id || 1)
+  const { data: userTeamPick } = await supabase.from('team_predictions').select('team_id').eq('user_id', user.id).eq('gameweek_id', currentGw?.id || 1).maybeSingle()
+
+  let userScorePicks: any[] = []
+  if (fixtures && fixtures.length > 0) {
+    const fixtureIds = fixtures.map((f: any) => f.id)
+    const { data } = await supabase
+      .from('score_predictions')
+      .select('fixture_id, predicted_home_score, predicted_away_score')
+      .eq('user_id', user.id)
+      .in('fixture_id', fixtureIds)
+    userScorePicks = data || []
+  }
 
   return (
     // Notice the added dark:bg-slate-950 and dark:text-slate-100 classes
@@ -45,7 +57,7 @@ export default async function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-4xl p-4 sm:p-6 mt-4">
-        <DashboardTabs currentGw={currentGw} fixtures={fixtures || []} teams={teams || []} players={players || []} initialPicks={userPicks || []} />
+        <DashboardTabs currentGw={currentGw} fixtures={fixtures || []} teams={teams || []} players={players || []} initialPicks={userPicks || []} initialTeamPick={userTeamPick} initialScorePicks={userScorePicks || []} />
       </main>
     </div>
   )
