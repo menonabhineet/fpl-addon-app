@@ -47,7 +47,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="mb-3 text-3xl font-bold tracking-tight text-white">
-            FPL Addon League
+            Pro Pundits League
           </h1>
           <p className="mb-8 text-sm text-slate-400">
             Elevate your Fantasy Premier League experience. Sign in to submit your predictions and join the competition.

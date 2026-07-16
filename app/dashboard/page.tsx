@@ -59,7 +59,7 @@ export default async function DashboardPage({
         <div className="mx-auto max-w-4xl flex items-center justify-between">
           <div className="flex items-center">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-indigo-950 dark:text-indigo-400">FPL Addon</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-indigo-950 dark:text-indigo-400">Pro Pundits League</h1>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                 {selectedGw ? `Viewing History` : 'Season inactive'}
               </p>

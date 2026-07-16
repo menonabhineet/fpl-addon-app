@@ -7,7 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'FPL Addon App',
+  title: 'Pro Pundits League',
   description: 'Custom Fantasy Premier League Addon',
 }
 
