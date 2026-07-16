@@ -79,6 +79,14 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick }: 
             {isPending ? 'Validating...' : (hasExistingPick && isSelectionChanged) ? 'Update Team Pick' : hasExistingPick ? 'Team Locked' : 'Lock In Team'}
           </button>
 
+          {hasExistingPick && initialTeamPick.points_earned !== null && (
+              <div className="flex items-center justify-center px-4 bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-800 rounded-xl">
+                <span className="text-green-800 dark:text-green-400 font-extrabold whitespace-nowrap">
+                  +{initialTeamPick.points_earned} Pts
+                </span>
+              </div>
+            )}
+
           <div className="mt-4 min-h-[1.5rem]">
             {state.success && <span className="text-green-600 dark:text-green-400 font-bold text-sm">✓ {state.message}</span>}
             {state.error && <span className="text-red-600 dark:text-red-400 font-bold text-sm">⚠ {state.error}</span>}

@@ -39,7 +39,8 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
     acc[pick.position] = {
       id: pick.player_id,
       name: pick.player_name,
-      teamCode: tCode
+      teamCode: tCode,
+      points: pick.points_earned
     }
     return acc;
   }, {})
@@ -96,6 +97,11 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
                       <span className="px-2 py-0.5 bg-indigo-950 text-white dark:bg-slate-900 text-xs font-bold rounded shadow-md border border-indigo-800 dark:border-slate-700 max-w-[120px] truncate">
                         {selectedPlayer.name}
                       </span>
+                      {selectedPlayer.points !== null && selectedPlayer.points !== undefined && (
+                        <span className="mt-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-400 text-[11px] font-extrabold rounded shadow-sm border border-green-300 dark:border-green-800">
+                          {selectedPlayer.points} Pts
+                        </span>
+                      )}
                     </div>
                   ) : (
                     // Render Add Button if Empty

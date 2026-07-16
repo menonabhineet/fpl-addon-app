@@ -95,6 +95,11 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
               {isPending ? 'Saving...' : existingPick ? 'Update Pick' : 'Save Pick'}
             </button>
           )}
+          {match.is_finished && existingPick && existingPick.points_earned !== null && (
+            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800">
+              +{existingPick.points_earned} Points
+            </span>
+          )}
         </div>
       </form>
     </div>
