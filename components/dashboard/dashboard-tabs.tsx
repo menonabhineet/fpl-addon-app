@@ -5,11 +5,12 @@ import { useState } from 'react'
 import ScorePredictionsUI from './score-predictions-ui'
 import TeamPredictionUI from './team-prediction-ui'
 import FantasticFourUI from './fantastic-four-ui'
+import LeaderboardUI from './leaderboard-ui'
 
 
-type TabState = 'score' | 'team' | 'fantastic'
+type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard'
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -55,6 +56,12 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         >
           Fantastic Four
         </button>
+        <button 
+          onClick={() => setActiveTab('leaderboard')}
+          className={`flex-1 py-3 text-sm font-semibold border-l border-slate-200 dark:border-slate-800 transition-colors ${activeTab === 'leaderboard' ? 'bg-indigo-600 text-white border-transparent' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+        >
+          Leaderboard
+        </button>
       </div>
 
       {/* Render the Active Game UI */}
@@ -69,6 +76,10 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         
         {activeTab === 'fantastic' && (
           <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks}/>
+        )}
+
+        {activeTab === 'leaderboard' && (
+          <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} />
         )}
       </div>
     </div>
