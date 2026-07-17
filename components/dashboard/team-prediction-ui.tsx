@@ -87,6 +87,47 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
           })}
         </div>
 
+        {selectedTeamId && (
+          <div className="mb-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+            {(() => {
+              const selectedTeam = teams.find((t: any) => t.id === selectedTeamId);
+              if (!selectedTeam) return null;
+              return (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={`https://resources.premierleague.com/premierleague/badges/t${selectedTeam.code}.png`} 
+                      alt={selectedTeam.name}
+                      className="w-16 h-16 object-contain drop-shadow-md"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
+                    />
+                    <div>
+                      <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedTeam.name}</h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Current Position: {selectedTeam.position ? `#${selectedTeam.position}` : 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-6 text-center">
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Next Fixture</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'No fixture'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Recent Form</p>
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        {selectedTeam.form ? (
+                           <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTeam.form}</span>
+                        ) : (
+                          <span className="font-bold text-slate-800 dark:text-slate-200">N/A</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         <div className="flex flex-col items-center border-t border-slate-100 dark:border-slate-800 pt-6">
           <button
             type="submit"

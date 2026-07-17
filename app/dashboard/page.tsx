@@ -58,6 +58,7 @@ export default async function DashboardPage({
 
   // 6. Fetch FPL live stats for form, points, ownership
   let fplElements: any = {};
+  let fplTeams: any = {};
   try {
     const fplData = await fetchBootstrapStatic();
     fplElements = fplData.elements.reduce((acc: any, el: any) => {
@@ -68,6 +69,14 @@ export default async function DashboardPage({
         selected_by_percent: parseFloat(el.selected_by_percent) || 0,
         status: el.status || 'a',
         news: el.news || ''
+      };
+      return acc;
+    }, {});
+    fplTeams = (fplData.teams || []).reduce((acc: any, team: any) => {
+      acc[team.code] = {
+        position: team.position,
+        form: team.form,
+        strength: team.strength,
       };
       return acc;
     }, {});
@@ -107,6 +116,34 @@ export default async function DashboardPage({
     };
   });
 
+  const enhancedTeams = (teams || []).map(t => {
+    const fplT = fplTeams[t.code] || {};
+    
+    // Find upcoming fixture for this gameweek
+    let nextFixtureStr = 'No fixture';
+    if (fixtures) {
+      const teamFixture = fixtures.find((f: any) => {
+        const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
+        const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
+        return home?.code === t.code || away?.code === t.code;
+      });
+      if (teamFixture) {
+        const f = teamFixture as any;
+        const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
+        const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
+        const isHome = home?.code === t.code;
+        const opponent = isHome ? away?.name : home?.name;
+        nextFixtureStr = `${opponent} (${isHome ? 'Home' : 'Away'})`;
+      }
+    }
+
+    return {
+      ...t,
+      ...fplT,
+      next_fixture: nextFixtureStr
+    };
+  });
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 shadow-sm transition-colors duration-300">
@@ -138,7 +175,7 @@ export default async function DashboardPage({
         <DashboardTabs 
           currentGw={selectedGw} 
           fixtures={fixtures || []} 
-          teams={teams || []} 
+          teams={enhancedTeams} 
           players={enhancedPlayers} 
           initialPicks={userPicks || []} 
           initialTeamPick={userTeamPick}
