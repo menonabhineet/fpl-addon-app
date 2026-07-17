@@ -27,7 +27,8 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
           total_team_points: 0,
           total_ff_points: 0,
           total_penalty_points: 0,
-          grand_total: 0
+          grand_total: 0,
+          previous_grand_total: 0
         })
       }
 
@@ -37,10 +38,26 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
       userStat.total_ff_points += record.fantastic_four_points
       userStat.total_penalty_points += record.penalty_points
       userStat.grand_total += record.total_points
+
+      if (record.gameweek_id < currentGwId) {
+        userStat.previous_grand_total += record.total_points
+      }
     })
 
-    // Convert map to array and sort by grand_total descending
-    return Array.from(userMap.values()).sort((a, b) => b.grand_total - a.grand_total)
+    const unsortedData = Array.from(userMap.values())
+
+    const previousSorted = [...unsortedData].sort((a, b) => b.previous_grand_total - a.previous_grand_total)
+    const previousRanks = new Map()
+    previousSorted.forEach((user, index) => {
+      previousRanks.set(user.user_id, index + 1)
+    })
+
+    const currentSorted = unsortedData.sort((a, b) => b.grand_total - a.grand_total)
+
+    return currentSorted.map(user => ({
+      ...user,
+      previous_rank: previousRanks.get(user.user_id)
+    }))
   }, [allScores, filter, currentGwId])
 
   return (
@@ -106,7 +123,18 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                 return (
                   <tr key={row.user_id} className={`transition-colors ${rowBg}`}>
                     <td className="px-4 py-4 text-center align-middle">{rankBadge}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{row.manager_name}</td>
+                    <td className="px-4 py-4 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span>{row.manager_name}</span>
+                        {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
+                          <span className="text-xs font-bold">
+                            {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ +{row.previous_rank - rank}</span>}
+                            {(row.previous_rank - rank) < 0 && <span className="text-red-500">▼ {row.previous_rank - rank}</span>}
+                            {(row.previous_rank - rank) === 0 && <span className="text-slate-400">•</span>}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-300">{row.total_score_points}</td>
                     <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-300">{row.total_team_points}</td>
                     <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-300">{row.total_ff_points}</td>
