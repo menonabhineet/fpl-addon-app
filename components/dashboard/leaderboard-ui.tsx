@@ -43,14 +43,6 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
     return Array.from(userMap.values()).sort((a, b) => b.grand_total - a.grand_total)
   }, [allScores, filter, currentGwId])
 
-  if (!leaderboardData || leaderboardData.length === 0) {
-    return (
-      <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-        <p className="text-slate-500 dark:text-slate-400">No scores found for this filter.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 transition-colors">
@@ -75,8 +67,13 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
-        <div className="overflow-x-auto">
+      {!leaderboardData || leaderboardData.length === 0 ? (
+        <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+          <p className="text-slate-500 dark:text-slate-400">No scores found for this filter.</p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 transition-colors">
               <tr>
@@ -122,6 +119,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
           </table>
         </div>
       </div>
+      )}
     </div>
   )
 }
