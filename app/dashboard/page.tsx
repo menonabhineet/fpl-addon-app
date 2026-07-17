@@ -63,7 +63,9 @@ export default async function DashboardPage({
         form: parseFloat(el.form) || 0,
         points_per_game: parseFloat(el.points_per_game) || 0,
         total_points: el.total_points || 0,
-        selected_by_percent: parseFloat(el.selected_by_percent) || 0
+        selected_by_percent: parseFloat(el.selected_by_percent) || 0,
+        status: el.status || 'a',
+        news: el.news || ''
       };
       return acc;
     }, {});
@@ -71,10 +73,37 @@ export default async function DashboardPage({
     console.error("Failed to fetch FPL stats:", err);
   }
 
-  const enhancedPlayers = (players || []).map(p => ({
-    ...p,
-    ...(fplElements[p.id] || { form: 0, total_points: 0, selected_by_percent: 0 })
-  }));
+  const enhancedPlayers = (players || []).map(p => {
+    const fplData = fplElements[p.id] || { form: 0, total_points: 0, selected_by_percent: 0, status: 'a', news: '' };
+    
+    // Find upcoming fixture for this gameweek
+    let nextFixtureStr = 'No fixture';
+    if (fixtures && p.teams) {
+      const teamData = p.teams as any;
+      const teamCode = Array.isArray(teamData) ? teamData[0]?.code : teamData?.code;
+      if (teamCode) {
+        const playerFixture = fixtures.find((f: any) => {
+          const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
+          const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
+          return home?.code === teamCode || away?.code === teamCode;
+        });
+        if (playerFixture) {
+          const f = playerFixture as any;
+          const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
+          const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
+          const isHome = home?.code === teamCode;
+          const opponent = isHome ? away?.short_name : home?.short_name;
+          nextFixtureStr = `${opponent} (${isHome ? 'H' : 'A'})`;
+        }
+      }
+    }
+    
+    return {
+      ...p,
+      ...fplData,
+      next_fixture: nextFixtureStr
+    };
+  });
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">

@@ -6,6 +6,8 @@ import { submitFantasticFourPrediction } from '@/lib/actions/fantastic-four'
 
 export default function FantasticFourUI({ players, currentGw, initialPicks }: any) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null)
+  const [infoSlot, setInfoSlot] = useState<string | null>(null)
+  const [comparePlayerId, setComparePlayerId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClub, setSelectedClub] = useState('All')
   const [sortBy, setSortBy] = useState('name')
@@ -100,7 +102,14 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
             return (
               <div key={pos} className="flex justify-center">
                 <button 
-                  onClick={() => { setActiveSlot(pos); setSearchQuery(''); }}
+                  onClick={() => { 
+                    if (selectedPlayer) {
+                      setInfoSlot(pos);
+                    } else {
+                      setActiveSlot(pos); 
+                      setSearchQuery(''); 
+                    }
+                  }}
                   className="flex flex-col items-center group transition-all duration-200 hover:scale-105 outline-none"
                 >
                   {selectedPlayer ? (
@@ -145,6 +154,96 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
             )
           })}
         </div>
+
+        {/* Player Info Overlay */}
+        {infoSlot && (() => {
+          const infoPlayerDetails = players.find((p: any) => p.id === picksByPosition[infoSlot]?.id);
+          if (!infoPlayerDetails) return null;
+          return (
+            <div className="absolute inset-0 z-30 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
+                <button onClick={() => setInfoSlot(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10">
+                  ✕
+                </button>
+                <div className="p-5 flex items-center gap-4 border-b border-slate-100 dark:border-slate-700 bg-indigo-50/50 dark:bg-slate-900/50">
+                  <img 
+                    src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${picksByPosition[infoSlot].teamCode}-66.webp`} 
+                    alt="Jersey"
+                    className="w-16 h-auto object-contain drop-shadow-md"
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp' }}
+                  />
+                  <div>
+                    <h3 className="font-bold text-xl text-slate-900 dark:text-white">{infoPlayerDetails.name}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                      {infoPlayerDetails.teams ? (Array.isArray(infoPlayerDetails.teams) ? infoPlayerDetails.teams[0]?.name : infoPlayerDetails.teams.name) : 'Unknown Club'} • {infoSlot}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="p-5 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                      <p className="text-[10px] uppercase font-bold text-slate-500">Upcoming Fixture</p>
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">{infoPlayerDetails.next_fixture || 'No fixture'}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                      <p className="text-[10px] uppercase font-bold text-slate-500">Status</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {infoPlayerDetails.status === 'a' ? (
+                          <><span className="w-2 h-2 rounded-full bg-green-500"></span><span className="font-semibold text-green-700 dark:text-green-400">Available</span></>
+                        ) : infoPlayerDetails.status === 'i' ? (
+                          <><span className="w-2 h-2 rounded-full bg-red-500"></span><span className="font-semibold text-red-700 dark:text-red-400">Injured</span></>
+                        ) : infoPlayerDetails.status === 'd' ? (
+                          <><span className="w-2 h-2 rounded-full bg-yellow-500"></span><span className="font-semibold text-yellow-700 dark:text-yellow-400">Doubtful</span></>
+                        ) : infoPlayerDetails.status === 's' ? (
+                          <><span className="w-2 h-2 rounded-full bg-red-500"></span><span className="font-semibold text-red-700 dark:text-red-400">Suspended</span></>
+                        ) : (
+                          <><span className="w-2 h-2 rounded-full bg-orange-500"></span><span className="font-semibold text-orange-700 dark:text-orange-400">Unknown</span></>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                      <p className="text-xs text-slate-500">Pts</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.total_points}</p>
+                    </div>
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                      <p className="text-xs text-slate-500">Form</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.form}</p>
+                    </div>
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                      <p className="text-xs text-slate-500">PPG</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.points_per_game}</p>
+                    </div>
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                      <p className="text-xs text-slate-500">TSB</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.selected_by_percent}%</p>
+                    </div>
+                  </div>
+                  
+                  {infoPlayerDetails.news && (
+                    <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-100 dark:border-red-900/50">
+                      {infoPlayerDetails.news}
+                    </p>
+                  )}
+
+                  <button 
+                    onClick={() => {
+                      setInfoSlot(null);
+                      setActiveSlot(infoSlot);
+                      setSearchQuery('');
+                    }}
+                    className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md"
+                  >
+                    Swap Player
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Player Selection Overlay Drawer */}
         {activeSlot && (
@@ -202,6 +301,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
                     <div className="flex flex-col">
                       <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name} <span className="text-xs font-normal text-slate-500">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
                       <div className="flex gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
                         <span>Form: <strong>{p.form}</strong></span>
                         <span>PPG: <strong>{p.points_per_game}</strong></span>
                         <span>Pts: <strong>{p.total_points}</strong></span>
@@ -209,16 +309,131 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
                       </div>
                     </div>
 
-                    <button 
-                      type="submit" 
-                      disabled={isPending}
-                      className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm ml-2"
-                    >
-                      {isPending ? '...' : 'Pick'}
-                    </button>
+                    <div className="flex items-center">
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id); }}
+                        className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-md text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                      >
+                        Compare
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={isPending}
+                        className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm ml-2"
+                      >
+                        {isPending ? '...' : 'Pick'}
+                      </button>
+                    </div>
                   </form>
                 ))
               )}
+              {/* Comparison Overlay */}
+              {comparePlayerId && (() => {
+                const currentPickId = picksByPosition[activeSlot]?.id;
+                const currentPlayer = currentPickId ? players.find((p: any) => p.id === currentPickId) : null;
+                const candidatePlayer = players.find((p: any) => p.id === comparePlayerId);
+                
+                if (!candidatePlayer) return null;
+
+                const renderCard = (player: any, title: string) => {
+                  if (!player) {
+                    return (
+                      <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center p-4 min-h-[300px]">
+                        <span className="text-slate-500 font-medium">Empty Slot</span>
+                      </div>
+                    );
+                  }
+                  
+                  const teamCode = Array.isArray(player.teams) ? player.teams[0]?.code : player.teams?.code || 0;
+                  return (
+                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
+                      <div className="bg-slate-100 dark:bg-slate-900 py-1.5 px-3 text-xs font-bold text-center text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                        {title}
+                      </div>
+                      <div className="p-3 flex flex-col items-center gap-2 border-b border-slate-100 dark:border-slate-700 bg-indigo-50/30 dark:bg-slate-900/30">
+                        <img 
+                          src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${teamCode}-66.webp`} 
+                          alt="Jersey"
+                          className="w-12 h-auto object-contain drop-shadow-sm"
+                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp' }}
+                        />
+                        <div className="text-center">
+                          <h3 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">{player.name}</h3>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                            {player.teams ? (Array.isArray(player.teams) ? player.teams[0]?.name : player.teams.name) : 'Unknown'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
+                        <div className="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-slate-500">Status</span>
+                          <strong className="flex items-center gap-1 text-slate-800 dark:text-slate-200">
+                            {player.status === 'a' && <><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>Available</>}
+                            {player.status === 'i' && <><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Injured</>}
+                            {player.status === 'd' && <><span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Doubtful</>}
+                            {player.status === 's' && <><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Suspended</>}
+                            {!['a','i','d','s'].includes(player.status) && <><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Unknown</>}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-slate-500">Fix</span>
+                          <strong className="text-slate-800 dark:text-slate-200">{player.next_fixture || 'None'}</strong>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-slate-500">Pts</span>
+                          <strong className="text-slate-800 dark:text-slate-200">{player.total_points}</strong>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-slate-500">Form</span>
+                          <strong className="text-slate-800 dark:text-slate-200">{player.form}</strong>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-slate-500">PPG</span>
+                          <strong className="text-slate-800 dark:text-slate-200">{player.points_per_game}</strong>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] pb-1 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-slate-500">TSB</span>
+                          <strong className="text-slate-800 dark:text-slate-200">{player.selected_by_percent}%</strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="absolute inset-0 z-30 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
+                      <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                        <h3 className="font-bold text-lg dark:text-white">Compare Players</h3>
+                        <button onClick={() => setComparePlayerId(null)} className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors">✕</button>
+                      </div>
+                      <div className="p-4 flex flex-row gap-4 h-full max-h-[70vh] overflow-y-auto">
+                        {renderCard(currentPlayer, "Current Pick")}
+                        <div className="flex flex-col justify-center items-center font-bold text-slate-300 dark:text-slate-600 text-xl">VS</div>
+                        {renderCard(candidatePlayer, "Candidate")}
+                      </div>
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                        <button onClick={() => setComparePlayerId(null)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                          Cancel
+                        </button>
+                        <form action={formAction}>
+                          <input type="hidden" name="playerId" value={candidatePlayer.id} />
+                          <input type="hidden" name="playerName" value={candidatePlayer.name} />
+                          <input type="hidden" name="position" value={candidatePlayer.position} />
+                          <button 
+                            type="submit"
+                            disabled={isPending}
+                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm"
+                          >
+                            {isPending ? 'Swapping...' : 'Swap to Candidate'}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
