@@ -58,7 +58,6 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
             <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm sm:text-base truncate transition-colors">{match.home_team.short_name}</span>
           </div>
 
-          {/* Goals Inputs - Using defaultValue to pre-fill from DB */}
           <div className="flex items-center gap-1.5 w-2/12 justify-center">
             <input 
               type="number" name="homeScore" min="0" required disabled={match.is_finished}
@@ -82,9 +81,14 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
 
         {/* Action Button */}
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 transition-colors">
-          <div className="text-xs min-h-[1.25rem]">
+          <div className="text-xs min-h-[1.25rem] flex items-center gap-2">
             {state.success && <span className="text-green-600 dark:text-green-400 font-semibold">✓ {state.message}</span>}
             {state.error && <span className="text-red-600 dark:text-red-400 font-semibold">⚠ {state.error}</span>}
+            {match.is_finished && match.home_score !== null && match.away_score !== null && (
+              <span className="text-slate-600 dark:text-slate-400 font-bold">
+                Actual Score: {match.home_score} - {match.away_score}
+              </span>
+            )}
           </div>
           
           {!match.is_finished && (
