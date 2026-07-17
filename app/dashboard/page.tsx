@@ -34,10 +34,12 @@ export default async function DashboardPage({
   const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true })
   const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true })
 
-  // 4. Fetch user's historical picks for this Gameweek
-  const { data: userPicks } = await supabase.from('fantastic_four').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId)
-  const { data: userTeamPick } = await supabase.from('team_predictions').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId).maybeSingle()
-  
+  // 4. Fetch user's historical picks for this season to enforce constraints
+  const { data: allUserFantasticPicks } = await supabase.from('fantastic_four').select('*').eq('user_id', user.id)
+  const userPicks = allUserFantasticPicks?.filter((p: any) => p.gameweek_id === selectedGwId) || []
+
+  const { data: allUserTeamPicks } = await supabase.from('team_predictions').select('*').eq('user_id', user.id)
+  const userTeamPick = allUserTeamPicks?.find((p: any) => p.gameweek_id === selectedGwId) || null
   let userScorePicks: any[] = []
   if (fixtures && fixtures.length > 0) {
     const fixtureIds = fixtures.map((f: any) => f.id)
@@ -142,6 +144,8 @@ export default async function DashboardPage({
           initialTeamPick={userTeamPick}
           initialScorePicks={userScorePicks || []}
           leaderboard={allScores || []} // We now pass RAW scores, not the aggregated view
+          allUserTeamPicks={allUserTeamPicks || []}
+          allUserFantasticPicks={allUserFantasticPicks || []}
         />
       </main>
     </div>

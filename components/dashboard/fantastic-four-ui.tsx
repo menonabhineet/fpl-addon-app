@@ -4,7 +4,7 @@
 import { useState, useActionState } from 'react'
 import { submitFantasticFourPrediction } from '@/lib/actions/fantastic-four'
 
-export default function FantasticFourUI({ players, currentGw, initialPicks }: any) {
+export default function FantasticFourUI({ players, currentGw, initialPicks, allUserFantasticPicks = [] }: any) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null)
   const [infoSlot, setInfoSlot] = useState<string | null>(null)
   const [comparePlayerId, setComparePlayerId] = useState<string | null>(null)
@@ -48,6 +48,30 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
     }
     return acc;
   }, {})
+
+  const isPlayerDisabled = (p: any) => {
+    // If the player is the current pick for this gameweek, they are not disabled from this check 
+    if (picksByPosition[p.position]?.id === p.id) return false;
+
+    const previousPicksForPlayer = allUserFantasticPicks.filter(
+      (pick: any) => pick.player_id === p.id && pick.gameweek_id !== currentGw.id
+    );
+
+    if (p.position === 'DEF' || p.position === 'MID') {
+      return previousPicksForPlayer.length > 0;
+    }
+
+    if (p.position === 'GK' || p.position === 'FWD') {
+      const isFirstHalf = currentGw.id <= 19;
+      const pickedInCurrentHalf = previousPicksForPlayer.some((pick: any) => {
+        if (isFirstHalf) return pick.gameweek_id <= 19;
+        return pick.gameweek_id > 19;
+      });
+      return pickedInCurrentHalf;
+    }
+
+    return false;
+  };
 
   // Extract unique clubs for the filter
   const uniqueClubs = Array.from(new Set(players.map((p: any) => {
@@ -292,41 +316,49 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
               {filteredPlayers.length === 0 ? (
                 <p className="text-center text-slate-500 mt-4">No players found.</p>
               ) : (
-                filteredPlayers.map((p: any) => (
-                  <form action={formAction} key={p.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors">
-                    <input type="hidden" name="playerId" value={p.id} />
-                    <input type="hidden" name="playerName" value={p.name} />
-                    <input type="hidden" name="position" value={p.position} />
-                    
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name} <span className="text-xs font-normal text-slate-500">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
-                      <div className="flex gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                        <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
-                        <span>Form: <strong>{p.form}</strong></span>
-                        <span>PPG: <strong>{p.points_per_game}</strong></span>
-                        <span>Pts: <strong>{p.total_points}</strong></span>
-                        <span>TSB: <strong>{p.selected_by_percent}%</strong></span>
-                      </div>
-                    </div>
+                filteredPlayers.map((p: any) => {
+                  const disabled = isPlayerDisabled(p);
 
-                    <div className="flex items-center">
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id); }}
-                        className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-md text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm"
-                      >
-                        Compare
-                      </button>
-                      <button 
-                        type="submit" 
-                        disabled={isPending}
-                        className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm ml-2"
-                      >
-                        {isPending ? '...' : 'Pick'}
-                      </button>
-                    </div>
-                  </form>
-                ))
+                  return (
+                    <form action={formAction} key={p.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors">
+                      <input type="hidden" name="playerId" value={p.id} />
+                      <input type="hidden" name="playerName" value={p.name} />
+                      <input type="hidden" name="position" value={p.position} />
+                      
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name} <span className="text-xs font-normal text-slate-500">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
+                        <div className="flex gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
+                          <span>Form: <strong>{p.form}</strong></span>
+                          <span>PPG: <strong>{p.points_per_game}</strong></span>
+                          <span>Pts: <strong>{p.total_points}</strong></span>
+                          <span>TSB: <strong>{p.selected_by_percent}%</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center">
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id); }}
+                          className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-md text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                        >
+                          Compare
+                        </button>
+                        <button 
+                          type="submit" 
+                          disabled={isPending || disabled}
+                          className={`px-4 py-1.5 rounded-md text-sm font-bold shadow-sm ml-2 transition-colors ${
+                            disabled 
+                              ? 'bg-slate-400 text-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400' 
+                              : 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-slate-400'
+                          }`}
+                        >
+                          {isPending ? '...' : disabled ? 'Max Reached' : 'Pick'}
+                        </button>
+                      </div>
+                    </form>
+                  )
+                })
               )}
               {/* Comparison Overlay */}
               {comparePlayerId && (() => {
@@ -423,10 +455,14 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
                           <input type="hidden" name="position" value={candidatePlayer.position} />
                           <button 
                             type="submit"
-                            disabled={isPending}
-                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm"
+                            disabled={isPending || isPlayerDisabled(candidatePlayer)}
+                            className={`px-6 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors ${
+                              isPlayerDisabled(candidatePlayer)
+                                ? 'bg-slate-400 text-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-slate-400'
+                            }`}
                           >
-                            {isPending ? 'Swapping...' : 'Swap to Candidate'}
+                            {isPending ? 'Swapping...' : isPlayerDisabled(candidatePlayer) ? 'Max Reached' : 'Swap to Candidate'}
                           </button>
                         </form>
                       </div>

@@ -4,7 +4,7 @@
 import { useState, useActionState, useEffect } from 'react'
 import { submitTeamPrediction } from '@/lib/actions/team-prediction'
 
-export default function TeamPredictionUI({ teams, currentGw, initialTeamPick }: any) {
+export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [] }: any) {
   // Initialize state with the existing pick if it exists
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeamPick?.team_id || null)
   
@@ -33,6 +33,11 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick }: 
   const hasExistingPick = !!initialTeamPick;
   const isSelectionChanged = initialTeamPick?.team_id !== selectedTeamId;
 
+  // Helper to calculate previous picks for a team (excluding current gameweek)
+  const getTeamPickCount = (teamId: number) => {
+    return allUserTeamPicks.filter((p: any) => p.team_id === teamId && p.gameweek_id !== currentGw.id).length;
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 text-sm text-indigo-900 dark:text-indigo-300">
@@ -49,25 +54,37 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick }: 
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8">
-          {teams.map((team: any) => (
-            <div 
-              key={team.id}
-              onClick={() => setSelectedTeamId(team.id)}
-              className={`cursor-pointer rounded-xl border-2 p-4 flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
-                selectedTeamId === team.id 
-                  ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/40 shadow-md transform scale-105' 
-                  : 'border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 bg-slate-50 dark:bg-slate-800/50'
-              }`}
-            >
-              <img 
-                src={`https://resources.premierleague.com/premierleague/badges/t${team.code}.png`} 
-                alt={team.name}
-                className="w-12 h-12 object-contain drop-shadow-sm"
-                onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
-              />
-              <span className="text-xs font-bold text-center text-slate-800 dark:text-slate-200">{team.short_name}</span>
-            </div>
-          ))}
+          {teams.map((team: any) => {
+            const pickCount = getTeamPickCount(team.id);
+            const isDisabled = pickCount >= 2 && team.id !== initialTeamPick?.team_id; // Allow picking if it's the current pick (even if it somehow got to 2)
+
+            return (
+              <div 
+                key={team.id}
+                onClick={() => {
+                  if (!isDisabled) setSelectedTeamId(team.id)
+                }}
+                className={`rounded-xl border-2 p-4 flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
+                  isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800/80 grayscale' : 'cursor-pointer'
+                } ${
+                  selectedTeamId === team.id && !isDisabled
+                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/40 shadow-md transform scale-105' 
+                    : !isDisabled ? 'border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 bg-slate-50 dark:bg-slate-800/50' : 'border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                <img 
+                  src={`https://resources.premierleague.com/premierleague/badges/t${team.code}.png`} 
+                  alt={team.name}
+                  className="w-12 h-12 object-contain drop-shadow-sm"
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
+                />
+                <div className="flex flex-col items-center">
+                  <span className="text-xs font-bold text-center text-slate-800 dark:text-slate-200">{team.short_name}</span>
+                  {isDisabled && <span className="text-[10px] text-red-500 font-semibold mt-1">Max Reached</span>}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div className="flex flex-col items-center border-t border-slate-100 dark:border-slate-800 pt-6">

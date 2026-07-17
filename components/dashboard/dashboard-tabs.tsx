@@ -10,7 +10,7 @@ import LeaderboardUI from './leaderboard-ui'
 
 type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard'
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -71,11 +71,11 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         )}
         
         {activeTab === 'team' && (
-          <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} />
+          <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} />
         )}
         
         {activeTab === 'fantastic' && (
-          <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks}/>
+          <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks} allUserFantasticPicks={allUserFantasticPicks} />
         )}
 
         {activeTab === 'leaderboard' && (
