@@ -7,6 +7,8 @@ import { submitFantasticFourPrediction } from '@/lib/actions/fantastic-four'
 export default function FantasticFourUI({ players, currentGw, initialPicks }: any) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedClub, setSelectedClub] = useState('All')
+  const [sortBy, setSortBy] = useState('name')
 
   const initialState = { success: false, message: '', error: '' }
   const [state, formAction, isPending] = useActionState(
@@ -45,10 +47,33 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
     return acc;
   }, {})
 
-  const filteredPlayers = players.filter((p: any) => 
-    p.position === activeSlot && 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Extract unique clubs for the filter
+  const uniqueClubs = Array.from(new Set(players.map((p: any) => {
+    if (p.teams) {
+      return Array.isArray(p.teams) ? p.teams[0]?.name : p.teams.name
+    }
+    return null;
+  }).filter(Boolean))).sort();
+
+  let filteredPlayers = players.filter((p: any) => {
+    if (p.position !== activeSlot) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    
+    if (selectedClub !== 'All') {
+      const clubName = p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.name : p.teams.name) : null;
+      if (clubName !== selectedClub) return false;
+    }
+    
+    return true;
+  });
+
+  filteredPlayers = filteredPlayers.sort((a: any, b: any) => {
+    if (sortBy === 'form') return (b.form || 0) - (a.form || 0);
+    if (sortBy === 'points_per_game') return (b.points_per_game || 0) - (a.points_per_game || 0);
+    if (sortBy === 'total_points') return (b.total_points || 0) - (a.total_points || 0);
+    if (sortBy === 'selected_by_percent') return (b.selected_by_percent || 0) - (a.selected_by_percent || 0);
+    return a.name.localeCompare(b.name);
+  });
 
   const positions = ['FWD', 'MID', 'DEF', 'GK']
 
@@ -129,7 +154,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
               <button onClick={() => setActiveSlot(null)} className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors">✕</button>
             </div>
             
-            <div className="p-4 bg-white dark:bg-slate-900">
+            <div className="p-4 bg-white dark:bg-slate-900 space-y-3">
               <input 
                 type="text" 
                 placeholder="Search player name..." 
@@ -137,6 +162,31 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-colors outline-none"
               />
+              
+              <div className="flex gap-2">
+                <select 
+                  value={selectedClub}
+                  onChange={(e) => setSelectedClub(e.target.value)}
+                  className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="All">All Clubs</option>
+                  {(uniqueClubs as string[]).map((club) => (
+                    <option key={club} value={club}>{club}</option>
+                  ))}
+                </select>
+
+                <select 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="name">Sort by Name</option>
+                  <option value="form">Sort by Form</option>
+                  <option value="points_per_game">Sort by PPG</option>
+                  <option value="total_points">Sort by Total Points</option>
+                  <option value="selected_by_percent">Sort by Ownership</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 bg-white dark:bg-slate-900">
@@ -149,11 +199,20 @@ export default function FantasticFourUI({ players, currentGw, initialPicks }: an
                     <input type="hidden" name="playerName" value={p.name} />
                     <input type="hidden" name="position" value={p.position} />
                     
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name}</span>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name} <span className="text-xs font-normal text-slate-500">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
+                      <div className="flex gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        <span>Form: <strong>{p.form}</strong></span>
+                        <span>PPG: <strong>{p.points_per_game}</strong></span>
+                        <span>Pts: <strong>{p.total_points}</strong></span>
+                        <span>TSB: <strong>{p.selected_by_percent}%</strong></span>
+                      </div>
+                    </div>
+
                     <button 
                       type="submit" 
                       disabled={isPending}
-                      className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm"
+                      className="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-bold hover:bg-indigo-500 disabled:bg-slate-400 transition-colors shadow-sm ml-2"
                     >
                       {isPending ? '...' : 'Pick'}
                     </button>

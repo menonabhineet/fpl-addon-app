@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardTabs from '@/components/dashboard/dashboard-tabs'
 import ThemeToggle from '@/components/theme-toggle'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
+import { fetchBootstrapStatic } from '@/lib/fpl-api'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data
 export const dynamic = 'force-dynamic' 
@@ -31,7 +32,7 @@ export default async function DashboardPage({
   // 3. Fetch data specifically for the SELECTED Gameweek
   const { data: fixtures } = await supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true })
   const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true })
-  const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code)').order('name', { ascending: true })
+  const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true })
 
   // 4. Fetch user's historical picks for this Gameweek
   const { data: userPicks } = await supabase.from('fantastic_four').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId)
@@ -52,6 +53,28 @@ export default async function DashboardPage({
   if (scoresError) {
     console.error("Failed to fetch leaderboard data:", scoresError)
   }
+
+  // 6. Fetch FPL live stats for form, points, ownership
+  let fplElements: any = {};
+  try {
+    const fplData = await fetchBootstrapStatic();
+    fplElements = fplData.elements.reduce((acc: any, el: any) => {
+      acc[el.id] = {
+        form: parseFloat(el.form) || 0,
+        points_per_game: parseFloat(el.points_per_game) || 0,
+        total_points: el.total_points || 0,
+        selected_by_percent: parseFloat(el.selected_by_percent) || 0
+      };
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("Failed to fetch FPL stats:", err);
+  }
+
+  const enhancedPlayers = (players || []).map(p => ({
+    ...p,
+    ...(fplElements[p.id] || { form: 0, total_points: 0, selected_by_percent: 0 })
+  }));
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
@@ -85,7 +108,7 @@ export default async function DashboardPage({
           currentGw={selectedGw} 
           fixtures={fixtures || []} 
           teams={teams || []} 
-          players={players || []} 
+          players={enhancedPlayers} 
           initialPicks={userPicks || []} 
           initialTeamPick={userTeamPick}
           initialScorePicks={userScorePicks || []}
