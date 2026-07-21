@@ -320,14 +320,14 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                   const disabled = isPlayerDisabled(p);
 
                   return (
-                    <form action={formAction} key={p.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors">
+                    <form action={formAction} key={p.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors">
                       <input type="hidden" name="playerId" value={p.id} />
                       <input type="hidden" name="playerName" value={p.name} />
                       <input type="hidden" name="position" value={p.position} />
                       
-                      <div className="flex flex-col">
+                      <div className="flex flex-col w-full sm:w-auto">
                         <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name} <span className="text-xs font-normal text-slate-500">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
-                        <div className="flex gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                           <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
                           <span>Form: <strong>{p.form}</strong></span>
                           <span>PPG: <strong>{p.points_per_game}</strong></span>
@@ -336,7 +336,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                         </div>
                       </div>
 
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-end w-full sm:w-auto mt-1 sm:mt-0">
                         <button 
                           type="button"
                           onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id); }}
@@ -434,18 +434,18 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                 };
 
                 return (
-                  <div className="absolute inset-0 z-30 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
-                      <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <div className="absolute inset-0 z-30 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200 max-h-full">
+                      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shrink-0">
                         <h3 className="font-bold text-lg dark:text-white">Compare Players</h3>
                         <button onClick={() => setComparePlayerId(null)} className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors">✕</button>
                       </div>
-                      <div className="p-4 flex flex-row gap-4 h-full max-h-[70vh] overflow-y-auto">
+                      <div className="p-2 sm:p-4 flex flex-row gap-2 sm:gap-4 flex-1 overflow-y-auto">
                         {renderCard(currentPlayer, "Current Pick")}
                         <div className="flex flex-col justify-center items-center font-bold text-slate-300 dark:text-slate-600 text-xl">VS</div>
                         {renderCard(candidatePlayer, "Candidate")}
                       </div>
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                      <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2 sm:gap-3 shrink-0">
                         <button onClick={() => setComparePlayerId(null)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
                           Cancel
                         </button>
