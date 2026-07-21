@@ -26,7 +26,7 @@ export default function GameweekSelector({ allGameweeks, selectedGwId }: { allGa
     <select 
       value={selectedGwId} 
       onChange={handleChange}
-      className="ml-4 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+      className="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
     >
       {allGameweeks.map((gw) => (
         <option key={gw.id} value={gw.id}>
