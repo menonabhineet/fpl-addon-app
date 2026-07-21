@@ -7,6 +7,12 @@
   --foreground: #171717;
 }
 
+
+html {
+  font-size: 80%;
+  /* Scales down all Tailwind rem units (padding, margins, font-sizes) */
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
