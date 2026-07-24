@@ -1,4 +1,6 @@
 // app/api/cron/sync-static/route.ts
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin'; // Switch to admin client
 import { fetchBootstrapStatic } from '@/lib/fpl-api';
@@ -15,10 +17,10 @@ export async function GET(request: Request) {
       short_name: team.short_name,
       code: team.code,
     }));
-    
+
     const { error: teamsError } = await supabase
       .from('teams')
-      .upsert(teamsData);
+      .upsert(teamsData, { onConflict: 'id' });
 
     if (teamsError) throw teamsError;
 
@@ -32,14 +34,14 @@ export async function GET(request: Request) {
 
     const { error: gwError } = await supabase
       .from('gameweeks')
-      .upsert(gameweeksData);
+      .upsert(gameweeksData, { onConflict: 'id' });
 
     if (gwError) throw gwError;
 
     // 3. Transform and Load Players
     // FPL API maps positions as numbers: 1=GK, 2=DEF, 3=MID, 4=FWD
     const positionMap: Record<number, string> = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
-    
+
     const playersData = data.elements.map((player: any) => ({
       id: player.id,
       name: player.web_name,
@@ -56,6 +58,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, message: 'Static data synced successfully' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    
+
   }
 }

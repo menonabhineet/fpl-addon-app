@@ -1,4 +1,6 @@
 // app/api/cron/sync-results/route.ts
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -7,7 +9,7 @@ export async function GET() {
     const supabase = await createClient()
 
     // 1. Fetch live fixture data from the official FPL API
-    const response = await fetch('https://fantasy.premierleague.com/api/fixtures/')
+    const response = await fetch('https://fantasy.premierleague.com/api/fixtures/', { cache: 'no-store' })
     if (!response.ok) throw new Error('Failed to fetch FPL fixtures')
     const allFixtures = await response.json()
 
@@ -35,9 +37,9 @@ export async function GET() {
       if (!error) updateCount++;
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Successfully synced ${updateCount} live/completed fixtures.` 
+    return NextResponse.json({
+      success: true,
+      message: `Successfully synced ${updateCount} live/completed fixtures.`
     })
 
   } catch (error: any) {

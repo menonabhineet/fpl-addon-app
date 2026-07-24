@@ -1,4 +1,6 @@
 // app/api/cron/sync-fixtures/route.ts
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchFixtures } from '@/lib/fpl-api';
@@ -29,10 +31,10 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Fixtures synced successfully', 
-      matches_processed: fixturesData.length 
+    return NextResponse.json({
+      success: true,
+      message: 'Fixtures synced successfully',
+      matches_processed: fixturesData.length
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

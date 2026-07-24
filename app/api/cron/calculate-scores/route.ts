@@ -1,4 +1,6 @@
 // app/api/cron/calculate-scores/route.ts
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin' // Upgraded to Admin Client
 
@@ -23,7 +25,7 @@ export async function GET() {
     // ==========================================
     // 1. GRADE INDIVIDUAL ROWS (Scores, Teams, FF)
     // ==========================================
-    
+
     // A. Grade Score Predictions
     const { data: scorePicks } = await supabase.from('score_predictions').select('*').in('fixture_id', fixtureIds)
     if (scorePicks) {
@@ -42,7 +44,7 @@ export async function GET() {
         }
         const actualTotalGoals = match.home_score + match.away_score
         const predictedTotalGoals = pick.predicted_home_score + pick.predicted_away_score
-        
+
         if (actualOutcome === predOutcome && actualTotalGoals >= 5 && predictedTotalGoals >= 5) {
           points += 1
         }
@@ -66,10 +68,10 @@ export async function GET() {
     }
 
     // C. Grade Fantastic Four
-    const fplLiveRes = await fetch(`https://fantasy.premierleague.com/api/event/${TARGET_GW}/live/`)
+    const fplLiveRes = await fetch(`https://fantasy.premierleague.com/api/event/${TARGET_GW}/live/`, { cache: 'no-store' })
     const fplLiveData = await fplLiveRes.json()
     const { data: f4Picks } = await supabase.from('fantastic_four').select('*').eq('gameweek_id', TARGET_GW)
-    
+
     if (f4Picks) {
       for (const pick of f4Picks) {
         const playerStats = fplLiveData.elements.find((el: any) => el.id === pick.player_id)
@@ -81,7 +83,7 @@ export async function GET() {
     // ==========================================
     // 2. THE PENALTY AUDIT & LEADERBOARD AGGREGATION
     // ==========================================
-    
+
     // Fetch every user registered in your Supabase authentication system
     const { data: { users }, error: authError } = await supabase.auth.admin.listUsers()
     if (authError) throw authError
@@ -125,14 +127,14 @@ export async function GET() {
         fantastic_four_points: ffPts,
         penalty_points: penaltyPts,
         total_points: totalPts
-      }, { 
+      }, {
         onConflict: 'user_id, gameweek_id' // If we run this script twice, it just updates the existing row
       })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Successfully graded predictions, applied penalties, and updated the leaderboard cache!' 
+    return NextResponse.json({
+      success: true,
+      message: 'Successfully graded predictions, applied penalties, and updated the leaderboard cache!'
     })
 
   } catch (error: any) {
