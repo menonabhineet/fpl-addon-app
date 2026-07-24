@@ -4,6 +4,20 @@ import { useState, useMemo } from 'react'
 
 export default function LeaderboardUI({ allScores, currentGwId }: { allScores: any[], currentGwId: number }) {
   const [filter, setFilter] = useState<'overall' | 'gameweek'>('overall')
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'grand_total', direction: 'desc' })
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'desc'
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc'
+    }
+    setSortConfig({ key, direction })
+  }
+
+  const getSortIcon = (key: string) => {
+    if (sortConfig.key !== key) return null
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
+  }
 
   // Dynamically calculate the leaderboard based on the filter
   const leaderboardData = useMemo(() => {
@@ -52,13 +66,26 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
       previousRanks.set(user.user_id, index + 1)
     })
 
-    const currentSorted = unsortedData.sort((a, b) => b.grand_total - a.grand_total)
+    const currentSorted = unsortedData.sort((a, b) => {
+      const aValue = a[sortConfig.key]
+      const bValue = b[sortConfig.key]
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
+      }
+
+      return sortConfig.direction === 'asc'
+        ? aValue - bValue
+        : bValue - aValue
+    })
 
     return currentSorted.map(user => ({
       ...user,
       previous_rank: previousRanks.get(user.user_id)
     }))
-  }, [allScores, filter, currentGwId])
+  }, [allScores, filter, currentGwId, sortConfig])
 
   return (
     <div className="space-y-6">
@@ -96,12 +123,24 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
               <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 transition-colors">
                 <tr>
                   <th scope="col" className="px-4 py-4 text-center font-bold">Rank</th>
-                  <th scope="col" className="px-4 py-4 font-bold">Manager</th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold">Scores</th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold">Team</th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold">F4</th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold text-red-500 dark:text-red-400">Penalties</th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold text-indigo-600 dark:text-indigo-400 text-base">Total</th>
+                  <th scope="col" className="px-4 py-4 font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('manager_name')}>
+                    Manager<span className="inline-block w-4 text-center">{getSortIcon('manager_name')}</span>
+                  </th>
+                  <th scope="col" className="px-4 py-4 text-center font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_score_points')}>
+                    Scores<span className="inline-block w-4 text-center">{getSortIcon('total_score_points')}</span>
+                  </th>
+                  <th scope="col" className="px-4 py-4 text-center font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_team_points')}>
+                    Team<span className="inline-block w-4 text-center">{getSortIcon('total_team_points')}</span>
+                  </th>
+                  <th scope="col" className="px-4 py-4 text-center font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_ff_points')}>
+                    F4<span className="inline-block w-4 text-center">{getSortIcon('total_ff_points')}</span>
+                  </th>
+                  <th scope="col" className="px-4 py-4 text-center font-bold text-red-500 dark:text-red-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_penalty_points')}>
+                    Penalties<span className="inline-block w-4 text-center">{getSortIcon('total_penalty_points')}</span>
+                  </th>
+                  <th scope="col" className="px-4 py-4 text-center font-bold text-indigo-600 dark:text-indigo-400 text-base cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('grand_total')}>
+                    Total<span className="inline-block w-4 text-center">{getSortIcon('grand_total')}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -146,6 +185,32 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Sort Controls */}
+          <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+            <span className="text-xs font-bold text-slate-500 uppercase">Sort by:</span>
+            <div className="flex items-center gap-2">
+              <select
+                className="text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1 text-slate-700 dark:text-slate-300"
+                value={sortConfig.key}
+                onChange={(e) => setSortConfig({ key: e.target.value, direction: sortConfig.direction })}
+              >
+                <option value="grand_total">Total Points</option>
+                <option value="total_score_points">Scores</option>
+                <option value="total_team_points">Team</option>
+                <option value="total_ff_points">F4</option>
+                <option value="total_penalty_points">Penalties</option>
+                <option value="manager_name">Manager</option>
+              </select>
+              <button
+                className="p-1.5 w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                onClick={() => setSortConfig({ key: sortConfig.key, direction: sortConfig.direction === 'desc' ? 'asc' : 'desc' })}
+                aria-label="Toggle sorting order"
+              >
+                {sortConfig.direction === 'desc' ? '↓' : '↑'}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Card View */}

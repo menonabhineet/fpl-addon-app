@@ -222,6 +222,7 @@ export async function GET(request: Request) {
       // Audit Score Picks
       const hasScorePicks = userScorePicksMap.has(user.id)
       if (!hasScorePicks) {
+        scorePts = -1
         penaltyPts -= 1 // Penalty for missing score predictions
       } else {
         scorePts = userScorePicksMap.get(user.id) || 0
@@ -230,6 +231,7 @@ export async function GET(request: Request) {
       // Audit Team Pick
       const hasTeamPick = userTeamPicksMap.has(user.id)
       if (!hasTeamPick) {
+        teamPts = -1
         penaltyPts -= 1 // Penalty for missing team prediction
       } else {
         teamPts = userTeamPicksMap.get(user.id) || 0
@@ -238,12 +240,13 @@ export async function GET(request: Request) {
       // Audit Fantastic Four
       const f4Data = userF4PicksMap.get(user.id)
       if (!f4Data || f4Data.count === 0) {
+        ffPts = -5
         penaltyPts -= 5 // Penalty for missing Fantastic Four draft
       } else {
         ffPts = f4Data.points
       }
 
-      const totalPts = scorePts + teamPts + ffPts + penaltyPts
+      const totalPts = scorePts + teamPts + ffPts // penaltyPts is already accounted for in the individual scores
 
       leaderboardUpserts.push({
         user_id: user.id,
