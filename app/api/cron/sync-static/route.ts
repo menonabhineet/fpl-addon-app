@@ -1,13 +1,14 @@
 // app/api/cron/sync-static/route.ts
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
+
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin'; // Switch to admin client
+import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchBootstrapStatic } from '@/lib/fpl-api';
 
 export async function GET(request: Request) {
   try {
-    const supabase = createAdminClient(); // Initialized with service_role key
+    const supabase = createAdminClient();
     const data = await fetchBootstrapStatic();
 
     // 1. Transform and Load Teams
@@ -22,7 +23,19 @@ export async function GET(request: Request) {
       .from('teams')
       .upsert(teamsData, { onConflict: 'id' });
 
-    if (teamsError) throw teamsError;
+    if (teamsError) {
+      console.error('Teams Sync Error:', teamsError);
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'teams',
+          error: teamsError.message,
+          details: teamsError.details,
+          hint: teamsError.hint
+        },
+        { status: 500 }
+      );
+    }
 
     // 2. Transform and Load Gameweeks
     const gameweeksData = data.events.map((gw: any) => ({
@@ -36,10 +49,21 @@ export async function GET(request: Request) {
       .from('gameweeks')
       .upsert(gameweeksData, { onConflict: 'id' });
 
-    if (gwError) throw gwError;
+    if (gwError) {
+      console.error('Gameweeks Sync Error:', gwError);
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'gameweeks',
+          error: gwError.message,
+          details: gwError.details,
+          hint: gwError.hint
+        },
+        { status: 500 }
+      );
+    }
 
     // 3. Transform and Load Players
-    // FPL API maps positions as numbers: 1=GK, 2=DEF, 3=MID, 4=FWD
     const positionMap: Record<number, string> = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 
     const playersData = data.elements.map((player: any) => ({
@@ -51,13 +75,28 @@ export async function GET(request: Request) {
 
     const { error: playersError } = await supabase
       .from('players')
-      .upsert(playersData);
+      .upsert(playersData, { onConflict: 'id' });
 
-    if (playersError) throw playersError;
+    if (playersError) {
+      console.error('Players Sync Error:', playersError);
+      return NextResponse.json(
+        {
+          success: false,
+          step: 'players',
+          error: playersError.message,
+          details: playersError.details,
+          hint: playersError.hint
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'Static data synced successfully' });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-
+    console.error('Unhandled Sync-Static Error:', error);
+    return NextResponse.json(
+      { success: false, error: error?.message || 'An unknown error occurred' },
+      { status: 500 }
+    );
   }
 }
