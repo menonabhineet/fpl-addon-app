@@ -1,28 +1,36 @@
 // app/api/cron/sync-results/route.ts
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
+
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function GET() {
+export async function GET(request: Request) {
+  // 1. Authorization Guard (Enforced in Production)
+  const authHeader = request.headers.get('authorization')
+  if (
+    process.env.NODE_ENV === 'production' &&
+    authHeader !== `Bearer ${process.env.CRON_SECRET}`
+  ) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
   try {
-    const supabase = await createClient()
+    // 2. Use Admin Client to bypass RLS for background cron jobs
+    const supabase = createAdminClient()
 
-    // 1. Fetch live fixture data from the official FPL API
+    // 3. Fetch live fixture data from the official FPL API
     const response = await fetch('https://fantasy.premierleague.com/api/fixtures/', { cache: 'no-store' })
     if (!response.ok) throw new Error('Failed to fetch FPL fixtures')
     const allFixtures = await response.json()
 
-    // 2. Filter for fixtures that have actually started
-    // We don't need to update matches that haven't kicked off yet
+    // 4. Filter for fixtures that have actually started
     const activeFixtures = allFixtures.filter((f: any) => f.started === true)
 
-    // 3. Update our database
-    // We use a loop to update specific rows rather than a bulk upsert, 
-    // ensuring we don't accidentally overwrite schedule data like kickoff times.
     let updateCount = 0;
 
-    for (const fixture of activeFixtures) {
+    // 5. Use Promise.all to run updates concurrently to avoid Vercel timeouts
+    const updatePromises = activeFixtures.map(async (fixture: any) => {
       const { error } = await supabase
         .from('fixtures')
         .update({
@@ -34,8 +42,15 @@ export async function GET() {
         })
         .eq('id', fixture.id)
 
-      if (!error) updateCount++;
-    }
+      if (error) {
+        console.error(`Error updating fixture ${fixture.id}:`, error)
+      } else {
+        updateCount++;
+      }
+    })
+
+    // Execute all updates simultaneously
+    await Promise.all(updatePromises)
 
     return NextResponse.json({
       success: true,
