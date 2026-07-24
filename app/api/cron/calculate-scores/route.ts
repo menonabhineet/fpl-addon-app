@@ -137,7 +137,7 @@ export async function GET(request: Request) {
           const teamWon = isHomeTeam
             ? match.home_score > match.away_score
             : match.away_score > match.home_score
-          if (teamWon) points = 3
+          if (teamWon) points = 1
         }
 
         userTeamPicksMap.set(pick.user_id, points)
