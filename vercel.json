@@ -1,0 +1,16 @@
+{
+    "crons": [
+        {
+            "path": "/api/cron/sync-static",
+            "schedule": "0 12 * * 1"
+        },
+        {
+            "path": "/api/cron/sync-fixtures",
+            "schedule": "0 12 * * 1"
+        },
+        {
+            "path": "/api/cron/calculate-scores",
+            "schedule": "0 12 * * 1"
+        }
+    ]
+}
