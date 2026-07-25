@@ -1,10 +1,12 @@
 // components/dashboard/leaderboard-ui.tsx
 'use client'
 import { useState, useMemo } from 'react'
+import ManagerReportCard from './manager-report-card'
 
 export default function LeaderboardUI({ allScores, currentGwId }: { allScores: any[], currentGwId: number }) {
   const [filter, setFilter] = useState<'overall' | 'gameweek'>('overall')
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'grand_total', direction: 'desc' })
+  const [selectedManager, setSelectedManager] = useState<{ id: string, name: string } | null>(null)
 
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'desc'
@@ -165,7 +167,12 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                       <td className="px-4 py-4 text-center align-middle">{rankBadge}</td>
                       <td className="px-4 py-4 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <span>{row.manager_name}</span>
+                          <button 
+                            onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
+                            className="text-left hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-all"
+                          >
+                            {row.manager_name}
+                          </button>
                           {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
                             <span className="text-xs font-bold">
                               {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ +{row.previous_rank - rank}</span>}
@@ -236,8 +243,13 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       {rankBadge}
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 text-base">{row.manager_name}</span>
+                      <div className="flex flex-col items-start">
+                        <button 
+                          onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
+                          className="font-bold text-slate-900 dark:text-slate-100 text-base hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-all text-left"
+                        >
+                          {row.manager_name}
+                        </button>
                         {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
                           <div className="text-xs font-bold mt-0.5">
                             {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ Up {row.previous_rank - rank}</span>}
@@ -277,6 +289,15 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
           </div>
         </div>
       )}
+
+      {/* Manager Report Card Modal */}
+      <ManagerReportCard 
+        isOpen={!!selectedManager} 
+        onClose={() => setSelectedManager(null)} 
+        managerId={selectedManager?.id || ''} 
+        managerName={selectedManager?.name || ''}
+        allScores={allScores} 
+      />
     </div>
   )
 }
