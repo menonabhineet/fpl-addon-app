@@ -163,16 +163,17 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                   }
 
                   return (
-                    <tr key={row.user_id} className={`transition-colors ${rowBg}`}>
+                    <tr 
+                      key={row.user_id} 
+                      className={`transition-colors cursor-pointer group ${rowBg}`}
+                      onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
+                    >
                       <td className="px-4 py-4 text-center align-middle">{rankBadge}</td>
                       <td className="px-4 py-4 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
-                            className="text-left hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-all"
-                          >
+                          <span className="text-left group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                             {row.manager_name}
-                          </button>
+                          </span>
                           {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
                             <span className="text-xs font-bold">
                               {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ +{row.previous_rank - rank}</span>}
@@ -239,17 +240,18 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
               }
 
               return (
-                <div key={row.user_id} className={`p-4 ${cardBg}`}>
+                <div 
+                  key={row.user_id} 
+                  className={`p-4 cursor-pointer group transition-colors ${cardBg} hover:bg-slate-50 dark:hover:bg-slate-800/50`}
+                  onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
+                >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       {rankBadge}
                       <div className="flex flex-col items-start">
-                        <button 
-                          onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
-                          className="font-bold text-slate-900 dark:text-slate-100 text-base hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-all text-left"
-                        >
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors text-left">
                           {row.manager_name}
-                        </button>
+                        </span>
                         {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
                           <div className="text-xs font-bold mt-0.5">
                             {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ Up {row.previous_rank - rank}</span>}
