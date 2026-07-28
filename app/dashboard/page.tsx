@@ -26,9 +26,14 @@ export default async function DashboardPage({
   const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true })
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
   
+  const currentGwId = currentGwObj?.id || 1
+  const maxAllowedGwId = allGameweeks && allGameweeks.length > 0 
+    ? Math.min(currentGwId + 1, allGameweeks[allGameweeks.length - 1].id) 
+    : currentGwId + 1
+
   // If URL has ?gw=2, use 2. Otherwise default to current.
-  const requestedGwId = resolvedParams.gw ? parseInt(resolvedParams.gw) : currentGwObj?.id || 1
-  const selectedGwId = Math.min(requestedGwId, currentGwObj?.id || 1)
+  const requestedGwId = resolvedParams.gw ? parseInt(resolvedParams.gw) : currentGwId
+  const selectedGwId = Math.min(Math.max(1, requestedGwId), maxAllowedGwId)
   const selectedGw = allGameweeks?.find(gw => gw.id === selectedGwId)
 
   // 3. Fetch data specifically for the SELECTED Gameweek
@@ -163,7 +168,7 @@ export default async function DashboardPage({
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-            {allGameweeks && <GameweekSelector allGameweeks={allGameweeks.filter(gw => gw.id <= (currentGwObj?.id || 1))} selectedGwId={selectedGwId} />}
+            {allGameweeks && <GameweekSelector allGameweeks={allGameweeks.filter(gw => gw.id <= maxAllowedGwId)} selectedGwId={selectedGwId} />}
             <ThemeToggle />
             <span className="hidden sm:inline-block text-sm font-medium text-slate-600 dark:text-slate-300">{user.email}</span>
             <form action={async () => {

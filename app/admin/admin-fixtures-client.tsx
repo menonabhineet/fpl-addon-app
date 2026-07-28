@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { saveSelectedFixtures } from '@/lib/actions/admin'
 
 export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures: any[], gameweekId: number }) {
@@ -10,6 +10,11 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
   )
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  useEffect(() => {
+    setSelectedIds(fixtures.filter(f => f.is_selected).map(f => f.id))
+    setMessage(null)
+  }, [gameweekId, fixtures])
 
   const toggleSelection = (id: number) => {
     setSelectedIds(prev => {

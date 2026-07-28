@@ -27,8 +27,13 @@ export default async function AdminPage({
   const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true })
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
   
-  const requestedGwId = resolvedParams.gw ? parseInt(resolvedParams.gw) : currentGwObj?.id || 1
-  const selectedGwId = Math.min(requestedGwId, currentGwObj?.id || 1)
+  const currentGwId = currentGwObj?.id || 1
+  const maxAllowedGwId = allGameweeks && allGameweeks.length > 0 
+    ? Math.min(currentGwId + 3, allGameweeks[allGameweeks.length - 1].id) 
+    : currentGwId + 3
+  
+  const requestedGwId = resolvedParams.gw ? parseInt(resolvedParams.gw) : currentGwId
+  const selectedGwId = Math.min(Math.max(1, requestedGwId), maxAllowedGwId)
   const selectedGw = allGameweeks?.find(gw => gw.id === selectedGwId)
 
   // Fetch fixtures for this gameweek
@@ -60,11 +65,32 @@ export default async function AdminPage({
 
       <main className="mx-auto max-w-4xl p-4 sm:p-6 mt-4">
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="text-lg font-bold">Select 5 Fixtures for Gameweek {selectedGwId}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Choose exactly 5 fixtures that players will predict scores for.
-            </p>
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold">Select 5 Fixtures for Gameweek {selectedGwId}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Choose exactly 5 fixtures that players will predict scores for.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {selectedGwId > 1 && (
+                <Link 
+                  href={`/admin?gw=${selectedGwId - 1}`} 
+                  className="px-3 py-1.5 text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 rounded-md transition-colors"
+                >
+                  &larr; Prev GW
+                </Link>
+              )}
+              {selectedGwId < maxAllowedGwId && (
+                <Link 
+                  href={`/admin?gw=${selectedGwId + 1}`} 
+                  className="px-3 py-1.5 text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 rounded-md transition-colors"
+                >
+                  Next GW &rarr;
+                </Link>
+              )}
+            </div>
           </div>
           
           <div className="p-6">
