@@ -9,7 +9,8 @@ export async function saveSelectedFixtures(gameweekId: number, selectedFixtureId
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) throw new Error('Unauthorized request.')
-    if (user.email !== process.env.ADMIN_EMAIL) throw new Error('Forbidden. Admin access required.')
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
+    if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
 
     // We must ensure the user has exactly selected 5 fixtures.
     if (selectedFixtureIds.length !== 5) {

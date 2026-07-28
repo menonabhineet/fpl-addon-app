@@ -18,7 +18,8 @@ export default async function AdminPage({
   if (authError || !user) redirect('/')
   
   // Verify admin access
-  if (user.email !== process.env.ADMIN_EMAIL) {
+  const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
+  if (!user.email || !adminEmails.includes(user.email)) {
     redirect('/dashboard') // Redirect non-admins to their dashboard
   }
 
