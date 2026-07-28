@@ -11,13 +11,19 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
         📌 <strong>Gameweek {currentGw.id} Rules:</strong> Predict the exact scorelines. Exact scoreline = <strong>3 pts</strong>. Correct outcome = <strong>1 pt</strong>.
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {fixtures.map((match: any) => {
-          // Find if the user has already predicted this specific fixture
-          const pick = initialScorePicks?.find((p: any) => p.fixture_id === match.id)
-          return <FixtureCard key={match.id} match={match} existingPick={pick} />
-        })}
-      </div>
+      {fixtures.filter((m: any) => m.is_selected).length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-8 text-center shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+          <p className="text-slate-600 dark:text-slate-400 font-medium">The admin has not selected the 5 fixtures for this gameweek yet.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {fixtures.filter((m: any) => m.is_selected).map((match: any) => {
+            // Find if the user has already predicted this specific fixture
+            const pick = initialScorePicks?.find((p: any) => p.fixture_id === match.id)
+            return <FixtureCard key={match.id} match={match} existingPick={pick} />
+          })}
+        </div>
+      )}
     </div>
   )
 }

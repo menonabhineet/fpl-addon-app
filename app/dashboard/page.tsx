@@ -32,7 +32,7 @@ export default async function DashboardPage({
   const selectedGw = allGameweeks?.find(gw => gw.id === selectedGwId)
 
   // 3. Fetch data specifically for the SELECTED Gameweek
-  const { data: fixtures } = await supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true })
+  const { data: fixtures } = await supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, is_selected, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true })
   const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true })
   const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true })
 
