@@ -127,10 +127,14 @@ export async function GET(request: Request) {
 
     if (teamPicks && teamPicks.length > 0) {
       for (const pick of teamPicks) {
-        const match = fixtures.find(
-          (f) =>
-            f.home_team_id === pick.team_id || f.away_team_id === pick.team_id
-        )
+        let match = null
+        if (pick.fixture_id) {
+          match = fixtures.find((f) => f.id === pick.fixture_id)
+        } else {
+          match = fixtures.find(
+            (f) => f.home_team_id === pick.team_id || f.away_team_id === pick.team_id
+          )
+        }
         let points = 0
         if (match) {
           const isHomeTeam = match.home_team_id === pick.team_id

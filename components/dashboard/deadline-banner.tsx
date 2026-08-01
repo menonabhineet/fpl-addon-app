@@ -7,7 +7,7 @@ interface DeadlineBannerProps {
 }
 
 export default function DeadlineBanner({ deadlineTime }: DeadlineBannerProps) {
-  const [timeLeft, setTimeLeft] = useState<string>('')
+  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
   const [isLocked, setIsLocked] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -23,50 +23,60 @@ export default function DeadlineBanner({ deadlineTime }: DeadlineBannerProps) {
 
       if (diff <= 0) {
         setIsLocked(true)
-        setTimeLeft('Gameweek Locked')
+        setTime({ days: 0, hours: 0, minutes: 0, seconds: 0 })
         return
       }
 
       setIsLocked(false)
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-      
-      if (days > 0) {
-        setTimeLeft(`Locks in: ${days}d ${hours}h ${minutes}m`)
-      } else if (hours > 0) {
-        setTimeLeft(`Locks in: ${hours}h ${minutes}m`)
-      } else {
-        setTimeLeft(`Locks in: ${minutes}m ${seconds}s`)
-      }
+      setTime({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((diff % (1000 * 60)) / 1000)
+      })
     }
 
     updateCountdown()
-    const interval = setInterval(updateCountdown, 1000) // Update every second
+    const interval = setInterval(updateCountdown, 1000)
     return () => clearInterval(interval)
   }, [deadlineTime])
 
   if (!mounted || !deadlineTime) return null
 
+  if (isLocked) {
+    return (
+      <div className="inline-flex flex-col items-center justify-center p-6 glass rounded-2xl border-rose-500/30">
+        <span className="font-heading text-4xl text-rose-500 drop-shadow-md">GAMEWEEK LOCKED</span>
+        <span className="text-slate-400 text-sm font-bold tracking-widest mt-2 uppercase">Predictions are closed</span>
+      </div>
+    )
+  }
+
+  const TimeBlock = ({ value, label }: { value: number, label: string }) => (
+    <div className="flex flex-col items-center justify-center">
+      <span className="font-heading text-5xl md:text-7xl text-white drop-shadow-2xl">{value.toString().padStart(2, '0')}</span>
+      <span className="text-[10px] md:text-xs font-bold text-slate-400 tracking-widest uppercase mt-1 md:mt-2">{label}</span>
+    </div>
+  )
+
+  const Separator = () => (
+    <div className="flex flex-col items-center justify-start pt-2 md:pt-4">
+      <span className="font-heading text-4xl md:text-6xl text-rose-500 animate-pulse">:</span>
+    </div>
+  )
+
   return (
-    <div className={`relative inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide shadow-sm transition-all duration-300 ${
-      isLocked 
-        ? 'bg-slate-100 text-slate-600 dark:bg-slate-900/50 dark:text-slate-400 border border-slate-200 dark:border-slate-800' 
-        : 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-indigo-600/30 border border-indigo-700 dark:border-indigo-400'
-    }`}>
-      {isLocked ? (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-      ) : (
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/60 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
-        </span>
-      )}
-      <span className={isLocked ? '' : 'drop-shadow-sm'}>{timeLeft}</span>
+    <div className="flex flex-col items-center">
+      <div className="text-emerald-500 font-bold text-xs tracking-widest uppercase mb-4 drop-shadow-sm">Get your picks in before this</div>
+      <div className="flex items-start gap-3 md:gap-6 glass px-8 py-6 rounded-3xl border-white/10 shadow-[0_0_40px_rgba(244,63,94,0.15)] dark:shadow-[0_0_50px_rgba(244,63,94,0.1)]">
+        <TimeBlock value={time.days} label="Days" />
+        <Separator />
+        <TimeBlock value={time.hours} label="Hrs" />
+        <Separator />
+        <TimeBlock value={time.minutes} label="Min" />
+        <Separator />
+        <TimeBlock value={time.seconds} label="Sec" />
+      </div>
     </div>
   )
 }

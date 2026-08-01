@@ -16,13 +16,15 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
     setMessage(null)
   }, [gameweekId, fixtures])
 
+  const maxSelections = Math.min(5, fixtures.length)
+
   const toggleSelection = (id: number) => {
     setSelectedIds(prev => {
       if (prev.includes(id)) {
         return prev.filter(pId => pId !== id)
       } else {
-        if (prev.length >= 5) {
-          // Optionally, don't allow selecting more than 5
+        if (prev.length >= maxSelections) {
+          // Optionally, don't allow selecting more than maxSelections
           return prev
         }
         return [...prev, id]
@@ -32,8 +34,8 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
   }
 
   const handleSave = async () => {
-    if (selectedIds.length !== 5) {
-      setMessage({ type: 'error', text: 'You must select exactly 5 fixtures.' })
+    if (selectedIds.length !== maxSelections) {
+      setMessage({ type: 'error', text: `You must select exactly ${maxSelections} fixture${maxSelections !== 1 ? 's' : ''}.` })
       return
     }
 
@@ -53,22 +55,28 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-          Selected: <strong className={selectedIds.length === 5 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'}>{selectedIds.length} / 5</strong>
-        </span>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            Selected Fixtures: 
+          </span>
+          <div className={`px-3 py-1 rounded-lg text-xs font-bold ${selectedIds.length === maxSelections && maxSelections > 0 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+            {selectedIds.length} / {maxSelections}
+          </div>
+        </div>
         
         <button
           onClick={handleSave}
-          disabled={isSaving || selectedIds.length !== 5}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSaving || selectedIds.length !== maxSelections || maxSelections === 0}
+          className="relative group overflow-hidden bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
         >
-          {isSaving ? 'Saving...' : 'Save Selection'}
+          <span className="relative z-10">{isSaving ? 'Saving...' : 'Save Selection'}</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+        <div className={`p-4 rounded-xl text-xs font-bold uppercase tracking-widest mb-6 border ${message.type === 'success' ? 'glass bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'glass bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
           {message.text}
         </div>
       )}
@@ -84,33 +92,33 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
             <div 
               key={match.id}
               onClick={() => toggleSelection(match.id)}
-              className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
+              className={`group flex items-center justify-between p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-300 ${
                 isSelected 
-                  ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-500/50' 
-                  : 'border-slate-200 bg-white hover:border-indigo-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/30'
+                  ? 'glass bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 shadow-[0_0_15px_rgba(79,70,229,0.15)] scale-[1.01] z-10' 
+                  : 'glass bg-white/40 dark:bg-black/20 border-slate-200/50 dark:border-white/5 hover:bg-white/60 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20'
               }`}
             >
-              <div className="flex items-center gap-4 w-full">
+              <div className="flex items-center gap-4 sm:gap-6 w-full">
                 {/* Checkbox (visual) */}
-                <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all duration-300 ${
                   isSelected 
-                    ? 'bg-indigo-600 border-indigo-600' 
-                    : 'border-slate-300 dark:border-slate-600'
+                    ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_10px_rgba(79,70,229,0.5)]' 
+                    : 'bg-white/50 dark:bg-black/50 border-slate-300 dark:border-slate-600 group-hover:border-indigo-400/50'
                 }`}>
                   {isSelected && (
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
                 </div>
 
-                <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-4 flex-1">
-                    <span className="font-semibold w-1/2 text-right truncate">{match.home_team.name}</span>
-                    <span className="text-slate-400 font-bold text-xs">VS</span>
-                    <span className="font-semibold w-1/2 truncate">{match.away_team.name}</span>
+                <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 sm:gap-6 flex-1">
+                    <span className={`font-heading text-lg sm:text-xl w-1/2 text-right truncate transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-100 drop-shadow-sm' : 'text-slate-700 dark:text-slate-300'}`}>{match.home_team.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">VS</span>
+                    <span className={`font-heading text-lg sm:text-xl w-1/2 truncate transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-100 drop-shadow-sm' : 'text-slate-700 dark:text-slate-300'}`}>{match.away_team.name}</span>
                   </div>
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 text-center sm:text-right w-full sm:w-auto">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 text-center sm:text-right w-full sm:w-auto glass px-3 py-1.5 rounded-lg border border-slate-200/50 dark:border-white/5">
                     {formattedTime}
                   </span>
                 </div>

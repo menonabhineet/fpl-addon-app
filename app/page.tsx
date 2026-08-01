@@ -20,21 +20,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-slate-950 p-6 selection:bg-emerald-500/30">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-6 selection:bg-emerald-500/30">
       {/* Background Ambient Glows */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         {/* Top-left PL purple-ish/pink */}
-        <div className="absolute -top-[10%] -left-[10%] h-[500px] w-[500px] rounded-full bg-fuchsia-600/20 blur-[120px] mix-blend-screen" />
+        <div className="absolute -top-[10%] -left-[10%] h-[500px] w-[500px] rounded-full bg-rose-600/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
         {/* Bottom-right PL bright green */}
-        <div className="absolute -bottom-[10%] -right-[10%] h-[600px] w-[600px] rounded-full bg-emerald-500/20 blur-[120px] mix-blend-screen" />
+        <div className="absolute -bottom-[10%] -right-[10%] h-[600px] w-[600px] rounded-full bg-emerald-500/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
         {/* Center subtle blue */}
-        <div className="absolute top-[40%] left-[50%] h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/10 blur-[100px] mix-blend-screen" />
+        <div className="absolute top-[40%] left-[50%] h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-600/10 blur-[100px] mix-blend-multiply dark:mix-blend-screen" />
       </div>
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-md">
         {/* Glassmorphic Card */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl transition-all duration-500 hover:border-white/20 hover:bg-white/[0.07]">
-
+        <div className="glass glass-hover rounded-2xl p-10 text-center relative overflow-hidden">
           {/* Logo / Trophy Icon */}
           <div className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-white">
@@ -46,10 +45,10 @@ export default function LoginPage() {
               <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
             </svg>
           </div>
-          <h1 className="mb-3 text-3xl font-bold tracking-tight text-white">
+          <h1 className="mb-3 text-4xl font-heading uppercase tracking-wide text-slate-900 dark:text-white drop-shadow-sm">
             Pro Pundits League
           </h1>
-          <p className="mb-8 text-sm text-slate-400">
+          <p className="mb-8 text-sm text-slate-600 dark:text-slate-400">
             Elevate your Fantasy Premier League experience. Sign in to submit your predictions and join the competition.
           </p>
 
