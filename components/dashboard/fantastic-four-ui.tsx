@@ -104,12 +104,12 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
   const positions = ['FWD', 'MID', 'DEF', 'GK']
 
   return (
-    <div className="space-y-6">
-      <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 text-sm text-indigo-900 dark:text-indigo-300 transition-colors">
-        📌 <strong>Gameweek {currentGw.id} Rules:</strong> Select your Fantastic Four. <strong>DEF/MID</strong> can be picked ONCE per season. <strong>GK/FWD</strong> can be picked ONCE per half-season. Click a player to swap them.
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-amber-500/30 border-l-4">
+        📌 <strong className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Select your Fantastic Four. <strong>DEF/MID</strong> can be picked ONCE per season. <strong>GK/FWD</strong> can be picked ONCE per half-season. Click a player to swap them.
       </div>
 
-      <div className="relative w-full bg-green-600 dark:bg-green-800 rounded-2xl overflow-hidden shadow-inner border-4 border-green-700 dark:border-green-900 aspect-[3/4] sm:aspect-[4/5] md:aspect-auto md:min-h-[400px] flex flex-col justify-evenly p-4 transition-colors">
+      <div className="relative w-full bg-emerald-600 dark:bg-emerald-800 rounded-[2.5rem] overflow-hidden shadow-[inset_0_0_50px_rgba(0,0,0,0.5)] border-[8px] border-emerald-700/50 dark:border-emerald-900/50 aspect-[3/4] sm:aspect-[4/5] md:aspect-auto md:min-h-[450px] flex flex-col justify-evenly p-4 transition-all duration-500 hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]">
         {/* Pitch Lines */}
         <div className="absolute inset-x-0 top-0 h-[10%] border-b-2 border-white/30" />
         <div className="absolute inset-x-[20%] top-0 h-[20%] border-x-2 border-b-2 border-white/30" />
@@ -271,10 +271,10 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
 
         {/* Player Selection Overlay Drawer */}
         {activeSlot && (
-          <div className="absolute inset-0 z-20 bg-white dark:bg-slate-900 flex flex-col transition-colors shadow-2xl">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800 transition-colors">
-              <h3 className="font-bold text-lg dark:text-white">Select {activeSlot}</h3>
-              <button onClick={() => setActiveSlot(null)} className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors">✕</button>
+          <div className="absolute inset-0 z-20 glass backdrop-blur-2xl flex flex-col transition-colors shadow-2xl rounded-[2.5rem] overflow-hidden border border-white/20">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20 transition-colors">
+              <h3 className="font-bold text-lg dark:text-white uppercase tracking-widest">Select {activeSlot}</h3>
+              <button onClick={() => setActiveSlot(null)} className="text-white hover:text-rose-400 font-bold px-3 py-1 bg-black/40 rounded-full transition-colors backdrop-blur-md">✕</button>
             </div>
 
             <div className="p-4 bg-white dark:bg-slate-900 space-y-3">
@@ -312,7 +312,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 bg-white dark:bg-slate-900">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 bg-transparent">
               {filteredPlayers.length === 0 ? (
                 <p className="text-center text-slate-500 mt-4">No players found.</p>
               ) : (

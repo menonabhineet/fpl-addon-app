@@ -66,22 +66,22 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-all"
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]"
+        className="glass w-full max-w-2xl rounded-[2.5rem] shadow-2xl border border-white/10 bg-neutral-950/80 flex flex-col max-h-[90vh] overflow-hidden"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/20 shrink-0 rounded-t-2xl">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span className="text-2xl">📊</span> {managerName}&apos;s Report Card
+        <div className="flex items-center justify-between p-6 border-b border-white/5 bg-black/40 shrink-0">
+          <h2 className="text-2xl font-heading uppercase tracking-widest text-white flex items-center gap-3">
+            <span className="text-3xl drop-shadow-md">📊</span> {managerName}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-white hover:bg-black/60 transition-colors backdrop-blur-md border border-white/5"
           >
             ✕
           </button>
@@ -89,26 +89,26 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
 
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
           {!stats ? (
-            <p className="text-center text-slate-500 py-8">No historical data found for this manager.</p>
+            <p className="text-center text-slate-500 py-8 font-bold tracking-widest uppercase">No historical data found for this manager.</p>
           ) : (
             <div className="space-y-8">
               {/* Stats Overview */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 p-4 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 text-center">Total Pts</span>
-                  <span className="text-2xl font-black text-indigo-700 dark:text-indigo-400">{stats.totalPoints}</span>
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Total Pts</span>
+                  <span className="font-heading text-4xl text-emerald-600 dark:text-emerald-400 drop-shadow-md">{stats.totalPoints}</span>
                 </div>
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 p-4 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1 text-center">Highest GW</span>
-                  <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{stats.highestScore}</span>
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Highest GW</span>
+                  <span className="font-heading text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.highestScore}</span>
                 </div>
-                <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 p-4 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs font-bold text-rose-500 uppercase tracking-wider mb-1 text-center">Lowest GW</span>
-                  <span className="text-2xl font-black text-rose-700 dark:text-rose-400">{stats.lowestScore}</span>
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Lowest GW</span>
+                  <span className="font-heading text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.lowestScore}</span>
                 </div>
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 p-4 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1 text-center">Average</span>
-                  <span className="text-2xl font-black text-amber-700 dark:text-amber-400">{stats.avgScore}</span>
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Average</span>
+                  <span className="font-heading text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.avgScore}</span>
                 </div>
               </div>
 
@@ -116,23 +116,23 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
               <div>
                 <div className="flex items-center justify-between mb-4 px-1">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Gameweek History</h3>
-                  {loadingPicks && <span className="text-xs text-indigo-500 font-medium animate-pulse">Loading picks...</span>}
+                  {loadingPicks && <span className="text-xs text-indigo-500 font-bold uppercase tracking-widest animate-pulse">Loading...</span>}
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="glass rounded-3xl overflow-hidden border border-white/10">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                      <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-black/20 border-b border-white/10">
                         <tr>
-                          <th className="px-4 py-3 font-bold text-center">GW</th>
-                          <th className="px-4 py-3 font-bold text-center">Scores</th>
-                          <th className="px-4 py-3 font-bold text-center">Team</th>
-                          <th className="px-4 py-3 font-bold text-center">F4</th>
-                          <th className="px-4 py-3 font-bold text-center">Pens</th>
-                          <th className="px-4 py-3 font-bold text-center text-indigo-600 dark:text-indigo-400">Total</th>
-                          <th className="px-4 py-3 font-bold text-center"></th>
+                          <th className="px-4 py-4 text-center">GW</th>
+                          <th className="px-4 py-4 text-center">Scores</th>
+                          <th className="px-4 py-4 text-center">Team</th>
+                          <th className="px-4 py-4 text-center">F4</th>
+                          <th className="px-4 py-4 text-center">Pens</th>
+                          <th className="px-4 py-4 text-center text-emerald-500">Total</th>
+                          <th className="px-4 py-4 text-center"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      <tbody className="divide-y divide-white/5">
                         {stats.history.map((record) => {
                           const gwId = record.gameweek_id
                           const isExpanded = expandedGw === gwId
@@ -143,72 +143,72 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                             <React.Fragment key={gwId}>
                               <tr
                                 onClick={() => { if (hasPicksData) toggleExpand(gwId) }}
-                                className={`transition-colors ${hasPicksData ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'opacity-70'}`}
+                                className={`transition-colors duration-300 ${hasPicksData ? 'cursor-pointer hover:bg-white/10' : 'opacity-50 grayscale'}`}
                               >
-                                <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300 text-center">{gwId}</td>
-                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-center">{record.score_points}</td>
-                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-center">{record.team_points}</td>
-                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-center">{record.fantastic_four_points}</td>
-                                <td className="px-4 py-3 text-red-500 dark:text-red-400 font-medium text-center">{record.penalty_points < 0 ? record.penalty_points : '-'}</td>
-                                <td className="px-4 py-3 font-bold text-indigo-700 dark:text-indigo-400 text-center">{record.total_points}</td>
+                                <td className="px-4 py-3 font-heading text-xl text-slate-700 dark:text-slate-300 text-center">{gwId}</td>
+                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.score_points}</td>
+                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.team_points}</td>
+                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.fantastic_four_points}</td>
+                                <td className="px-4 py-3 text-rose-500 font-bold text-center">{record.penalty_points < 0 ? record.penalty_points : '-'}</td>
+                                <td className="px-4 py-3 font-heading text-2xl text-emerald-600 dark:text-emerald-400 drop-shadow-sm text-center">{record.total_points}</td>
                                 <td className="px-4 py-3 text-center text-slate-400">
                                   {hasPicksData ? (
                                     isExpanded ? '▲' : '▼'
                                   ) : (
-                                    <span className="text-[10px] uppercase" title="Picks hidden until deadline passes">Locked</span>
+                                    <span className="text-[9px] font-bold uppercase tracking-widest" title="Picks hidden until deadline passes">Locked</span>
                                   )}
                                 </td>
                               </tr>
                               {isExpanded && gwPicks && (
-                                <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                                  <td colSpan={7} className="p-4 border-t border-slate-100 dark:border-slate-800">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <tr className="bg-black/30">
+                                  <td colSpan={7} className="p-6 border-t border-white/5">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                       {/* Score Picks */}
                                       <div>
-                                        <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Score Predictions</h4>
+                                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Score Predictions</h4>
                                         {gwPicks.scorePicks && gwPicks.scorePicks.length > 0 ? (
-                                          <div className="space-y-1">
+                                          <div className="space-y-2">
                                             {gwPicks.scorePicks.map((sp: any) => (
-                                              <div key={sp.id} className="flex items-center justify-between text-xs bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="truncate flex-1 text-right">{sp.home_team || 'Home'}</span>
-                                                <span className="font-bold px-2 text-indigo-600 dark:text-indigo-400 w-12 text-center">{sp.predicted_home_score} - {sp.predicted_away_score}</span>
-                                                <span className="truncate flex-1 text-left">{sp.away_team || 'Away'}</span>
+                                              <div key={sp.id} className="flex items-center justify-between text-xs bg-white/50 dark:bg-black/20 px-3 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                                                <span className="truncate flex-1 text-right font-semibold text-slate-800 dark:text-slate-200">{sp.home_team || 'Home'}</span>
+                                                <span className="font-heading text-lg px-3 text-emerald-500 drop-shadow-sm w-16 text-center">{sp.predicted_home_score} - {sp.predicted_away_score}</span>
+                                                <span className="truncate flex-1 text-left font-semibold text-slate-800 dark:text-slate-200">{sp.away_team || 'Away'}</span>
                                               </div>
                                             ))}
                                           </div>
                                         ) : (
-                                          <div className="text-xs text-slate-500 italic">No score predictions</div>
+                                          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No score predictions</div>
                                         )}
                                       </div>
 
                                       {/* Team & F4 */}
-                                      <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                      <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
                                         <div>
-                                          <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Team Prediction</h4>
+                                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Team Prediction</h4>
                                           {gwPicks.teamPick ? (
-                                            <div className="bg-white dark:bg-slate-900 p-3 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-                                              <span className="font-bold text-slate-800 dark:text-slate-200">{gwPicks.teamPick.team?.name || 'Unknown Team'}</span>
+                                            <div className="bg-white/50 dark:bg-black/20 px-4 py-3 rounded-xl border border-slate-200/50 dark:border-white/5 flex items-center justify-center">
+                                              <span className="font-heading text-xl text-slate-800 dark:text-slate-100 uppercase tracking-wider">{gwPicks.teamPick.team?.name || 'Unknown Team'}</span>
                                             </div>
                                           ) : (
-                                            <div className="text-xs text-slate-500 italic">No team prediction</div>
+                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No team prediction</div>
                                           )}
                                         </div>
 
                                         <div>
-                                          <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Fantastic Four</h4>
+                                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Fantastic Four</h4>
                                           {gwPicks.f4Picks && gwPicks.f4Picks.length > 0 ? (
-                                            <div className="grid grid-cols-1 gap-1">
+                                            <div className="grid grid-cols-1 gap-2">
                                               {gwPicks.f4Picks.map((f4: any) => (
-                                                <div key={f4.id} className="text-xs bg-white dark:bg-slate-900 p-1.5 px-2 rounded border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                                                <div key={f4.id} className="text-xs bg-white/50 dark:bg-black/20 px-3 py-2 rounded-xl border border-slate-200/50 dark:border-white/5 flex justify-between items-center">
                                                   <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                                    {f4.player_name} {f4.team_short_name ? <span className="font-normal text-slate-500">({f4.team_short_name})</span> : ''}
+                                                    {f4.player_name} {f4.team_short_name ? <span className="font-normal text-slate-400 ml-1">({f4.team_short_name})</span> : ''}
                                                   </span>
-                                                  <span className="text-[10px] text-slate-500 uppercase">{f4.position}</span>
+                                                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{f4.position}</span>
                                                 </div>
                                               ))}
                                             </div>
                                           ) : (
-                                            <div className="text-xs text-slate-500 italic">No fantastic four picks</div>
+                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No fantastic four picks</div>
                                           )}
                                         </div>
                                       </div>

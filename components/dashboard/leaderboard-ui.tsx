@@ -91,22 +91,22 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 transition-colors">
-        <div className="text-sm text-indigo-900 dark:text-indigo-300">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 glass rounded-xl p-4 transition-colors">
+        <div className="text-sm text-slate-700 dark:text-slate-300">
           🏆 <strong>Global Standings:</strong> Track the cumulative season or drill down into Gameweek {currentGwId}.
         </div>
 
         {/* The Filter Toggle */}
-        <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="flex bg-white/50 dark:bg-black/20 rounded-lg p-1 border border-slate-200 dark:border-white/10 shadow-inner">
           <button
             onClick={() => setFilter('overall')}
-            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${filter === 'overall' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-300 ${filter === 'overall' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
           >
             Overall
           </button>
           <button
             onClick={() => setFilter('gameweek')}
-            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${filter === 'gameweek' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-300 ${filter === 'gameweek' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
           >
             GW {currentGwId}
           </button>
@@ -114,181 +114,105 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
       </div>
 
       {!leaderboardData || leaderboardData.length === 0 ? (
-        <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-          <p className="text-slate-500 dark:text-slate-400">No scores found for this filter.</p>
+        <div className="text-center p-12 glass rounded-3xl">
+          <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">No scores found for this filter.</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 transition-colors">
-                <tr>
-                  <th scope="col" className="px-4 py-4 text-center font-bold">Rank</th>
-                  <th scope="col" className="px-4 py-4 font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('manager_name')}>
-                    Manager<span className="inline-block w-4 text-center">{getSortIcon('manager_name')}</span>
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_score_points')}>
-                    Scores<span className="inline-block w-4 text-center">{getSortIcon('total_score_points')}</span>
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_team_points')}>
-                    Team<span className="inline-block w-4 text-center">{getSortIcon('total_team_points')}</span>
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_ff_points')}>
-                    F4<span className="inline-block w-4 text-center">{getSortIcon('total_ff_points')}</span>
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold text-red-500 dark:text-red-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('total_penalty_points')}>
-                    Penalties<span className="inline-block w-4 text-center">{getSortIcon('total_penalty_points')}</span>
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-center font-bold text-indigo-600 dark:text-indigo-400 text-base cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" onClick={() => handleSort('grand_total')}>
-                    Total<span className="inline-block w-4 text-center">{getSortIcon('grand_total')}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {leaderboardData.map((row, index) => {
-                  const rank = index + 1;
-                  let rankBadge = <span className="font-semibold text-slate-500 dark:text-slate-400">{rank}</span>;
-                  let rowBg = "hover:bg-slate-50 dark:hover:bg-slate-800/50";
-
-                  if (rank === 1) {
-                    rankBadge = <span className="text-xl">🥇</span>;
-                    rowBg = "bg-amber-50/50 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20";
-                  } else if (rank === 2) {
-                    rankBadge = <span className="text-xl">🥈</span>;
-                    rowBg = "bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/60";
-                  } else if (rank === 3) {
-                    rankBadge = <span className="text-xl">🥉</span>;
-                    rowBg = "bg-orange-50/30 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20";
-                  }
-
-                  return (
-                    <tr 
-                      key={row.user_id} 
-                      className={`transition-colors cursor-pointer group ${rowBg}`}
-                      onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
-                    >
-                      <td className="px-4 py-4 text-center align-middle">{rankBadge}</td>
-                      <td className="px-4 py-4 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <span className="text-left group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                            {row.manager_name}
-                          </span>
-                          {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
-                            <span className="text-xs font-bold">
-                              {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ +{row.previous_rank - rank}</span>}
-                              {(row.previous_rank - rank) < 0 && <span className="text-red-500">▼ {row.previous_rank - rank}</span>}
-                              {(row.previous_rank - rank) === 0 && <span className="text-slate-400">•</span>}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-300">{row.total_score_points}</td>
-                      <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-300">{row.total_team_points}</td>
-                      <td className="px-4 py-4 text-center text-slate-600 dark:text-slate-300">{row.total_ff_points}</td>
-                      <td className="px-4 py-4 text-center text-red-500 dark:text-red-400 font-medium">{row.total_penalty_points < 0 ? row.total_penalty_points : '-'}</td>
-                      <td className="px-4 py-4 text-center font-bold text-indigo-700 dark:text-indigo-400 text-base">{row.grand_total}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Sort Controls */}
-          <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
-            <span className="text-xs font-bold text-slate-500 uppercase">Sort by:</span>
-            <div className="flex items-center gap-2">
-              <select
-                className="text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1 text-slate-700 dark:text-slate-300"
-                value={sortConfig.key}
-                onChange={(e) => setSortConfig({ key: e.target.value, direction: sortConfig.direction })}
-              >
-                <option value="grand_total">Total Points</option>
-                <option value="total_score_points">Scores</option>
-                <option value="total_team_points">Team</option>
-                <option value="total_ff_points">F4</option>
-                <option value="total_penalty_points">Penalties</option>
-                <option value="manager_name">Manager</option>
-              </select>
-              <button
-                className="p-1.5 w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                onClick={() => setSortConfig({ key: sortConfig.key, direction: sortConfig.direction === 'desc' ? 'asc' : 'desc' })}
-                aria-label="Toggle sorting order"
-              >
-                {sortConfig.direction === 'desc' ? '↓' : '↑'}
-              </button>
+        <div className="flex flex-col gap-4">
+          <div className="hidden md:flex items-center justify-end gap-6 px-6 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <span className="mr-auto">Rank / Manager</span>
+            <div className="flex gap-4">
+              <button onClick={() => handleSort('total_score_points')} className={`transition-colors ${sortConfig.key === 'total_score_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Scores {getSortIcon('total_score_points')}</button>
+              <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Team {getSortIcon('total_team_points')}</button>
+              <button onClick={() => handleSort('total_ff_points')} className={`transition-colors ${sortConfig.key === 'total_ff_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>F4 {getSortIcon('total_ff_points')}</button>
+              <button onClick={() => handleSort('total_penalty_points')} className={`transition-colors ${sortConfig.key === 'total_penalty_points' ? 'text-rose-500' : 'hover:text-rose-500'}`}>Pens {getSortIcon('total_penalty_points')}</button>
             </div>
+            <button onClick={() => handleSort('grand_total')} className={`pl-8 transition-colors ${sortConfig.key === 'grand_total' ? 'text-emerald-500' : 'text-emerald-500/80 hover:text-emerald-500'}`}>Total {getSortIcon('grand_total')}</button>
           </div>
+          
+          <div className="md:hidden flex flex-wrap items-center justify-center gap-2 px-2 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <span className="w-full text-center mb-1">Sort by</span>
+            <button onClick={() => handleSort('grand_total')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'grand_total' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Total {getSortIcon('grand_total')}</button>
+            <button onClick={() => handleSort('total_score_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_score_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Scores {getSortIcon('total_score_points')}</button>
+            <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Team {getSortIcon('total_team_points')}</button>
+            <button onClick={() => handleSort('total_ff_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_ff_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>F4 {getSortIcon('total_ff_points')}</button>
+            <button onClick={() => handleSort('total_penalty_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_penalty_points' ? 'border-rose-500/50 bg-rose-500/10 text-rose-500' : 'border-white/10 bg-black/20'}`}>Pens {getSortIcon('total_penalty_points')}</button>
+          </div>
+          
+          {leaderboardData.map((row, index) => {
+            const rank = index + 1;
+            let rankDisplay = <span className="font-heading text-3xl md:text-4xl text-slate-400 dark:text-slate-600">#{rank}</span>;
+            let cardClasses = "glass border border-slate-200/50 dark:border-white/5 opacity-90";
+            let glowEffect = null;
 
-          {/* Mobile Card View */}
-          <div className="md:hidden flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
-            {leaderboardData.map((row, index) => {
-              const rank = index + 1;
-              let rankBadge = <span className="text-lg font-bold text-slate-500 dark:text-slate-400 w-6 text-center">{rank}</span>;
-              let cardBg = "bg-white dark:bg-slate-900";
+            if (rank === 1) {
+              rankDisplay = <span className="font-heading text-5xl md:text-6xl text-amber-500 drop-shadow-md">1</span>;
+              cardClasses = "glass border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)] z-10 scale-[1.01]";
+              glowEffect = <div className="absolute inset-0 bg-amber-500/10 blur-xl pointer-events-none" />;
+            } else if (rank === 2) {
+              rankDisplay = <span className="font-heading text-4xl md:text-5xl text-slate-400 drop-shadow-sm">2</span>;
+              cardClasses = "glass border-slate-400/50 shadow-[0_0_20px_rgba(148,163,184,0.15)] z-10";
+            } else if (rank === 3) {
+              rankDisplay = <span className="font-heading text-4xl md:text-5xl text-orange-400 drop-shadow-sm">3</span>;
+              cardClasses = "glass border-orange-400/30 shadow-[0_0_20px_rgba(251,146,60,0.1)] z-10";
+            }
 
-              if (rank === 1) {
-                rankBadge = <span className="text-2xl w-6 text-center">🥇</span>;
-                cardBg = "bg-amber-50/50 dark:bg-amber-900/10";
-              } else if (rank === 2) {
-                rankBadge = <span className="text-2xl w-6 text-center">🥈</span>;
-                cardBg = "bg-slate-50 dark:bg-slate-800/30";
-              } else if (rank === 3) {
-                rankBadge = <span className="text-2xl w-6 text-center">🥉</span>;
-                cardBg = "bg-orange-50/30 dark:bg-orange-900/10";
-              }
-
-              return (
-                <div 
-                  key={row.user_id} 
-                  className={`p-4 cursor-pointer group transition-colors ${cardBg} hover:bg-slate-50 dark:hover:bg-slate-800/50`}
-                  onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {rankBadge}
-                      <div className="flex flex-col items-start">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors text-left">
-                          {row.manager_name}
-                        </span>
-                        {filter === 'overall' && currentGwId > 1 && row.previous_rank !== undefined && (
-                          <div className="text-xs font-bold mt-0.5">
-                            {(row.previous_rank - rank) > 0 && <span className="text-green-500">▲ Up {row.previous_rank - rank}</span>}
-                            {(row.previous_rank - rank) < 0 && <span className="text-red-500">▼ Down {Math.abs(row.previous_rank - rank)}</span>}
-                            {(row.previous_rank - rank) === 0 && <span className="text-slate-400">• Maintained rank</span>}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none">{row.grand_total}</span>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Total Pts</span>
-                    </div>
+            return (
+              <div 
+                key={row.user_id} 
+                className={`relative group flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-6 rounded-3xl transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:bg-white/60 dark:hover:bg-white/10 ${cardClasses}`}
+                onClick={() => setSelectedManager({ id: row.user_id, name: row.manager_name })}
+              >
+                {glowEffect}
+                
+                {/* Left side: Rank & Name */}
+                <div className="flex items-center gap-6 md:gap-8 w-full md:w-auto mb-4 md:mb-0 relative z-10">
+                  <div className="w-12 md:w-16 flex justify-center shrink-0">
+                    {rankDisplay}
                   </div>
-
-                  <div className="grid grid-cols-4 gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-                    <div className="flex flex-col items-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
-                      <span className="text-[10px] text-slate-500 uppercase font-bold mb-1">Scores</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{row.total_score_points}</span>
-                    </div>
-                    <div className="flex flex-col items-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
-                      <span className="text-[10px] text-slate-500 uppercase font-bold mb-1">Team</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{row.total_team_points}</span>
-                    </div>
-                    <div className="flex flex-col items-center p-2 rounded bg-slate-50 dark:bg-slate-800/50">
-                      <span className="text-[10px] text-slate-500 uppercase font-bold mb-1">F4</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{row.total_ff_points}</span>
-                    </div>
-                    <div className="flex flex-col items-center p-2 rounded bg-red-50 dark:bg-red-900/10">
-                      <span className="text-[10px] text-red-500 uppercase font-bold mb-1">Pens</span>
-                      <span className="text-sm font-semibold text-red-600 dark:text-red-400">{row.total_penalty_points < 0 ? row.total_penalty_points : '0'}</span>
-                    </div>
+                  <div className="flex flex-col">
+                    <span className="font-heading text-2xl md:text-3xl text-slate-900 dark:text-white uppercase tracking-wide group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      {row.manager_name}
+                    </span>
+                    {filter === 'overall' && row.previous_rank !== undefined && (
+                      <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mt-1">
+                        {(row.previous_rank - rank) > 0 && <span className="text-emerald-500">▲ Up {row.previous_rank - rank}</span>}
+                        {(row.previous_rank - rank) < 0 && <span className="text-rose-500">▼ Down {Math.abs(row.previous_rank - rank)}</span>}
+                        {(row.previous_rank - rank) === 0 && <span className="text-slate-400 dark:text-slate-500">• Maintained</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
-              )
-            })}
-          </div>
+
+                {/* Right side: Stats Grid & Total */}
+                <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-4 md:gap-8 relative z-10">
+                  <div className="flex gap-2 md:gap-4 text-center">
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-3 py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Scores</span>
+                      <span className="font-heading text-xl">{row.total_score_points}</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-3 py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Team</span>
+                      <span className="font-heading text-xl">{row.total_team_points}</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-3 py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">F4</span>
+                      <span className="font-heading text-xl">{row.total_ff_points}</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-rose-50/50 dark:bg-rose-900/20 rounded-xl px-3 py-2 border border-rose-200/50 dark:border-rose-500/20">
+                      <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1">Pens</span>
+                      <span className="font-heading text-xl text-rose-600 dark:text-rose-400">{row.total_penalty_points < 0 ? row.total_penalty_points : '0'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end shrink-0 pl-2 md:pl-4 border-l border-slate-200 dark:border-white/10">
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total Points</span>
+                    <span className="font-heading text-5xl md:text-6xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">{row.grand_total}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

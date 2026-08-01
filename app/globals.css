@@ -3,32 +3,42 @@
 @variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
+.dark {
+  --background: #09090b;
+  --foreground: #f8fafc;
+}
 
 html {
   font-size: 80%;
-  /* Scales down all Tailwind rem units (padding, margins, font-sizes) */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-oswald), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 dark:bg-white/5 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-2xl;
+  }
+  .glass-hover {
+    @apply transition-all duration-300 hover:bg-white/90 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20;
+  }
+  .text-glow-emerald {
+    text-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+  }
+  .text-glow-rose {
+    text-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
+  }
 }

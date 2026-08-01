@@ -1,14 +1,11 @@
-// components/dashboard/team-prediction-ui.tsx
 'use client'
 
 import { useState, useActionState, useEffect } from 'react'
 import { submitTeamPrediction } from '@/lib/actions/team-prediction'
 
 export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [] }: any) {
-  // Initialize state with the existing pick if it exists
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeamPick?.team_id || null)
   
-  // Keep local state in sync if the server data updates after a refresh/submission
   useEffect(() => {
     if (initialTeamPick?.team_id) {
       setSelectedTeamId(initialTeamPick.team_id)
@@ -33,30 +30,31 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
   const hasExistingPick = !!initialTeamPick;
   const isSelectionChanged = initialTeamPick?.team_id !== selectedTeamId;
 
-  // Helper to calculate previous picks for a team (excluding current gameweek)
   const getTeamPickCount = (teamId: number) => {
     return allUserTeamPicks.filter((p: any) => p.team_id === teamId && p.gameweek_id !== currentGw.id).length;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 text-sm text-indigo-900 dark:text-indigo-300">
-        📌 <strong>Gameweek {currentGw.id} Rules:</strong> Select ONE team to win this gameweek. Max 2 picks per team per season.
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4">
+        📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Pick one team to win. You CANNOT pick the same team twice in a season. 
+        Correct pick = <strong className="text-indigo-500 font-bold text-lg">3 pts</strong>.
       </div>
 
-      <form action={formAction} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
+      <form action={formAction} className="glass rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-white/20 transition-colors duration-300">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         
-        {/* If they already have a pick, show a nice status banner */}
         {hasExistingPick && !isSelectionChanged && (
-          <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg text-center">
-            <span className="text-green-700 dark:text-green-400 font-bold text-sm">✓ Your team is securely locked in for Gameweek {currentGw.id}.</span>
+          <div className="mb-8 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-center shadow-[0_0_15px_rgba(16,185,129,0.1)] relative z-10">
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm tracking-widest uppercase">✓ Your team is securely locked in</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8">
+        {/* 3D Grid of Teams */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8 relative z-10">
           {teams.map((team: any) => {
             const pickCount = getTeamPickCount(team.id);
-            const isDisabled = pickCount >= 2 && team.id !== initialTeamPick?.team_id; // Allow picking if it's the current pick (even if it somehow got to 2)
+            const isDisabled = pickCount >= 2 && team.id !== initialTeamPick?.team_id; 
 
             return (
               <div 
@@ -64,90 +62,92 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
                 onClick={() => {
                   if (!isDisabled) setSelectedTeamId(team.id)
                 }}
-                className={`rounded-xl border-2 p-4 flex flex-col items-center justify-center gap-2 transition-all duration-200 ${
-                  isDisabled ? 'opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800/80 grayscale' : 'cursor-pointer'
+                className={`relative rounded-2xl border-2 p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 overflow-hidden ${
+                  isDisabled ? 'opacity-40 cursor-not-allowed bg-black/5 dark:bg-white/5 grayscale border-transparent' : 'cursor-pointer'
                 } ${
                   selectedTeamId === team.id && !isDisabled
-                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/40 shadow-md transform scale-105' 
-                    : !isDisabled ? 'border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 bg-slate-50 dark:bg-slate-800/50' : 'border-slate-200 dark:border-slate-700'
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 shadow-[0_0_20px_rgba(99,102,241,0.2)] scale-[1.05] z-10' 
+                    : !isDisabled ? 'border-white/10 hover:border-indigo-500/30 bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02]' : ''
                 }`}
               >
+                {selectedTeamId === team.id && !isDisabled && <div className="absolute inset-0 bg-indigo-500/10 blur-xl pointer-events-none" />}
+                
                 <img 
                   src={`https://resources.premierleague.com/premierleague/badges/t${team.code}.png`} 
                   alt={team.name}
-                  className="w-12 h-12 object-contain drop-shadow-sm"
+                  className="w-14 h-14 object-contain drop-shadow-md relative z-10"
                   onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
                 />
-                <div className="flex flex-col items-center">
-                  <span className="text-xs font-bold text-center text-slate-800 dark:text-slate-200">{team.short_name}</span>
-                  {isDisabled && <span className="text-[10px] text-red-500 font-semibold mt-1">Max Reached</span>}
+                <div className="flex flex-col items-center relative z-10">
+                  <span className="font-heading text-xl uppercase tracking-wide text-slate-900 dark:text-white">{team.short_name}</span>
+                  {isDisabled && <span className="text-[10px] text-rose-500 font-bold uppercase tracking-widest mt-1">Used</span>}
                 </div>
               </div>
             )
           })}
         </div>
 
+        {/* Selected Team Stats Panel */}
         {selectedTeamId && (
-          <div className="mb-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-            {(() => {
-              const selectedTeam = teams.find((t: any) => t.id === selectedTeamId);
-              if (!selectedTeam) return null;
-              return (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <img 
-                      src={`https://resources.premierleague.com/premierleague/badges/t${selectedTeam.code}.png`} 
-                      alt={selectedTeam.name}
-                      className="w-16 h-16 object-contain drop-shadow-md"
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
-                    />
-                    <div>
-                      <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{selectedTeam.name}</h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Current Position: {selectedTeam.position ? `#${selectedTeam.position}` : 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-6 text-center">
-                    <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Next Fixture</p>
-                      <p className="font-bold text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'No fixture'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Recent Form</p>
-                      <div className="flex items-center justify-center gap-1 mt-1">
-                        {selectedTeam.form ? (
-                           <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTeam.form}</span>
-                        ) : (
-                          <span className="font-bold text-slate-800 dark:text-slate-200">N/A</span>
-                        )}
-                      </div>
-                    </div>
+          (() => {
+            const selectedTeam = teams.find((t: any) => t.id === selectedTeamId);
+            if (!selectedTeam) return null;
+            return (
+              <div className="mb-8 p-6 glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 rounded-2xl animate-in slide-in-from-bottom-4 flex flex-col md:flex-row gap-6 items-center justify-between relative z-10 shadow-[0_0_15px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={`https://resources.premierleague.com/premierleague/badges/t${selectedTeam.code}.png`} 
+                    alt={selectedTeam.name}
+                    className="w-16 h-16 object-contain drop-shadow-md"
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
+                  />
+                  <div>
+                    <h3 className="font-heading text-2xl uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-sm">{selectedTeam.name}</h3>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Form: <span className="text-indigo-600 dark:text-indigo-400">{selectedTeam.form || 'N/A'}</span></p>
                   </div>
                 </div>
-              );
-            })()}
-          </div>
+                
+                <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8">
+                  <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Position</span>
+                    <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.position || '-'}</span>
+                  </div>
+                  <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Strength</span>
+                    <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.strength || '-'}</span>
+                  </div>
+                  <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Next Fixture</span>
+                    <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()
         )}
 
-        <div className="flex flex-col items-center border-t border-slate-100 dark:border-slate-800 pt-6">
-          <button
-            type="submit"
-            disabled={isPending || !selectedTeamId || (!isSelectionChanged && hasExistingPick)}
-            className="w-full sm:w-1/2 bg-indigo-600 text-white font-bold text-lg px-6 py-3 rounded-xl hover:bg-indigo-500 transition-colors disabled:bg-slate-400 dark:disabled:bg-slate-700"
-          >
-            {isPending ? 'Validating...' : (hasExistingPick && isSelectionChanged) ? 'Update Team Pick' : hasExistingPick ? 'Team Locked' : 'Lock In Team'}
-          </button>
-
-          {hasExistingPick && initialTeamPick.points_earned !== null && (
-              <div className="flex items-center justify-center px-4 bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-800 rounded-xl">
-                <span className="text-green-800 dark:text-green-400 font-extrabold whitespace-nowrap">
-                  +{initialTeamPick.points_earned} Pts
-                </span>
-              </div>
+        <div className="pt-6 border-t border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+          <div className="text-xs font-bold uppercase tracking-widest min-h-[1.5rem] flex items-center gap-2">
+            {state.success && <span className="text-indigo-600 dark:text-indigo-400 drop-shadow-sm">✓ {state.message}</span>}
+            {state.error && <span className="text-rose-600 dark:text-rose-400 drop-shadow-sm">⚠ {state.error}</span>}
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {hasExistingPick && initialTeamPick.points_earned !== null && (
+              <span className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-bold tracking-widest uppercase border border-indigo-500/30 shadow-[0_0_10px_rgba(99,102,241,0.1)]">
+                +{initialTeamPick.points_earned} Pts
+              </span>
             )}
 
-          <div className="mt-4 min-h-[1.5rem]">
-            {state.success && <span className="text-green-600 dark:text-green-400 font-bold text-sm">✓ {state.message}</span>}
-            {state.error && <span className="text-red-600 dark:text-red-400 font-bold text-sm">⚠ {state.error}</span>}
+            {!currentGw.is_finished && (
+              <button
+                type="submit"
+                disabled={isPending || !selectedTeamId || (!isSelectionChanged && hasExistingPick)}
+                className="bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest px-8 py-3 rounded-xl hover:bg-indigo-500 transition-all disabled:bg-slate-400 disabled:shadow-none hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]"
+              >
+                {isPending ? 'Validating...' : (hasExistingPick && isSelectionChanged) ? 'Update Pick' : hasExistingPick ? 'Team Locked' : 'Lock In Team'}
+              </button>
+            )}
           </div>
         </div>
       </form>
