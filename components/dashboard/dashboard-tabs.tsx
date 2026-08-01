@@ -2,6 +2,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import ScorePredictionsUI from './score-predictions-ui'
 import TeamPredictionUI from './team-prediction-ui'
 import FantasticFourUI from './fantastic-four-ui'
@@ -25,12 +26,12 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
   return (
     <div className="space-y-6">
       {/* 3D Card Navigation */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 mb-8 md:mb-12">
+      <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 md:mb-12 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {(['score', 'team', 'fantastic', 'leaderboard'] as TabState[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`group relative flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl transition-all duration-500 overflow-hidden text-center ${
+            className={`group relative flex-none w-[120px] sm:w-[140px] lg:w-auto flex flex-col items-center justify-center py-4 px-2 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl transition-all duration-500 overflow-hidden text-center snap-center ${
               activeTab === tab
                 ? 'glass scale-[1.02] border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)] dark:shadow-[0_0_40px_rgba(16,185,129,0.15)] z-10'
                 : 'bg-white/40 dark:bg-black/20 backdrop-blur-md border border-slate-200/50 dark:border-white/5 hover:scale-[1.02] hover:bg-white/60 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300 opacity-80 hover:opacity-100 cursor-pointer shadow-sm'
@@ -40,7 +41,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
               <div className="absolute inset-0 bg-emerald-500/5 blur-2xl pointer-events-none" />
             )}
             
-            <div className={`text-2xl sm:text-3xl md:text-4xl mb-1 sm:mb-3 md:mb-4 transition-transform duration-500 ${activeTab === tab ? 'scale-110' : 'group-hover:scale-110 group-hover:-translate-y-1'}`}>
+            <div className={`text-2xl sm:text-3xl md:text-4xl mb-1.5 sm:mb-3 md:mb-4 transition-transform duration-500 ${activeTab === tab ? 'scale-110' : 'group-hover:scale-110 group-hover:-translate-y-1'}`}>
               {tab === 'score' && '🎯'}
               {tab === 'team' && '🛡️'}
               {tab === 'fantastic' && '⚡'}
@@ -62,22 +63,32 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
       </div>
 
       {/* Render the Active Game UI */}
-      <div className="min-h-[400px]">
-        {activeTab === 'score' && (
-          <ScorePredictionsUI fixtures={fixtures} currentGw={currentGw} initialScorePicks={initialScorePicks} />
-        )}
-        
-        {activeTab === 'team' && (
-          <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} />
-        )}
-        
-        {activeTab === 'fantastic' && (
-          <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks} allUserFantasticPicks={allUserFantasticPicks} />
-        )}
+      <div className="min-h-[400px] relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            {activeTab === 'score' && (
+              <ScorePredictionsUI fixtures={fixtures} currentGw={currentGw} initialScorePicks={initialScorePicks} />
+            )}
+            
+            {activeTab === 'team' && (
+              <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} />
+            )}
+            
+            {activeTab === 'fantastic' && (
+              <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks} allUserFantasticPicks={allUserFantasticPicks} />
+            )}
 
-        {activeTab === 'leaderboard' && (
-          <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} />
-        )}
+            {activeTab === 'leaderboard' && (
+              <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   )

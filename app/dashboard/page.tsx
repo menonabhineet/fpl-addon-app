@@ -6,6 +6,7 @@ import ThemeToggle from '@/components/theme-toggle'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import { fetchBootstrapStatic } from '@/lib/fpl-api'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
+import AnimatedNumber from '@/components/dashboard/animated-number'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data
 export const dynamic = 'force-dynamic' 
@@ -202,28 +203,32 @@ export default async function DashboardPage({
         </div>
       </header>
 
-      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-10">
+      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4 sm:pt-10">
         
         {/* HERO SECTION */}
-        <section className="flex flex-col items-center justify-center text-center mb-8 relative">
-          <div className="mb-2 inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
+        <section className="flex flex-col items-center justify-center text-center mb-4 sm:mb-8 relative">
+          <div className="mb-1 sm:mb-2 inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
             <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
             {selectedGw ? (selectedGw.name || `Gameweek ${selectedGw.id}`) : 'Season inactive'}
           </div>
 
-          <div className="flex flex-wrap justify-center gap-6 md:gap-12 items-end mt-2">
+          <div className="flex flex-wrap justify-center gap-6 md:gap-12 items-end mt-1 sm:mt-2">
             <div className="flex flex-col items-center">
-              <span className="text-slate-500 dark:text-slate-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-1">Your Points</span>
-              <span className="font-heading text-6xl md:text-8xl text-slate-900 dark:text-white drop-shadow-2xl leading-none">{userGrandTotal}</span>
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] sm:text-xs tracking-widest uppercase mb-0.5 sm:mb-1">Your Points</span>
+              <span className="font-heading text-5xl sm:text-6xl md:text-8xl text-slate-900 dark:text-white drop-shadow-2xl leading-none">
+                <AnimatedNumber value={userGrandTotal} />
+              </span>
             </div>
-            <div className="flex flex-col items-center pb-1 md:pb-2">
-              <span className="text-slate-500 dark:text-slate-400 font-bold text-[10px] sm:text-xs tracking-widest uppercase mb-1">Global Rank</span>
-              <span className="font-heading text-4xl md:text-5xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">#{userRank || '-'}</span>
+            <div className="flex flex-col items-center pb-0.5 sm:pb-1 md:pb-2">
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase mb-0.5 sm:mb-1">Global Rank</span>
+              <span className="font-heading text-3xl sm:text-4xl md:text-5xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">
+                #{userRank > 0 ? <AnimatedNumber value={userRank} /> : '-'}
+              </span>
             </div>
           </div>
 
           {selectedGw?.deadline_time && (
-            <div className="mt-6 scale-90 md:scale-100 transform origin-top">
+            <div className="mt-4 sm:mt-6 scale-90 md:scale-100 transform origin-top">
               <DeadlineBanner deadlineTime={selectedGw.deadline_time} />
             </div>
           )}

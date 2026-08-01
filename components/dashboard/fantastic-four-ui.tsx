@@ -108,88 +108,96 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
       <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-amber-500/30 border-l-4">
         📌 <strong className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Select your Fantastic Four. <strong>DEF/MID</strong> can be picked ONCE per season. <strong>GK/FWD</strong> can be picked ONCE per half-season. Click a player to swap them.
       </div>
+      
+      {/* 3D Pitch Container */}
+      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] md:aspect-auto md:min-h-[550px] [perspective:1200px] mx-auto max-w-4xl">
+        <div className="absolute inset-0 bg-emerald-600 dark:bg-emerald-800 rounded-[2.5rem] overflow-hidden shadow-[inset_0_0_100px_rgba(0,0,0,0.6),0_20px_40px_rgba(0,0,0,0.4)] border-[12px] border-emerald-700/50 dark:border-emerald-900/50 transition-all duration-700 hover:shadow-[0_0_60px_rgba(16,185,129,0.4)] [transform:rotateX(15deg)_scale(0.95)] [transform-origin:bottom] group/pitch">
+          
+          {/* Pitch Lines & Grass Pattern */}
+          <div className="absolute inset-0 opacity-20 bg-[repeating-linear-gradient(0deg,transparent,transparent_40px,#000_40px,#000_80px)]" />
+          <div className="absolute inset-x-0 top-0 h-[10%] border-b-[3px] border-white/40" />
+          <div className="absolute inset-x-[20%] top-0 h-[20%] border-x-[3px] border-b-[3px] border-white/40" />
+          <div className="absolute inset-x-0 bottom-0 h-[10%] border-t-[3px] border-white/40" />
+          <div className="absolute inset-x-[20%] bottom-0 h-[20%] border-x-[3px] border-t-[3px] border-white/40" />
+          <div className="absolute inset-0 m-auto w-40 h-40 border-[3px] border-white/40 rounded-full" />
+          <div className="absolute inset-x-0 top-1/2 h-[3px] bg-white/40" />
 
-      <div className="relative w-full bg-emerald-600 dark:bg-emerald-800 rounded-[2.5rem] overflow-hidden shadow-[inset_0_0_50px_rgba(0,0,0,0.5)] border-[8px] border-emerald-700/50 dark:border-emerald-900/50 aspect-[3/4] sm:aspect-[4/5] md:aspect-auto md:min-h-[450px] flex flex-col justify-evenly p-4 transition-all duration-500 hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]">
-        {/* Pitch Lines */}
-        <div className="absolute inset-x-0 top-0 h-[10%] border-b-2 border-white/30" />
-        <div className="absolute inset-x-[20%] top-0 h-[20%] border-x-2 border-b-2 border-white/30" />
-        <div className="absolute inset-x-0 bottom-0 h-[10%] border-t-2 border-white/30" />
-        <div className="absolute inset-x-[20%] bottom-0 h-[20%] border-x-2 border-t-2 border-white/30" />
-        <div className="absolute inset-0 m-auto w-32 h-32 border-2 border-white/30 rounded-full" />
-        <div className="absolute inset-x-0 top-1/2 h-px bg-white/30" />
+          {/* Player Slots */}
+          <div className="relative z-10 h-full flex flex-col justify-around py-8 [transform:rotateX(-15deg)] transition-transform duration-700">
+            {positions.map((pos) => {
+              const selectedPlayer = picksByPosition[pos]
 
-        {/* Player Slots */}
-        <div className="relative z-10 h-full flex flex-col justify-around">
-          {positions.map((pos) => {
-            const selectedPlayer = picksByPosition[pos]
-
-            return (
-              <div key={pos} className="flex justify-center">
-                <button
-                  onClick={() => {
-                    if (selectedPlayer) {
-                      setInfoSlot(pos);
-                    } else {
-                      setActiveSlot(pos);
-                      setSearchQuery('');
-                    }
-                  }}
-                  className="flex flex-col items-center group transition-all duration-200 hover:scale-105 outline-none"
-                >
-                  {selectedPlayer ? (
-                    // Render Player Jersey and Details if Picked
-                    <div className="flex flex-col items-center animate-fadeIn relative">
-                      {/* Fixed height container ensures layout never collapses */}
-                      <div className="w-14 h-16 flex items-end justify-center mb-1">
-                        <img
-                          // Using the highly stable FPL specific CDN for shirts
-                          src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${selectedPlayer.teamCode}-66.webp`}
-                          alt="Jersey"
-                          className="w-12 h-auto object-contain drop-shadow-md group-hover:drop-shadow-xl transition-all"
-                          onError={(e) => {
-                            // Fallback to the generic FPL grey shirt if code is missing
-                            (e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp'
-                          }}
-                        />
-                      </div>
-                      <span className="px-2 py-0.5 bg-indigo-950 text-white dark:bg-slate-900 text-xs font-bold rounded shadow-md border border-indigo-800 dark:border-slate-700 max-w-[120px] truncate">
-                        {selectedPlayer.name}
-                      </span>
-                      {selectedPlayer.points !== null && selectedPlayer.points !== undefined && (
-                        <span className="mt-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-400 text-[11px] font-extrabold rounded shadow-sm border border-green-300 dark:border-green-800">
-                          {selectedPlayer.points} Pts
+              return (
+                <div key={pos} className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      if (selectedPlayer) {
+                        setInfoSlot(pos);
+                      } else {
+                        setActiveSlot(pos);
+                        setSearchQuery('');
+                      }
+                    }}
+                    className="flex flex-col items-center group transition-all duration-300 hover:-translate-y-2 outline-none"
+                  >
+                    {selectedPlayer ? (
+                      // Render Player Jersey and Details if Picked
+                      <div className="flex flex-col items-center relative animate-in zoom-in duration-300">
+                        {/* Fixed height container ensures layout never collapses */}
+                        <div className="relative w-20 h-24 flex items-end justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                          {/* Glow behind jersey */}
+                          <div className="absolute inset-0 bg-white/20 blur-xl rounded-full" />
+                          <img
+                            // Using the highly stable FPL specific CDN for shirts
+                            src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${selectedPlayer.teamCode}-66.webp`}
+                            alt="Jersey"
+                            className="w-16 h-auto object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.6)] relative z-10"
+                            onError={(e) => {
+                              // Fallback to the generic FPL grey shirt if code is missing
+                              (e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp'
+                            }}
+                          />
+                        </div>
+                        <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xl border border-white/20 max-w-[140px] truncate">
+                          {selectedPlayer.name}
                         </span>
-                      )}
-                    </div>
-                  ) : (
-                    // Render Add Button if Empty
-                    <div className="w-12 h-12 rounded-full bg-slate-900/40 text-white font-bold text-xl flex items-center justify-center border-2 border-dashed border-white/50 group-hover:bg-slate-900/60 group-hover:border-white transition-all shadow-lg backdrop-blur-sm">
-                      +
-                    </div>
-                  )}
+                        {selectedPlayer.points !== null && selectedPlayer.points !== undefined && (
+                          <span className="absolute -top-2 -right-4 px-2 py-1 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full shadow-lg border-2 border-emerald-300">
+                            {selectedPlayer.points} Pts
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      // Render Add Button if Empty
+                      <div className="w-16 h-16 rounded-full glass bg-white/10 text-white/50 font-bold text-3xl flex items-center justify-center border-2 border-dashed border-white/40 group-hover:bg-white/20 group-hover:border-white group-hover:text-white transition-all shadow-[0_10px_20px_rgba(0,0,0,0.3)] backdrop-blur-md">
+                        +
+                      </div>
+                    )}
 
-                  {!selectedPlayer && (
-                    <span className="mt-2 px-2 py-0.5 bg-slate-900/80 text-white text-[10px] font-bold rounded uppercase tracking-wider">
-                      {pos}
-                    </span>
-                  )}
-                </button>
-              </div>
-            )
-          })}
+                    {!selectedPlayer && (
+                      <span className="mt-3 px-3 py-1 bg-black/40 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-widest shadow-md">
+                        {pos}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </div>
+      </div>
 
         {/* Player Info Overlay */}
         {infoSlot && (() => {
           const infoPlayerDetails = players.find((p: any) => p.id === picksByPosition[infoSlot]?.id);
           if (!infoPlayerDetails) return null;
           return (
-            <div className="absolute inset-0 z-30 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
+            <div className="absolute inset-0 z-30 bg-slate-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="glass bg-white/90 dark:bg-neutral-950/90 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
                 <button onClick={() => setInfoSlot(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10">
                   ✕
                 </button>
-                <div className="p-5 flex items-center gap-4 border-b border-slate-100 dark:border-slate-700 bg-indigo-50/50 dark:bg-slate-900/50">
+                <div className="p-5 flex items-center gap-4 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
                   <img
                     src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${picksByPosition[infoSlot].teamCode}-66.webp`}
                     alt="Jersey"
@@ -206,11 +214,11 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
 
                 <div className="p-5 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <div className="glass bg-white/50 dark:bg-black/40 p-3 rounded-lg border border-slate-200 dark:border-white/5">
                       <p className="text-[10px] uppercase font-bold text-slate-500">Upcoming Fixture</p>
                       <p className="font-semibold text-slate-800 dark:text-slate-200">{infoPlayerDetails.next_fixture || 'No fixture'}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <div className="glass bg-white/50 dark:bg-black/40 p-3 rounded-lg border border-slate-200 dark:border-white/5">
                       <p className="text-[10px] uppercase font-bold text-slate-500">Status</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {infoPlayerDetails.status === 'a' ? (
@@ -229,19 +237,19 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
-                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <div className="text-center p-2 glass bg-white/50 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/5">
                       <p className="text-xs text-slate-500">Pts</p>
                       <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.total_points}</p>
                     </div>
-                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <div className="text-center p-2 glass bg-white/50 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/5">
                       <p className="text-xs text-slate-500">Form</p>
                       <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.form}</p>
                     </div>
-                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <div className="text-center p-2 glass bg-white/50 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/5">
                       <p className="text-xs text-slate-500">PPG</p>
                       <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.points_per_game}</p>
                     </div>
-                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <div className="text-center p-2 glass bg-white/50 dark:bg-black/40 rounded-lg border border-slate-200 dark:border-white/5">
                       <p className="text-xs text-slate-500">TSB</p>
                       <p className="font-bold text-slate-800 dark:text-slate-200">{infoPlayerDetails.selected_by_percent}%</p>
                     </div>
@@ -271,26 +279,26 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
 
         {/* Player Selection Overlay Drawer */}
         {activeSlot && (
-          <div className="absolute inset-0 z-20 glass backdrop-blur-2xl flex flex-col transition-colors shadow-2xl rounded-[2.5rem] overflow-hidden border border-white/20">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20 transition-colors">
-              <h3 className="font-bold text-lg dark:text-white uppercase tracking-widest">Select {activeSlot}</h3>
-              <button onClick={() => setActiveSlot(null)} className="text-white hover:text-rose-400 font-bold px-3 py-1 bg-black/40 rounded-full transition-colors backdrop-blur-md">✕</button>
+          <div className="absolute inset-0 z-20 glass bg-white/90 dark:bg-neutral-900/90 backdrop-blur-2xl flex flex-col transition-colors shadow-2xl rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-white/20">
+            <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-100/50 dark:bg-black/40 transition-colors">
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white uppercase tracking-widest">Select {activeSlot}</h3>
+              <button onClick={() => setActiveSlot(null)} className="text-slate-600 dark:text-white hover:text-rose-500 dark:hover:text-rose-400 font-bold px-3 py-1 bg-white/50 dark:bg-black/60 border border-slate-200 dark:border-white/10 rounded-full transition-colors backdrop-blur-md">✕</button>
             </div>
 
-            <div className="p-4 bg-white dark:bg-slate-900 space-y-3">
+            <div className="p-4 bg-slate-50/50 dark:bg-black/20 space-y-3">
               <input
                 type="text"
                 placeholder="Search player name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-colors outline-none"
+                className="w-full p-3 rounded-xl border border-slate-300 dark:border-white/10 glass bg-white dark:bg-white/5 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-colors outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
 
               <div className="flex gap-2">
                 <select
                   value={selectedClub}
                   onChange={(e) => setSelectedClub(e.target.value)}
-                  className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="flex-1 p-2 rounded-xl border border-slate-300 dark:border-white/10 glass bg-white dark:bg-neutral-900/80 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   <option value="All">All Clubs</option>
                   {(uniqueClubs as string[]).map((club) => (
@@ -301,7 +309,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="flex-1 p-2 rounded-xl border border-slate-300 dark:border-white/10 glass bg-white dark:bg-neutral-900/80 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   <option value="name">Sort by Name</option>
                   <option value="form">Sort by Form</option>
@@ -320,13 +328,13 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                   const disabled = isPlayerDisabled(p);
 
                   return (
-                    <form action={formAction} key={p.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors">
+                    <form action={formAction} key={p.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 p-3 glass bg-white/80 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors">
                       <input type="hidden" name="playerId" value={p.id} />
                       <input type="hidden" name="playerName" value={p.name} />
                       <input type="hidden" name="position" value={p.position} />
 
                       <div className="flex flex-col w-full sm:w-auto">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{p.name} <span className="text-xs font-normal text-slate-500">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
+                        <span className="font-semibold text-slate-900 dark:text-white">{p.name} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
                         <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                           <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
                           <span>Form: <strong>{p.form}</strong></span>
@@ -340,16 +348,16 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                         <button
                           type="button"
                           onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id); }}
-                          className="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-md text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm"
+                          className="bg-slate-200 dark:bg-white/10 border border-transparent dark:border-white/10 text-slate-800 dark:text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-white/20 transition-colors shadow-sm"
                         >
                           Compare
                         </button>
                         <button
                           type="submit"
                           disabled={isPending || disabled}
-                          className={`px-4 py-1.5 rounded-md text-sm font-bold shadow-sm ml-2 transition-colors ${disabled
-                            ? 'bg-slate-400 text-slate-200 cursor-not-allowed dark:bg-slate-700 dark:text-slate-400'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-slate-400'
+                          className={`px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm ml-2 transition-colors border ${disabled
+                            ? 'bg-slate-300 dark:bg-black/40 text-slate-500 border-transparent dark:border-white/5 cursor-not-allowed'
+                            : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-600'
                             }`}
                         >
                           {isPending ? '...' : disabled ? 'Max Reached' : 'Pick'}
@@ -370,7 +378,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                 const renderCard = (player: any, title: string) => {
                   if (!player) {
                     return (
-                      <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center p-4 min-h-[300px]">
+                      <div className="flex-1 glass bg-slate-100 dark:bg-black/40 rounded-2xl border border-dashed border-slate-300 dark:border-white/20 flex items-center justify-center p-4 min-h-[300px]">
                         <span className="text-slate-500 font-medium">Empty Slot</span>
                       </div>
                     );
@@ -378,15 +386,15 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
 
                   const teamCode = Array.isArray(player.teams) ? player.teams[0]?.code : player.teams?.code || 0;
                   return (
-                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
-                      <div className="bg-slate-100 dark:bg-slate-900 py-1.5 px-3 text-xs font-bold text-center text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                    <div className="flex-1 glass bg-white dark:bg-black/60 rounded-2xl shadow-xl border border-slate-200 dark:border-white/10 overflow-hidden flex flex-col">
+                      <div className="bg-slate-50 dark:bg-white/5 py-2 px-3 text-xs font-bold text-center text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-white/10">
                         {title}
                       </div>
-                      <div className="p-3 flex flex-col items-center gap-2 border-b border-slate-100 dark:border-slate-700 bg-indigo-50/30 dark:bg-slate-900/30">
+                      <div className="p-3 flex flex-col items-center gap-2 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5">
                         <img
                           src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${teamCode}-66.webp`}
                           alt="Jersey"
-                          className="w-12 h-auto object-contain drop-shadow-sm"
+                          className="w-16 h-auto object-contain drop-shadow-md"
                           onError={(e) => { (e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp' }}
                         />
                         <div className="text-center">
@@ -433,19 +441,19 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                 };
 
                 return (
-                  <div className="absolute inset-0 z-30 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200 max-h-full">
-                      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shrink-0">
-                        <h3 className="font-bold text-lg dark:text-white">Compare Players</h3>
-                        <button onClick={() => setComparePlayerId(null)} className="text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors">✕</button>
+                  <div className="absolute inset-0 z-30 bg-slate-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+                    <div className="glass bg-white/90 dark:bg-neutral-950/90 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10 max-h-full">
+                      <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-white/10 bg-slate-100/50 dark:bg-black/40 shrink-0">
+                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Compare Players</h3>
+                        <button onClick={() => setComparePlayerId(null)} className="text-slate-600 dark:text-white hover:text-rose-500 font-bold px-3 py-1 bg-slate-200 dark:bg-black/40 border border-transparent dark:border-white/10 rounded-full transition-colors">✕</button>
                       </div>
-                      <div className="p-2 sm:p-4 flex flex-row gap-2 sm:gap-4 flex-1 overflow-y-auto">
+                      <div className="p-2 sm:p-6 flex flex-row gap-2 sm:gap-6 flex-1 overflow-y-auto">
                         {renderCard(currentPlayer, "Current Pick")}
-                        <div className="flex flex-col justify-center items-center font-bold text-slate-300 dark:text-slate-600 text-xl">VS</div>
+                        <div className="flex flex-col justify-center items-center font-black text-slate-400 dark:text-slate-600 text-2xl">VS</div>
                         {renderCard(candidatePlayer, "Candidate")}
                       </div>
-                      <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2 sm:gap-3 shrink-0">
-                        <button onClick={() => setComparePlayerId(null)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                      <div className="p-4 bg-slate-50/50 dark:bg-black/40 border-t border-slate-200 dark:border-white/10 flex justify-end gap-2 sm:gap-3 shrink-0">
+                        <button onClick={() => setComparePlayerId(null)} className="px-5 py-2 glass bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-white rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-white/20 transition-colors border border-transparent dark:border-white/10">
                           Cancel
                         </button>
                         <form action={formAction}>
@@ -471,8 +479,6 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
             </div>
           </div>
         )}
-      </div>
-
       {/* Status Feedback */}
       <div className="text-center min-h-[1.5rem]">
         {state.success && <span className="text-green-600 dark:text-green-400 font-bold">✓ {state.message}</span>}
