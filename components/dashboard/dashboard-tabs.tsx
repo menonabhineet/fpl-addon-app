@@ -81,7 +81,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
             )}
             
             {activeTab === 'team' && (
-              <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} />
+              <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} />
             )}
             
             {activeTab === 'fantastic' && (
