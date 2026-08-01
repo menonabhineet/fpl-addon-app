@@ -28,14 +28,19 @@ export default async function DashboardPage({
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
   
   const currentGwId = currentGwObj?.id || 1
-  const maxAllowedGwId = allGameweeks && allGameweeks.length > 0 
-    ? Math.min(currentGwId + 1, allGameweeks[allGameweeks.length - 1].id) 
-    : currentGwId + 1
+  
+  // Filter gameweeks to only those that are current/historic OR explicitly made available to players by the admin
+  const allowedGameweeks = allGameweeks?.filter(gw => gw.id <= currentGwId || gw.is_available_to_players) || []
 
   // If URL has ?gw=2, use 2. Otherwise default to current.
   const requestedGwId = resolvedParams.gw ? parseInt(resolvedParams.gw) : currentGwId
-  const selectedGwId = Math.min(Math.max(1, requestedGwId), maxAllowedGwId)
-  const selectedGw = allGameweeks?.find(gw => gw.id === selectedGwId)
+  
+  // Ensure the requested gameweek is in the allowed list, otherwise fallback to current
+  let selectedGw = allowedGameweeks.find(gw => gw.id === requestedGwId)
+  if (!selectedGw) {
+    selectedGw = allowedGameweeks.find(gw => gw.id === currentGwId) || allowedGameweeks[0]
+  }
+  const selectedGwId = selectedGw?.id || 1
 
   // 3. Fetch data specifically for the SELECTED Gameweek
   const { data: fixtures } = await supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, is_selected, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true })
@@ -191,7 +196,7 @@ export default async function DashboardPage({
         </div>
         
         <div className="flex items-center gap-4 glass px-4 py-2 rounded-full">
-          {allGameweeks && <GameweekSelector allGameweeks={allGameweeks.filter(gw => gw.id <= maxAllowedGwId)} selectedGwId={selectedGwId} />}
+          {allGameweeks && <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />}
           <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <ThemeToggle />
           <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>

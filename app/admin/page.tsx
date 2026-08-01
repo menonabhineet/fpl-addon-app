@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminFixturesClient from './admin-fixtures-client'
+import AdminVisibilityClient from './admin-visibility-client'
+import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -29,7 +31,7 @@ export default async function AdminPage({
   
   const currentGwId = currentGwObj?.id || 1
   const maxAllowedGwId = allGameweeks && allGameweeks.length > 0 
-    ? Math.min(currentGwId + 3, allGameweeks[allGameweeks.length - 1].id) 
+    ? allGameweeks[allGameweeks.length - 1].id 
     : currentGwId + 3
   
   const requestedGwId = resolvedParams.gw ? parseInt(resolvedParams.gw) : currentGwId
@@ -64,6 +66,8 @@ export default async function AdminPage({
         </div>
         
         <div className="flex items-center gap-4 glass px-4 py-2 rounded-full">
+          {allGameweeks && <GameweekSelector allGameweeks={allGameweeks} selectedGwId={selectedGwId} />}
+          <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-widest text-slate-500">{user.email}</span>
           <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <Link href="/dashboard" className="text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-indigo-500 transition-colors">
@@ -79,9 +83,19 @@ export default async function AdminPage({
           <div className="relative p-6 sm:p-8 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
               <h2 className="text-2xl font-heading uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-sm">Select Fixtures</h2>
-              <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-indigo-500/30 text-indigo-600 dark:text-indigo-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
-                <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>
-                Gameweek {selectedGwId}
+              <div className="mt-2 flex items-center gap-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-indigo-500/30 text-indigo-600 dark:text-indigo-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
+                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>
+                  Gameweek {selectedGwId}
+                </div>
+                {selectedGw && (
+                  <AdminVisibilityClient 
+                    key={selectedGwId}
+                    gameweekId={selectedGwId} 
+                    initialVisibility={selectedGw.is_available_to_players || false} 
+                    isCurrentOrHistoric={selectedGwId <= currentGwId} 
+                  />
+                )}
               </div>
             </div>
             

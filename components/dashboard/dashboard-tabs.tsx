@@ -30,7 +30,11 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         {(['score', 'team', 'fantastic', 'leaderboard'] as TabState[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={(e) => {
+              setActiveTab(tab);
+              // Auto-scroll the clicked tab into the center of the view on mobile
+              e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }}
             className={`group relative flex-none w-[120px] sm:w-[140px] lg:w-auto flex flex-col items-center justify-center py-4 px-2 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl transition-all duration-500 overflow-hidden text-center snap-center ${
               activeTab === tab
                 ? 'glass scale-[1.02] border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)] dark:shadow-[0_0_40px_rgba(16,185,129,0.15)] z-10'

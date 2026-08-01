@@ -16,13 +16,15 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
     setMessage(null)
   }, [gameweekId, fixtures])
 
+  const maxSelections = Math.min(5, fixtures.length)
+
   const toggleSelection = (id: number) => {
     setSelectedIds(prev => {
       if (prev.includes(id)) {
         return prev.filter(pId => pId !== id)
       } else {
-        if (prev.length >= 5) {
-          // Optionally, don't allow selecting more than 5
+        if (prev.length >= maxSelections) {
+          // Optionally, don't allow selecting more than maxSelections
           return prev
         }
         return [...prev, id]
@@ -32,8 +34,8 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
   }
 
   const handleSave = async () => {
-    if (selectedIds.length !== 5) {
-      setMessage({ type: 'error', text: 'You must select exactly 5 fixtures.' })
+    if (selectedIds.length !== maxSelections) {
+      setMessage({ type: 'error', text: `You must select exactly ${maxSelections} fixture${maxSelections !== 1 ? 's' : ''}.` })
       return
     }
 
@@ -58,14 +60,14 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
             Selected Fixtures: 
           </span>
-          <div className={`px-3 py-1 rounded-lg text-xs font-bold ${selectedIds.length === 5 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
-            {selectedIds.length} / 5
+          <div className={`px-3 py-1 rounded-lg text-xs font-bold ${selectedIds.length === maxSelections && maxSelections > 0 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}>
+            {selectedIds.length} / {maxSelections}
           </div>
         </div>
         
         <button
           onClick={handleSave}
-          disabled={isSaving || selectedIds.length !== 5}
+          disabled={isSaving || selectedIds.length !== maxSelections || maxSelections === 0}
           className="relative group overflow-hidden bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
         >
           <span className="relative z-10">{isSaving ? 'Saving...' : 'Save Selection'}</span>

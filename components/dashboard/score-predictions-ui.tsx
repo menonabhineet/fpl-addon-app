@@ -13,7 +13,7 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
 
       {fixtures.filter((m: any) => m.is_selected).length === 0 ? (
         <div className="glass rounded-3xl p-12 text-center">
-          <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">The admin has not selected the 5 fixtures for this gameweek yet.</p>
+          <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">The admin has not selected the fixtures for this gameweek yet.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

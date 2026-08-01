@@ -12,9 +12,19 @@ export async function saveSelectedFixtures(gameweekId: number, selectedFixtureId
     const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
     if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
 
-    // We must ensure the user has exactly selected 5 fixtures.
-    if (selectedFixtureIds.length !== 5) {
-      throw new Error('You must select exactly 5 fixtures.')
+    // Fetch total fixtures for this gameweek to determine the selection cap
+    const { count, error: countError } = await supabase
+      .from('fixtures')
+      .select('*', { count: 'exact', head: true })
+      .eq('gameweek_id', gameweekId)
+
+    if (countError) throw new Error('Failed to validate gameweek fixtures.')
+    
+    const maxSelections = Math.min(5, count || 0)
+
+    // We must ensure the user has selected up to the maximum possible (usually 5)
+    if (selectedFixtureIds.length !== maxSelections) {
+      throw new Error(`You must select exactly ${maxSelections} fixture${maxSelections !== 1 ? 's' : ''}.`)
     }
 
     // First, set all fixtures for this gameweek to is_selected = false
