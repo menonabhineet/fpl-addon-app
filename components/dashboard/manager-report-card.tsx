@@ -123,13 +123,13 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                     <table className="w-full text-sm text-left">
                       <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-black/20 border-b border-white/10">
                         <tr>
+                          <th className="px-2 py-4 text-center"></th>
                           <th className="px-4 py-4 text-center">GW</th>
                           <th className="px-4 py-4 text-center">Scores</th>
                           <th className="px-4 py-4 text-center">Team</th>
                           <th className="px-4 py-4 text-center">F4</th>
                           <th className="px-4 py-4 text-center">Pens</th>
                           <th className="px-4 py-4 text-center text-emerald-500">Total</th>
-                          <th className="px-4 py-4 text-center"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
@@ -145,19 +145,19 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                                 onClick={() => { if (hasPicksData) toggleExpand(gwId) }}
                                 className={`transition-colors duration-300 ${hasPicksData ? 'cursor-pointer hover:bg-white/10' : 'opacity-50 grayscale'}`}
                               >
+                                <td className="px-2 py-3 text-center text-slate-400">
+                                  {hasPicksData ? (
+                                    isExpanded ? '▲' : '▼'
+                                  ) : (
+                                    <span className="text-[10px]" title="Picks hidden until deadline passes">🔒</span>
+                                  )}
+                                </td>
                                 <td className="px-4 py-3 font-heading text-xl text-slate-700 dark:text-slate-300 text-center">{gwId}</td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.score_points}</td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.team_points}</td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.fantastic_four_points}</td>
                                 <td className="px-4 py-3 text-rose-500 font-bold text-center">{record.penalty_points < 0 ? record.penalty_points : '-'}</td>
                                 <td className="px-4 py-3 font-heading text-2xl text-emerald-600 dark:text-emerald-400 drop-shadow-sm text-center">{record.total_points}</td>
-                                <td className="px-4 py-3 text-center text-slate-400">
-                                  {hasPicksData ? (
-                                    isExpanded ? '▲' : '▼'
-                                  ) : (
-                                    <span className="text-[9px] font-bold uppercase tracking-widest" title="Picks hidden until deadline passes">Locked</span>
-                                  )}
-                                </td>
                               </tr>
                               {isExpanded && gwPicks && (
                                 <tr className="bg-black/30">
