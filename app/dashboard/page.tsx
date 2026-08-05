@@ -182,7 +182,7 @@ export default async function DashboardPage({
       .map((f: any) => {
         const isHome = f.team_h === t.id;
         const opponentId = isHome ? f.team_a : f.team_h;
-        const opponent = teams.find((tt: any) => tt.id === opponentId);
+        const opponent = teams?.find((tt: any) => tt.id === opponentId);
         return {
           opponentName: opponent ? opponent.name : 'Unknown',
           opponentShortName: opponent ? opponent.short_name : 'UNK',
