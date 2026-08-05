@@ -45,6 +45,19 @@ export default async function AdminPage({
     .eq('gameweek_id', selectedGwId)
     .order('kickoff_time', { ascending: true })
 
+  // Check if deadline passed
+  const now = new Date().toISOString()
+  const deadlinePassed = !!selectedGw && selectedGw.deadline_time <= now
+
+  // Find fixtures that already have predictions (cannot be unselected/changed)
+  const { data: predictions } = await supabase
+    .from('score_predictions')
+    .select('fixture_id')
+    .in('fixture_id', fixtures?.map(f => f.id) || [])
+
+  const lockedFixtureIds = Array.from(new Set(predictions?.map(p => p.fixture_id) || []))
+  const isLocked = deadlinePassed
+
   return (
     <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300 relative overflow-hidden">
       {/* Immersive Background Glows */}
@@ -127,7 +140,7 @@ export default async function AdminPage({
           </div>
           
           <div className="relative p-6 sm:p-8">
-            <AdminFixturesClient fixtures={fixtures || []} gameweekId={selectedGwId} />
+            <AdminFixturesClient fixtures={fixtures || []} gameweekId={selectedGwId} isLocked={isLocked} lockedFixtureIds={lockedFixtureIds} />
           </div>
         </div>
       </main>

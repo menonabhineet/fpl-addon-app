@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { saveSelectedFixtures } from '@/lib/actions/admin'
 
-export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures: any[], gameweekId: number }) {
+export default function AdminFixturesClient({ fixtures, gameweekId, isLocked = false, lockedFixtureIds = [] }: { fixtures: any[], gameweekId: number, isLocked?: boolean, lockedFixtureIds?: number[] }) {
   // Initialize with the fixtures that are already selected
   const [selectedIds, setSelectedIds] = useState<number[]>(
     fixtures.filter(f => f.is_selected).map(f => f.id)
@@ -19,6 +19,7 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
   const maxSelections = Math.min(5, fixtures.length)
 
   const toggleSelection = (id: number) => {
+    if (isLocked || lockedFixtureIds.includes(id)) return
     setSelectedIds(prev => {
       if (prev.includes(id)) {
         return prev.filter(pId => pId !== id)
@@ -67,13 +68,26 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
         
         <button
           onClick={handleSave}
-          disabled={isSaving || selectedIds.length !== maxSelections || maxSelections === 0}
+          disabled={isLocked || isSaving || selectedIds.length !== maxSelections || maxSelections === 0}
           className="relative group overflow-hidden bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
         >
           <span className="relative z-10">{isSaving ? 'Saving...' : 'Save Selection'}</span>
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
       </div>
+
+      {isLocked && (
+        <div className="p-4 rounded-xl text-xs font-bold uppercase tracking-widest mb-6 border glass bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          Selections are locked because the gameweek deadline has passed.
+        </div>
+      )}
+      {!isLocked && lockedFixtureIds.length > 0 && (
+        <div className="p-4 rounded-xl text-xs font-bold uppercase tracking-widest mb-6 border glass bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          Some selected fixtures cannot be changed because players have already started making predictions for them.
+        </div>
+      )}
 
       {message && (
         <div className={`p-4 rounded-xl text-xs font-bold uppercase tracking-widest mb-6 border ${message.type === 'success' ? 'glass bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'glass bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
@@ -88,14 +102,16 @@ export default function AdminFixturesClient({ fixtures, gameweekId }: { fixtures
             weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
           })
           
+          const isFixtureLocked = isLocked || lockedFixtureIds.includes(match.id)
+          
           return (
             <div 
               key={match.id}
               onClick={() => toggleSelection(match.id)}
-              className={`group flex items-center justify-between p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-300 ${
+              className={`group flex items-center justify-between p-4 sm:p-5 rounded-2xl transition-all duration-300 ${isFixtureLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'} ${
                 isSelected 
                   ? 'glass bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/50 shadow-[0_0_15px_rgba(79,70,229,0.15)] scale-[1.01] z-10' 
-                  : 'glass bg-white/40 dark:bg-black/20 border-slate-200/50 dark:border-white/5 hover:bg-white/60 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20'
+                  : `glass bg-white/40 dark:bg-black/20 border-slate-200/50 dark:border-white/5 ${!isFixtureLocked ? 'hover:bg-white/60 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20' : ''}`
               }`}
             >
               <div className="flex items-center gap-4 sm:gap-6 w-full">
