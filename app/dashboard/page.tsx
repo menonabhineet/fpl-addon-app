@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardTabs from '@/components/dashboard/dashboard-tabs'
 import ThemeToggle from '@/components/theme-toggle'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
-import { fetchBootstrapStatic } from '@/lib/fpl-api'
+import { fetchBootstrapStatic, fetchFixtures } from '@/lib/fpl-api'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
 
@@ -72,8 +72,11 @@ export default async function DashboardPage({
   // 6. Fetch FPL live stats for form, points, ownership
   let fplElements: any = {};
   let fplTeams: any = {};
+  let fplEvents: any[] = [];
+  let fplFixtures: any[] = [];
   try {
     const fplData = await fetchBootstrapStatic();
+    fplEvents = fplData.events || [];
     fplElements = fplData.elements.reduce((acc: any, el: any) => {
       acc[el.id] = {
         form: parseFloat(el.form) || 0,
@@ -93,6 +96,9 @@ export default async function DashboardPage({
       };
       return acc;
     }, {});
+    
+    // Fetch fixtures for FDR
+    fplFixtures = await fetchFixtures();
   } catch (err) {
     console.error("Failed to fetch FPL stats:", err);
   }
@@ -251,6 +257,8 @@ export default async function DashboardPage({
           leaderboard={allScores || []}
           allUserTeamPicks={allUserTeamPicks || []}
           allUserFantasticPicks={allUserFantasticPicks || []}
+          fplFixtures={fplFixtures}
+          fplEvents={fplEvents}
         />
       </main>
     </div>

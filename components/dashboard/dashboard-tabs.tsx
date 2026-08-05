@@ -7,11 +7,11 @@ import ScorePredictionsUI from './score-predictions-ui'
 import TeamPredictionUI from './team-prediction-ui'
 import FantasticFourUI from './fantastic-four-ui'
 import LeaderboardUI from './leaderboard-ui'
+import FdrUI from './fdr-ui'
 
+type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'fdr'
 
-type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard'
-
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -26,8 +26,8 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
   return (
     <div className="space-y-6">
       {/* 3D Card Navigation */}
-      <div className="flex overflow-x-auto lg:grid lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 md:mb-12 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {(['score', 'team', 'fantastic', 'leaderboard'] as TabState[]).map((tab) => (
+      <div className="flex overflow-x-auto lg:grid lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 mb-4 md:mb-12 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {(['score', 'team', 'fantastic', 'leaderboard', 'fdr'] as TabState[]).map((tab) => (
           <button
             key={tab}
             onClick={(e) => {
@@ -50,6 +50,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
               {tab === 'team' && '🛡️'}
               {tab === 'fantastic' && '⚡'}
               {tab === 'leaderboard' && '🏆'}
+              {tab === 'fdr' && '📅'}
             </div>
             
             <span className={`font-heading uppercase tracking-widest text-[10px] sm:text-sm md:text-xl transition-colors duration-300 relative z-10 ${
@@ -61,6 +62,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
               {tab === 'team' && 'Team Pick'}
               {tab === 'fantastic' && 'Fantastic Four'}
               {tab === 'leaderboard' && 'Leaderboard'}
+              {tab === 'fdr' && 'FDR'}
             </span>
           </button>
         ))}
@@ -90,6 +92,10 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
 
             {activeTab === 'leaderboard' && (
               <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} />
+            )}
+
+            {activeTab === 'fdr' && (
+              <FdrUI teams={teams} fplFixtures={fplFixtures} fplEvents={fplEvents} currentGwId={currentGw.id} />
             )}
           </motion.div>
         </AnimatePresence>
