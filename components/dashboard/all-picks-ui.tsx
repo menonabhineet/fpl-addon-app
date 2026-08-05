@@ -13,6 +13,15 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
   const [picksData, setPicksData] = useState<Record<string, any> | null>(null)
   const [loading, setLoading] = useState(true)
   const [deadlinePassed, setDeadlinePassed] = useState(false)
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+
+  // Reset page when itemsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [itemsPerPage])
 
   useEffect(() => {
     if (currentGw?.id) {
@@ -39,6 +48,13 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [leaderboard])
+
+  // Pagination Logic
+  const totalPages = Math.ceil(pundits.length / itemsPerPage)
+  const paginatedPundits = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return pundits.slice(start, start + itemsPerPage)
+  }, [pundits, currentPage, itemsPerPage])
 
   if (loading) {
     return (
@@ -83,7 +99,7 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/50 dark:divide-white/5">
-              {pundits.map(pundit => {
+              {paginatedPundits.map(pundit => {
                 const userPicksData = picksData?.[pundit.id]
                 const isRevealed = userPicksData?.isRevealed
                 const isMe = userPicksData?.isCurrentUser
@@ -135,7 +151,7 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/50 dark:divide-white/5">
-                {pundits.map(pundit => {
+                {paginatedPundits.map(pundit => {
                   const userPicksData = picksData?.[pundit.id]
                   const isRevealed = userPicksData?.isRevealed
                   const isMe = userPicksData?.isCurrentUser
@@ -182,7 +198,7 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/50 dark:divide-white/5">
-                {pundits.map(pundit => {
+                {paginatedPundits.map(pundit => {
                   const userPicksData = picksData?.[pundit.id]
                   const isRevealed = userPicksData?.isRevealed
                   const isMe = userPicksData?.isCurrentUser
@@ -212,6 +228,46 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
           </div>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {pundits.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 glass p-4 rounded-2xl border border-slate-200/50 dark:border-white/5">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Rows per page:</span>
+            <select 
+              value={itemsPerPage} 
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className="bg-white/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, pundits.length)} of {pundits.length}
+            </span>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8 flex items-center justify-center rounded-lg glass bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white hover:dark:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+              >
+                ←
+              </button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="w-8 h-8 flex items-center justify-center rounded-lg glass bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white hover:dark:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+              >
+                →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
