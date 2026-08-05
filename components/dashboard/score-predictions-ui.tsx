@@ -1,7 +1,7 @@
 // components/dashboard/score-predictions-ui.tsx
 'use client'
 
-import { useActionState } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { submitScorePrediction } from '@/lib/actions/score-predictions'
 
 export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePicks }: any) {
@@ -29,16 +29,37 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
 }
 
 function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }) {
-  const initialState = { success: false, message: '', error: '' }
+  const [isPending, startTransition] = useTransition();
+  const [state, setState] = useState({ success: false, message: '', error: '' });
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [state, formAction, isPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
-      const result = await submitScorePrediction(formData)
-      if (result.success) return { success: true, message: 'Saved!', error: '' }
-      return { success: false, message: '', error: result.error || 'Failed' }
-    },
-    initialState
-  )
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleScoreChange = (e: React.ChangeEvent<HTMLFormElement>) => {
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const homeScore = formData.get('homeScore');
+    const awayScore = formData.get('awayScore');
+
+    if (homeScore !== '' && awayScore !== '') {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      
+      debounceRef.current = setTimeout(() => {
+        startTransition(async () => {
+          const result = await submitScorePrediction(formData);
+          if (result.success) {
+            setState({ success: true, message: `${homeScore}-${awayScore} saved!`, error: '' });
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(() => {
+              setState(prev => ({ ...prev, success: false, message: '' }));
+            }, 3000);
+          } else {
+            setState({ success: false, message: '', error: result.error || 'Failed' });
+          }
+        });
+      }, 750); // 750ms debounce
+    }
+  };
 
   const formattedTime = new Date(match.kickoff_time).toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
@@ -56,7 +77,7 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
         </div>
       </div>
 
-      <form action={formAction} className="p-6 space-y-6 flex-1 flex flex-col justify-between relative z-10">
+      <form onChange={handleScoreChange} className="p-6 space-y-6 flex-1 flex flex-col justify-between relative z-10">
         <input type="hidden" name="fixtureId" value={match.id} />
         
         <div className="flex items-center justify-between gap-2">
@@ -87,7 +108,7 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button Area */}
         <div className="pt-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between gap-4">
           <div className="text-[10px] sm:text-xs font-bold uppercase tracking-widest min-h-[1.25rem] flex items-center gap-2">
             {state.success && <span className="text-emerald-600 dark:text-emerald-400 drop-shadow-sm">✓ {state.message}</span>}
@@ -97,16 +118,9 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
                 Actual: <span className="font-heading text-lg text-slate-700 dark:text-slate-200">{match.home_score} - {match.away_score}</span>
               </span>
             )}
+            {isPending && <span className="text-emerald-500 flex items-center gap-2"><div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div> Saving...</span>}
           </div>
           
-          {!match.is_finished && (
-            <button
-              type="submit" disabled={isPending}
-              className="bg-emerald-500 text-white text-xs font-bold uppercase tracking-widest px-6 py-2.5 rounded-xl hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all disabled:bg-slate-400 disabled:shadow-none"
-            >
-              {isPending ? 'Saving...' : existingPick ? 'Update' : 'Save'}
-            </button>
-          )}
           {match.is_finished && existingPick && existingPick.points_earned !== null && (
             <span className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-widest uppercase border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
               +{existingPick.points_earned} Pts
