@@ -8,7 +8,7 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-emerald-500/30 border-l-4">
-        📌 <strong className="text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Predict the exact scorelines. Exact scoreline = <strong className="text-emerald-500 font-bold text-lg">3 pts</strong>. Correct outcome = <strong className="text-emerald-500 font-bold text-lg">1 pt</strong>.
+        📌 <strong className="text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Score Pick Rules:</strong> Predict the exact score for all matches. Exact score = <strong className="text-emerald-500 font-bold text-lg">3 pts</strong>. Correct outcome (win/draw/loss) = <strong className="text-emerald-500 font-bold text-lg">1 pt</strong>. High-scoring bonus (Correct outcome AND both actual & predicted total goals are 5+) = <strong className="text-emerald-500 font-bold text-lg">+1 pt</strong>. Failure to submit any predictions before the deadline = <strong className="text-rose-500 font-bold text-lg">-1 pt</strong> penalty.
       </div>
 
       {fixtures.filter((m: any) => m.is_selected).length === 0 ? (

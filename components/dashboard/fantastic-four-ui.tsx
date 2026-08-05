@@ -106,7 +106,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-amber-500/30 border-l-4">
-        📌 <strong className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Select your Fantastic Four. <strong>DEF/MID</strong> can be picked ONCE per season. <strong>GK/FWD</strong> can be picked ONCE per half-season. Click a player to swap them.
+        📌 <strong className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Fantastic 4 Rules:</strong> Select your Fantastic Four. <strong>DEF/MID</strong> can be picked ONCE per season. <strong>GK/FWD</strong> can be picked ONCE per half-season. Click a player to swap them. Failure to submit a draft = <strong className="text-rose-500 font-bold text-lg">-5 pts</strong> penalty.
       </div>
       
       {/* 3D Pitch Container */}

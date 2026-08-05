@@ -68,8 +68,8 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative">
       <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4">
-        📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Pick one team to win. You CANNOT pick the same team twice in a season. 
-        Correct pick = <strong className="text-indigo-500 font-bold text-lg">3 pts</strong>.
+        📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Team Pick Rules:</strong> Pick one team to win. You can only pick the same team a <strong>MAXIMUM of TWO times</strong> in a season. 
+        Correct pick (win) = <strong className="text-indigo-500 font-bold text-lg">1 pt</strong>. Failure to lock in a team = <strong className="text-rose-500 font-bold text-lg">-1 pt</strong> penalty.
       </div>
 
       <div className="glass rounded-3xl p-6 sm:p-8 relative overflow-hidden group transition-colors duration-300 border border-slate-200/50 dark:border-white/5">
