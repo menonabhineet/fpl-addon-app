@@ -106,3 +106,118 @@ export async function getManagerPastPicks(managerId: string) {
     return { success: false, error: error.message }
   }
 }
+
+export async function getAllPicksForGameweek(gameweekId: number) {
+  try {
+    const supabase = await createClient()
+    
+    // Check if authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized request.')
+
+    // 1. Get gameweek deadline
+    const { data: gwData } = await supabase
+      .from('gameweeks')
+      .select('deadline_time')
+      .eq('id', gameweekId)
+      .single()
+      
+    const now = new Date().toISOString()
+    const deadlinePassed = !!gwData && gwData.deadline_time <= now
+
+    // 2. Get Score Picks for this gameweek
+    const { data: fixtures } = await supabase
+      .from('fixtures')
+      .select('id, home_team:home_team_id(short_name), away_team:away_team_id(short_name)')
+      .eq('gameweek_id', gameweekId)
+    
+    const fixtureIds = fixtures?.map(f => f.id) || []
+
+    let scorePicks: any[] = []
+    if (fixtureIds.length > 0) {
+      const { data } = await supabase
+        .from('score_predictions')
+        .select('*')
+        .in('fixture_id', fixtureIds)
+      
+      // Enrich score picks with team names
+      if (data && fixtures) {
+        scorePicks = data.map(pick => {
+          const fixture = fixtures.find(f => f.id === pick.fixture_id)
+          if (fixture) {
+            const home = fixture.home_team as any
+            const away = fixture.away_team as any
+            return {
+              ...pick,
+              home_team: Array.isArray(home) ? home[0]?.short_name : home?.short_name,
+              away_team: Array.isArray(away) ? away[0]?.short_name : away?.short_name
+            }
+          }
+          return pick
+        })
+      }
+    }
+
+    // 3. Get Team Picks
+    const { data: teamPicks } = await supabase
+      .from('team_predictions')
+      .select('*, team:team_id(name, short_name)')
+      .eq('gameweek_id', gameweekId)
+
+    // 4. Get Fantastic Four
+    const { data: f4Picks } = await supabase
+      .from('fantastic_four')
+      .select('*')
+      .eq('gameweek_id', gameweekId)
+
+    // Fetch team short names for the f4 picks
+    const f4PlayerIds = f4Picks?.map(p => p.player_id) || []
+    const playersMap: Record<number, string> = {}
+    if (f4PlayerIds.length > 0) {
+      const { data: players } = await supabase
+        .from('players')
+        .select('id, teams:team_id(short_name)')
+        .in('id', f4PlayerIds)
+        
+      if (players) {
+        players.forEach(p => {
+          const team = Array.isArray(p.teams) ? p.teams[0] : p.teams
+          playersMap[p.id] = team?.short_name || ''
+        })
+      }
+    }
+
+    // Format data by user
+    const picksByUser: Record<string, any> = {}
+    
+    // Collect all user IDs who have made any picks
+    const allUserIds = new Set<string>()
+    scorePicks.forEach(p => allUserIds.add(p.user_id))
+    teamPicks?.forEach(p => allUserIds.add(p.user_id))
+    f4Picks?.forEach(p => allUserIds.add(p.user_id))
+    
+    // Note: We'll also rely on the client passing the full leaderboard to know about users who made 0 picks
+
+    allUserIds.forEach(userId => {
+      const isCurrentUser = userId === user.id
+      const shouldReveal = deadlinePassed || isCurrentUser
+
+      picksByUser[userId] = {
+        scorePicks: shouldReveal ? scorePicks.filter(p => p.user_id === userId) : null,
+        teamPick: shouldReveal ? (teamPicks?.find(p => p.user_id === userId) || null) : null,
+        f4Picks: shouldReveal ? (f4Picks?.filter(p => p.user_id === userId).map(f4 => ({
+          ...f4,
+          team_short_name: playersMap[f4.player_id] || ''
+        })) || []) : null,
+        isRevealed: shouldReveal,
+        isCurrentUser
+      }
+    })
+
+    return { success: true, data: picksByUser, deadlinePassed }
+
+  } catch (error: any) {
+    console.error('Error fetching all gameweek picks:', error)
+    return { success: false, error: error.message }
+  }
+}

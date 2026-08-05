@@ -7,9 +7,10 @@ import ScorePredictionsUI from './score-predictions-ui'
 import TeamPredictionUI from './team-prediction-ui'
 import FantasticFourUI from './fantastic-four-ui'
 import LeaderboardUI from './leaderboard-ui'
+import AllPicksUI from './all-picks-ui'
 import FdrUI from './fdr-ui'
 
-type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'fdr'
+type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'allpicks' | 'fdr'
 
 export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
@@ -26,8 +27,8 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
   return (
     <div className="space-y-6">
       {/* 3D Card Navigation */}
-      <div className="flex overflow-x-auto lg:grid lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 mb-4 md:mb-12 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {(['score', 'team', 'fantastic', 'leaderboard', 'fdr'] as TabState[]).map((tab) => (
+      <div className="flex overflow-x-auto lg:grid lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6 mb-4 md:mb-12 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {(['score', 'team', 'fantastic', 'leaderboard', 'allpicks', 'fdr'] as TabState[]).map((tab) => (
           <button
             key={tab}
             onClick={(e) => {
@@ -50,6 +51,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
               {tab === 'team' && '🛡️'}
               {tab === 'fantastic' && '⚡'}
               {tab === 'leaderboard' && '🏆'}
+              {tab === 'allpicks' && '👀'}
               {tab === 'fdr' && '📅'}
             </div>
             
@@ -62,6 +64,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
               {tab === 'team' && 'Team Pick'}
               {tab === 'fantastic' && 'Fantastic Four'}
               {tab === 'leaderboard' && 'Leaderboard'}
+              {tab === 'allpicks' && 'All Picks'}
               {tab === 'fdr' && 'FDR'}
             </span>
           </button>
@@ -88,6 +91,10 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
             
             {activeTab === 'fantastic' && (
               <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks} allUserFantasticPicks={allUserFantasticPicks} />
+            )}
+
+            {activeTab === 'allpicks' && (
+              <AllPicksUI currentGw={currentGw} fixtures={fixtures} leaderboard={leaderboard} />
             )}
 
             {activeTab === 'leaderboard' && (
