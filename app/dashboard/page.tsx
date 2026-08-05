@@ -151,10 +151,13 @@ export default async function DashboardPage({
     };
   });
 
+  const nextEvent = fplEvents.find((e: any) => e.is_next) || fplEvents.find((e: any) => e.is_current) || fplEvents[0];
+  const fplNextGwId = nextEvent?.id || 1;
+
   const enhancedTeams = (teams || []).map(t => {
     const fplT = fplTeams[t.code] || {};
     
-    // Find upcoming fixture for this gameweek
+    // Find upcoming fixture for this gameweek (local DB)
     let nextFixtureStr = 'No fixture';
     if (fixtures) {
       const teamFixture = fixtures.find((f: any) => {
@@ -172,10 +175,28 @@ export default async function DashboardPage({
       }
     }
 
+    // Find next 3 fixtures from FPL fixtures API data
+    const teamNext3Fixtures = fplFixtures
+      .filter((f: any) => f.event >= fplNextGwId && (f.team_h === t.id || f.team_a === t.id))
+      .slice(0, 3)
+      .map((f: any) => {
+        const isHome = f.team_h === t.id;
+        const opponentId = isHome ? f.team_a : f.team_h;
+        const opponent = teams.find((tt: any) => tt.id === opponentId);
+        return {
+          opponentName: opponent ? opponent.name : 'Unknown',
+          opponentShortName: opponent ? opponent.short_name : 'UNK',
+          isHome,
+          event: f.event,
+          difficulty: isHome ? f.team_h_difficulty : f.team_a_difficulty
+        };
+      });
+
     return {
       ...t,
       ...fplT,
-      next_fixture: nextFixtureStr
+      next_fixture: nextFixtureStr,
+      next_3_fixtures: teamNext3Fixtures
     };
   });
 
