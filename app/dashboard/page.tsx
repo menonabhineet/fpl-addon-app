@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardTabs from '@/components/dashboard/dashboard-tabs'
 import ThemeToggle from '@/components/theme-toggle'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
-import { fetchBootstrapStatic } from '@/lib/fpl-api'
+import { fetchBootstrapStatic, fetchFixtures } from '@/lib/fpl-api'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
 
@@ -72,8 +72,11 @@ export default async function DashboardPage({
   // 6. Fetch FPL live stats for form, points, ownership
   let fplElements: any = {};
   let fplTeams: any = {};
+  let fplEvents: any[] = [];
+  let fplFixtures: any[] = [];
   try {
     const fplData = await fetchBootstrapStatic();
+    fplEvents = fplData.events || [];
     fplElements = fplData.elements.reduce((acc: any, el: any) => {
       acc[el.id] = {
         form: parseFloat(el.form) || 0,
@@ -93,6 +96,9 @@ export default async function DashboardPage({
       };
       return acc;
     }, {});
+    
+    // Fetch fixtures for FDR
+    fplFixtures = await fetchFixtures();
   } catch (err) {
     console.error("Failed to fetch FPL stats:", err);
   }
@@ -145,10 +151,13 @@ export default async function DashboardPage({
     };
   });
 
+  const nextEvent = fplEvents.find((e: any) => e.is_next) || fplEvents.find((e: any) => e.is_current) || fplEvents[0];
+  const fplNextGwId = nextEvent?.id || 1;
+
   const enhancedTeams = (teams || []).map(t => {
     const fplT = fplTeams[t.code] || {};
     
-    // Find upcoming fixture for this gameweek
+    // Find upcoming fixture for this gameweek (local DB)
     let nextFixtureStr = 'No fixture';
     if (fixtures) {
       const teamFixture = fixtures.find((f: any) => {
@@ -166,10 +175,28 @@ export default async function DashboardPage({
       }
     }
 
+    // Find next 3 fixtures from FPL fixtures API data
+    const teamNext3Fixtures = fplFixtures
+      .filter((f: any) => f.event >= fplNextGwId && (f.team_h === t.id || f.team_a === t.id))
+      .slice(0, 3)
+      .map((f: any) => {
+        const isHome = f.team_h === t.id;
+        const opponentId = isHome ? f.team_a : f.team_h;
+        const opponent = teams?.find((tt: any) => tt.id === opponentId);
+        return {
+          opponentName: opponent ? opponent.name : 'Unknown',
+          opponentShortName: opponent ? opponent.short_name : 'UNK',
+          isHome,
+          event: f.event,
+          difficulty: isHome ? f.team_h_difficulty : f.team_a_difficulty
+        };
+      });
+
     return {
       ...t,
       ...fplT,
-      next_fixture: nextFixtureStr
+      next_fixture: nextFixtureStr,
+      next_3_fixtures: teamNext3Fixtures
     };
   });
 
@@ -251,6 +278,8 @@ export default async function DashboardPage({
           leaderboard={allScores || []}
           allUserTeamPicks={allUserTeamPicks || []}
           allUserFantasticPicks={allUserFantasticPicks || []}
+          fplFixtures={fplFixtures}
+          fplEvents={fplEvents}
         />
       </main>
     </div>
