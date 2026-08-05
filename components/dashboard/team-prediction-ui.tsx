@@ -68,8 +68,8 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative">
       <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4">
-        📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Gameweek {currentGw.id} Rules:</strong> Pick one team to win. You CANNOT pick the same team twice in a season. 
-        Correct pick = <strong className="text-indigo-500 font-bold text-lg">3 pts</strong>.
+        📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Team Pick Rules:</strong> Pick one team to win. You can only pick the same team a <strong>MAXIMUM of TWO times</strong> in a season. 
+        Correct pick (win) = <strong className="text-indigo-500 font-bold text-lg">1 pt</strong>. Failure to lock in a team = <strong className="text-rose-500 font-bold text-lg">-1 pt</strong> penalty.
       </div>
 
       <div className="glass rounded-3xl p-6 sm:p-8 relative overflow-hidden group transition-colors duration-300 border border-slate-200/50 dark:border-white/5">
@@ -124,6 +124,7 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
                 />
                 <div className="flex flex-col items-center relative z-10 text-center">
                   <span className="font-heading text-xl uppercase tracking-wide text-slate-900 dark:text-white">{team.short_name}</span>
+                  {pickCount > 0 && !isDisabled && <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Picked {pickCount}x</span>}
                   {isDisabled && !currentGw.is_finished && <span className="text-[10px] text-rose-500 font-bold uppercase tracking-widest mt-1">Used</span>}
                 </div>
               </div>
@@ -161,8 +162,23 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
                     <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.strength || '-'}</span>
                   </div>
                   <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Next Fixture</span>
-                    <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'N/A'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Upcoming Fixtures</span>
+                    <div className="flex items-center gap-3">
+                      {selectedTeam.next_3_fixtures && selectedTeam.next_3_fixtures.length > 0 ? (
+                        <>
+                          <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_3_fixtures[0].opponentShortName} ({selectedTeam.next_3_fixtures[0].isHome ? 'H' : 'A'})</span>
+                          {selectedTeam.next_3_fixtures.length > 1 && (
+                             <div className="flex items-center gap-2 opacity-60">
+                               {selectedTeam.next_3_fixtures.slice(1).map((f: any, i: number) => (
+                                 <span key={i} className="font-heading text-sm text-slate-800 dark:text-slate-200">{f.opponentShortName} ({f.isHome ? 'H' : 'A'})</span>
+                               ))}
+                             </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'N/A'}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
