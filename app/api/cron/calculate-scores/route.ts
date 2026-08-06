@@ -36,17 +36,19 @@ export async function GET(request: Request) {
     }
 
     // 2. Fetch Finished Fixtures for Target Gameweek
-    const { data: fixtures } = await supabase
+    const { data: fixturesData } = await supabase
       .from('fixtures')
       .select('*')
       .eq('gameweek_id', TARGET_GW)
       .eq('is_finished', true)
 
-    if (!fixtures || fixtures.length === 0) {
+    const fixtures = fixturesData || []
+
+    if (fixtures.length === 0) {
       console.log(`No finished fixtures found to grade for Gameweek ${TARGET_GW}. Will process bonus points and penalties only.`);
     }
 
-    const fixtureIds = fixtures?.map((f) => f.id) || []
+    const fixtureIds = fixtures.map((f) => f.id)
 
     // ==========================================
     // 1. GRADE SCORE PREDICTIONS
