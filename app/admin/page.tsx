@@ -152,7 +152,7 @@ export default async function AdminPage({
           </div>
         </div>
 
-        <AdminBonusClient key={`bonus-${selectedGwId}`} gameweekId={selectedGwId} existingQuestion={bonusQuestion} />
+        <AdminBonusClient key={`bonus-${selectedGwId}`} gameweekId={selectedGwId} existingQuestion={bonusQuestion} isFinished={selectedGw?.is_finished || false} />
       </main>
     </div>
   )
