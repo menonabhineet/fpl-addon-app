@@ -7,6 +7,7 @@ import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import { fetchBootstrapStatic, fetchFixtures } from '@/lib/fpl-api'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
+import BonusQuestionClient from '@/components/dashboard/bonus-question-client'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data
 export const dynamic = 'force-dynamic' 
@@ -47,7 +48,25 @@ export default async function DashboardPage({
   const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true })
   const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true })
 
-  // 4. Fetch user's historical picks for this season to enforce constraints
+  // 4. Fetch Bonus Question for the selected Gameweek
+  const { data: bonusQuestion } = await supabase
+    .from('bonus_questions')
+    .select('*')
+    .eq('gameweek', selectedGwId)
+    .maybeSingle()
+
+  let bonusPrediction = null;
+  if (bonusQuestion) {
+    const { data } = await supabase
+      .from('bonus_predictions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('question_id', bonusQuestion.id)
+      .maybeSingle()
+    bonusPrediction = data;
+  }
+
+  // 5. Fetch user's historical picks for this season to enforce constraints
   const { data: allUserFantasticPicks } = await supabase.from('fantastic_four').select('*').eq('user_id', user.id)
   const userPicks = allUserFantasticPicks?.filter((p: any) => p.gameweek_id === selectedGwId) || []
 
@@ -265,6 +284,14 @@ export default async function DashboardPage({
             </div>
           )}
         </section>
+
+        {bonusQuestion && (
+          <BonusQuestionClient 
+            question={bonusQuestion} 
+            prediction={bonusPrediction} 
+            isLocked={selectedGw?.deadline_time ? new Date(selectedGw.deadline_time) <= new Date() : false} 
+          />
+        )}
 
         {/* DASHBOARD CONTENT (TABS/GAME MODES) */}
         <DashboardTabs 

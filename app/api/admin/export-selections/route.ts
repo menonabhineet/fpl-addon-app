@@ -79,16 +79,18 @@ export async function GET() {
               Total_Score_Points: 0,
               Total_Team_Points: 0,
               Total_Fantastic_Four_Points: 0,
+              Total_Bonus_Points: 0,
               Total_Penalty_Points: 0,
               Grand_Total: 0
             })
           }
           const userStat = userLeaderboardMap.get(userId)
-          userStat.Total_Score_Points += record.score_points
-          userStat.Total_Team_Points += record.team_points
-          userStat.Total_Fantastic_Four_Points += record.fantastic_four_points
-          userStat.Total_Penalty_Points += record.penalty_points
-          userStat.Grand_Total += record.total_points
+          userStat.Total_Score_Points += record.score_points || 0
+          userStat.Total_Team_Points += record.team_points || 0
+          userStat.Total_Fantastic_Four_Points += record.fantastic_four_points || 0
+          userStat.Total_Bonus_Points += record.bonus_points || 0
+          userStat.Total_Penalty_Points += record.penalty_points || 0
+          userStat.Grand_Total += record.total_points || 0
         }
       })
       
@@ -100,6 +102,7 @@ export async function GET() {
     const { data: scorePicks } = await supabase.from('score_predictions').select('*, fixtures!inner(gameweek_id)').lt('fixtures.gameweek_id', currentGwId)
     const { data: teamPicks } = await supabase.from('team_predictions').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true })
     const { data: fantasticPicks } = await supabase.from('fantastic_four').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true })
+    const { data: bonusPicks } = await supabase.from('bonus_predictions').select('*, bonus_questions!inner(gameweek, question, correct_answer)').lt('bonus_questions.gameweek', currentGwId)
 
     // 5. Transform data for Excel Sheets
     const scoreExportData = (scorePicks || []).map(pick => ({
@@ -129,6 +132,16 @@ export async function GET() {
       Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
     }))
 
+    const bonusExportData = (bonusPicks || []).map(pick => ({
+      Manager_Name: userNamesMap.get(pick.user_id) || 'Unknown',
+      Gameweek: (pick.bonus_questions as any)?.gameweek || 'Unknown',
+      Question: (pick.bonus_questions as any)?.question || 'Unknown',
+      Manager_Answer: pick.answer,
+      Correct_Answer: (pick.bonus_questions as any)?.correct_answer || 'Pending',
+      Points_Earned: pick.awarded_points || 0,
+      Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
+    }))
+
     // 6. Build the Excel Workbook
     const workbook = XLSX.utils.book_new()
 
@@ -136,11 +149,13 @@ export async function GET() {
     const scoreSheet = XLSX.utils.json_to_sheet(scoreExportData.length > 0 ? scoreExportData : [{ Manager_Name: '', Gameweek: '', Fixture: '', Predicted_Home_Score: '', Predicted_Away_Score: '', Points_Earned: '', Created_At: '' }])
     const teamSheet = XLSX.utils.json_to_sheet(teamExportData.length > 0 ? teamExportData : [{ Manager_Name: '', Gameweek: '', Predicted_Team: '', Points_Earned: '', Created_At: '' }])
     const fantasticSheet = XLSX.utils.json_to_sheet(fantasticExportData.length > 0 ? fantasticExportData : [{ Manager_Name: '', Gameweek: '', Player: '', Is_Captain: '', Points_Earned: '', Created_At: '' }])
-    const leaderboardSheet = XLSX.utils.json_to_sheet(leaderboardExportData.length > 0 ? leaderboardExportData : [{ Manager_Name: '', Total_Score_Points: '', Total_Team_Points: '', Total_Fantastic_Four_Points: '', Total_Penalty_Points: '', Grand_Total: '' }])
+    const bonusSheet = XLSX.utils.json_to_sheet(bonusExportData.length > 0 ? bonusExportData : [{ Manager_Name: '', Gameweek: '', Question: '', Manager_Answer: '', Correct_Answer: '', Points_Earned: '', Created_At: '' }])
+    const leaderboardSheet = XLSX.utils.json_to_sheet(leaderboardExportData.length > 0 ? leaderboardExportData : [{ Manager_Name: '', Total_Score_Points: '', Total_Team_Points: '', Total_Fantastic_Four_Points: '', Total_Bonus_Points: '', Total_Penalty_Points: '', Grand_Total: '' }])
 
     XLSX.utils.book_append_sheet(workbook, scoreSheet, "Score Predictions")
     XLSX.utils.book_append_sheet(workbook, teamSheet, "Team Pick")
     XLSX.utils.book_append_sheet(workbook, fantasticSheet, "Fantastic 4")
+    XLSX.utils.book_append_sheet(workbook, bonusSheet, "Bonus Question")
     XLSX.utils.book_append_sheet(workbook, leaderboardSheet, "Leaderboard")
 
     // 7. Write the file to a buffer

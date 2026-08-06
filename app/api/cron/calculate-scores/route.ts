@@ -36,17 +36,16 @@ export async function GET(request: Request) {
     }
 
     // 2. Fetch Finished Fixtures for Target Gameweek
-    const { data: fixtures } = await supabase
+    const { data: fixturesData } = await supabase
       .from('fixtures')
       .select('*')
       .eq('gameweek_id', TARGET_GW)
       .eq('is_finished', true)
 
-    if (!fixtures || fixtures.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: `No finished fixtures found to grade for Gameweek ${TARGET_GW}.`,
-      })
+    const fixtures = fixturesData || []
+
+    if (fixtures.length === 0) {
+      console.log(`No finished fixtures found to grade for Gameweek ${TARGET_GW}. Will process bonus points and penalties only.`);
     }
 
     const fixtureIds = fixtures.map((f) => f.id)
@@ -54,10 +53,14 @@ export async function GET(request: Request) {
     // ==========================================
     // 1. GRADE SCORE PREDICTIONS
     // ==========================================
-    const { data: scorePicks } = await supabase
-      .from('score_predictions')
-      .select('*')
-      .in('fixture_id', fixtureIds)
+    let scorePicks: any[] = []
+    if (fixtureIds.length > 0) {
+      const { data } = await supabase
+        .from('score_predictions')
+        .select('*')
+        .in('fixture_id', fixtureIds)
+      if (data) scorePicks = data
+    }
 
     const scorePickUpdates: any[] = []
     const userScorePicksMap = new Map<string, number>()
@@ -207,6 +210,29 @@ export async function GET(request: Request) {
     await Promise.all([...scorePickUpdates, ...teamPickUpdates, ...f4Updates])
 
     // ==========================================
+    // 3.5. GET BONUS PREDICTIONS
+    // ==========================================
+    const { data: bq } = await supabase
+      .from('bonus_questions')
+      .select('id')
+      .eq('gameweek', TARGET_GW)
+      .maybeSingle()
+
+    const userBonusMap = new Map<string, number>()
+    if (bq) {
+      const { data: bPicks } = await supabase
+        .from('bonus_predictions')
+        .select('user_id, awarded_points')
+        .eq('question_id', bq.id)
+      
+      if (bPicks) {
+        for (const pick of bPicks) {
+          userBonusMap.set(pick.user_id, pick.awarded_points || 0)
+        }
+      }
+    }
+
+    // ==========================================
     // 4. PENALTY AUDIT & LEADERBOARD AGGREGATION
     // ==========================================
     const {
@@ -223,8 +249,10 @@ export async function GET(request: Request) {
         ffPts = 0,
         penaltyPts = 0
 
-      // Audit Score Picks
+      // Audit Score Picks & Add Bonus Points
       const hasScorePicks = userScorePicksMap.has(user.id)
+      const bonusPts = userBonusMap.get(user.id) || 0
+
       if (!hasScorePicks) {
         scorePts = -1
         penaltyPts -= 1 // Penalty for missing score predictions
@@ -250,7 +278,7 @@ export async function GET(request: Request) {
         ffPts = f4Data.points
       }
 
-      const totalPts = scorePts + teamPts + ffPts // penaltyPts is already accounted for in the individual scores
+      const totalPts = scorePts + teamPts + ffPts + bonusPts // penaltyPts is already accounted for in the individual scores
 
       leaderboardUpserts.push({
         user_id: user.id,
@@ -259,6 +287,7 @@ export async function GET(request: Request) {
         team_points: teamPts,
         fantastic_four_points: ffPts,
         penalty_points: penaltyPts,
+        bonus_points: bonusPts,
         total_points: totalPts,
       })
     }
