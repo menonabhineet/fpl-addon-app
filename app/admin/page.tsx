@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminFixturesClient from './admin-fixtures-client'
 import AdminVisibilityClient from './admin-visibility-client'
+import AdminBonusClient from './admin-bonus-client'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import Link from 'next/link'
 
@@ -54,6 +55,13 @@ export default async function AdminPage({
     .from('score_predictions')
     .select('fixture_id')
     .in('fixture_id', fixtures?.map(f => f.id) || [])
+
+  // Fetch bonus question for this gameweek
+  const { data: bonusQuestion } = await supabase
+    .from('bonus_questions')
+    .select('*')
+    .eq('gameweek', selectedGwId)
+    .maybeSingle()
 
   const lockedFixtureIds = Array.from(new Set(predictions?.map(p => p.fixture_id) || []))
   const isLocked = deadlinePassed
@@ -143,6 +151,8 @@ export default async function AdminPage({
             <AdminFixturesClient fixtures={fixtures || []} gameweekId={selectedGwId} isLocked={isLocked} lockedFixtureIds={lockedFixtureIds} />
           </div>
         </div>
+
+        <AdminBonusClient key={`bonus-${selectedGwId}`} gameweekId={selectedGwId} existingQuestion={bonusQuestion} />
       </main>
     </div>
   )

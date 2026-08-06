@@ -51,6 +51,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
           total_score_points: 0,
           total_team_points: 0,
           total_ff_points: 0,
+          total_bonus_points: 0,
           total_penalty_points: 0,
           grand_total: 0,
           previous_grand_total: 0
@@ -58,11 +59,12 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
       }
 
       const userStat = userMap.get(userId)
-      userStat.total_score_points += record.score_points
-      userStat.total_team_points += record.team_points
-      userStat.total_ff_points += record.fantastic_four_points
-      userStat.total_penalty_points += record.penalty_points
-      userStat.grand_total += record.total_points
+      userStat.total_score_points += record.score_points || 0
+      userStat.total_team_points += record.team_points || 0
+      userStat.total_ff_points += record.fantastic_four_points || 0
+      userStat.total_bonus_points += record.bonus_points || 0
+      userStat.total_penalty_points += record.penalty_points || 0
+      userStat.grand_total += record.total_points || 0
 
       if (record.gameweek_id < currentGwId) {
         userStat.previous_grand_total += record.total_points
@@ -142,6 +144,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
               <button onClick={() => handleSort('total_score_points')} className={`transition-colors ${sortConfig.key === 'total_score_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Scores {getSortIcon('total_score_points')}</button>
               <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Team {getSortIcon('total_team_points')}</button>
               <button onClick={() => handleSort('total_ff_points')} className={`transition-colors ${sortConfig.key === 'total_ff_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>F4 {getSortIcon('total_ff_points')}</button>
+              <button onClick={() => handleSort('total_bonus_points')} className={`transition-colors ${sortConfig.key === 'total_bonus_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Bonus {getSortIcon('total_bonus_points')}</button>
               <button onClick={() => handleSort('total_penalty_points')} className={`transition-colors ${sortConfig.key === 'total_penalty_points' ? 'text-rose-500' : 'hover:text-rose-500'}`}>Pens {getSortIcon('total_penalty_points')}</button>
             </div>
             <button onClick={() => handleSort('grand_total')} className={`pl-8 transition-colors ${sortConfig.key === 'grand_total' ? 'text-emerald-500' : 'text-emerald-500/80 hover:text-emerald-500'}`}>Total {getSortIcon('grand_total')}</button>
@@ -153,6 +156,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
             <button onClick={() => handleSort('total_score_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_score_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Scores {getSortIcon('total_score_points')}</button>
             <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Team {getSortIcon('total_team_points')}</button>
             <button onClick={() => handleSort('total_ff_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_ff_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>F4 {getSortIcon('total_ff_points')}</button>
+            <button onClick={() => handleSort('total_bonus_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_bonus_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Bonus {getSortIcon('total_bonus_points')}</button>
             <button onClick={() => handleSort('total_penalty_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_penalty_points' ? 'border-rose-500/50 bg-rose-500/10 text-rose-500' : 'border-white/10 bg-black/20'}`}>Pens {getSortIcon('total_penalty_points')}</button>
           </div>
           
@@ -202,29 +206,33 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                 </div>
 
                 {/* Right side: Stats Grid & Total */}
-                <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-4 md:gap-8 relative z-10">
-                  <div className="flex gap-2 md:gap-4 text-center">
-                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-3 py-2 border border-slate-200/50 dark:border-white/5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Scores</span>
-                      <span className="font-heading text-xl">{row.total_score_points}</span>
+                <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-2 md:gap-8 relative z-10 mt-2 md:mt-0">
+                  <div className="flex flex-wrap gap-1.5 md:gap-4 text-center justify-start flex-1 md:flex-none">
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Scores</span>
+                      <span className="font-heading text-lg md:text-xl">{row.total_score_points}</span>
                     </div>
-                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-3 py-2 border border-slate-200/50 dark:border-white/5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Team</span>
-                      <span className="font-heading text-xl">{row.total_team_points}</span>
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Team</span>
+                      <span className="font-heading text-lg md:text-xl">{row.total_team_points}</span>
                     </div>
-                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-3 py-2 border border-slate-200/50 dark:border-white/5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">F4</span>
-                      <span className="font-heading text-xl">{row.total_ff_points}</span>
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">F4</span>
+                      <span className="font-heading text-lg md:text-xl">{row.total_ff_points}</span>
                     </div>
-                    <div className="flex flex-col items-center bg-rose-50/50 dark:bg-rose-900/20 rounded-xl px-3 py-2 border border-rose-200/50 dark:border-rose-500/20">
-                      <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1">Pens</span>
-                      <span className="font-heading text-xl text-rose-600 dark:text-rose-400">{row.total_penalty_points < 0 ? row.total_penalty_points : '0'}</span>
+                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Bonus</span>
+                      <span className="font-heading text-lg md:text-xl">{row.total_bonus_points}</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-rose-50/50 dark:bg-rose-900/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-rose-200/50 dark:border-rose-500/20">
+                      <span className="text-[9px] md:text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-0.5 md:mb-1">Pens</span>
+                      <span className="font-heading text-lg md:text-xl text-rose-600 dark:text-rose-400">{row.total_penalty_points < 0 ? row.total_penalty_points : '0'}</span>
                     </div>
                   </div>
                   
                   <div className="flex flex-col items-end shrink-0 pl-2 md:pl-4 border-l border-slate-200 dark:border-white/10">
-                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total Points</span>
-                    <span className="font-heading text-5xl md:text-6xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">{row.grand_total}</span>
+                    <span className="text-[9px] md:text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total Pts</span>
+                    <span className="font-heading text-4xl sm:text-5xl md:text-6xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">{row.grand_total}</span>
                   </div>
                 </div>
               </div>
