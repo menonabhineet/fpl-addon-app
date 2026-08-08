@@ -35,11 +35,20 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [currentHomeScore, setCurrentHomeScore] = useState<string | number>(existingPick?.predicted_home_score ?? '');
+  const [currentAwayScore, setCurrentAwayScore] = useState<string | number>(existingPick?.predicted_away_score ?? '');
+
+  const totalGoals = (Number(currentHomeScore) || 0) + (Number(currentAwayScore) || 0);
+  const isGoalFest = currentHomeScore !== '' && currentAwayScore !== '' && totalGoals >= 5;
+
   const handleScoreChange = (e: React.ChangeEvent<HTMLFormElement>) => {
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const homeScore = formData.get('homeScore');
-    const awayScore = formData.get('awayScore');
+    const homeScore = formData.get('homeScore') as string;
+    const awayScore = formData.get('awayScore') as string;
+
+    setCurrentHomeScore(homeScore);
+    setCurrentAwayScore(awayScore);
 
     if (homeScore !== '' && awayScore !== '') {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -72,6 +81,12 @@ function FixtureCard({ match, existingPick }: { match: any, existingPick?: any }
       <div className="bg-black/5 dark:bg-black/20 px-6 py-3 border-b border-slate-200/50 dark:border-white/5 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 font-bold tracking-widest uppercase relative z-10">
         <span>{formattedTime}</span>
         <div className="flex gap-2 items-center">
+          {isGoalFest && (
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)] animate-in zoom-in duration-300">
+              <svg className="w-3 h-3 fill-amber-500 drop-shadow-sm" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" /></svg>
+              THRILLER
+            </span>
+          )}
           {existingPick && <span className="text-emerald-600 dark:text-emerald-400 drop-shadow-sm">✓ Locked</span>}
           {match.is_finished && <span className="bg-slate-800 text-slate-200 px-2 py-0.5 rounded text-[10px]">FT</span>}
         </div>

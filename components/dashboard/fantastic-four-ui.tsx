@@ -44,7 +44,9 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
       id: pick.player_id,
       name: pick.player_name,
       teamCode: tCode,
-      points: pick.points_earned
+      points: pick.points_earned,
+      teamShortName: playerDetails?.teams ? (Array.isArray(playerDetails.teams) ? playerDetails.teams[0]?.short_name : playerDetails.teams.short_name) : '',
+      nextFixture: playerDetails?.next_fixture || 'None'
     }
     return acc;
   }, {})
@@ -144,7 +146,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                       // Render Player Jersey and Details if Picked
                       <div className="flex flex-col items-center relative animate-in zoom-in duration-300">
                         {/* Fixed height container ensures layout never collapses */}
-                        <div className="relative w-20 h-24 flex items-end justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                        <div className="relative w-20 h-24 flex items-end justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
                           {/* Glow behind jersey */}
                           <div className="absolute inset-0 bg-white/20 blur-xl rounded-full" />
                           <img
@@ -157,15 +159,20 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                               (e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp'
                             }}
                           />
+                          {selectedPlayer.points !== null && selectedPlayer.points !== undefined && (
+                            <span className="absolute -top-1 -right-4 px-2 py-1 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full shadow-lg border-2 border-emerald-300 z-20">
+                              {selectedPlayer.points} Pts
+                            </span>
+                          )}
                         </div>
-                        <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xl border border-white/20 max-w-[140px] truncate">
-                          {selectedPlayer.name}
-                        </span>
-                        {selectedPlayer.points !== null && selectedPlayer.points !== undefined && (
-                          <span className="absolute -top-2 -right-4 px-2 py-1 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full shadow-lg border-2 border-emerald-300">
-                            {selectedPlayer.points} Pts
+                        <div className="flex flex-col items-stretch">
+                          <span className="px-3 py-1 bg-black/80 backdrop-blur-md text-white text-xs sm:text-sm font-bold rounded-t-lg shadow-xl border-x border-t border-white/20 max-w-[140px] text-center truncate z-10">
+                            {selectedPlayer.name}
                           </span>
-                        )}
+                          <span className="px-2 py-0.5 bg-black/50 backdrop-blur-sm text-emerald-400/90 text-[9px] font-semibold tracking-wide uppercase rounded-b-lg shadow-sm border border-white/20 z-10 text-center">
+                            {selectedPlayer.teamShortName} • {selectedPlayer.nextFixture}
+                          </span>
+                        </div>
                       </div>
                     ) : (
                       // Render Add Button if Empty
