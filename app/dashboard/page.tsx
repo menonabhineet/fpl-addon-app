@@ -7,6 +7,7 @@ import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import { fetchBootstrapStatic, fetchFixtures } from '@/lib/fpl-api'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
+import RefreshButton from '@/components/dashboard/refresh-button'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data
 export const dynamic = 'force-dynamic' 
@@ -222,11 +223,13 @@ export default async function DashboardPage({
           </h1>
         </div>
         
-        <div className="flex items-center gap-4 glass px-4 py-2 rounded-full">
+        <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 glass px-4 py-2 rounded-full">
           {allGameweeks && <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />}
-          <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
+          <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
+          <RefreshButton />
+          <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <ThemeToggle />
-          <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
+          <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <form action={async () => {
             'use server'; const supabase = await createClient(); await supabase.auth.signOut(); redirect('/');
           }}>
