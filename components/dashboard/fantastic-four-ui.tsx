@@ -305,24 +305,24 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
                 <select
                   value={selectedClub}
                   onChange={(e) => setSelectedClub(e.target.value)}
-                  className="flex-1 p-2 rounded-xl border border-slate-300 dark:border-white/10 glass bg-white dark:bg-neutral-900/80 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="flex-1 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                  <option value="All">All Clubs</option>
+                  <option value="All" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Clubs</option>
                   {(uniqueClubs as string[]).map((club) => (
-                    <option key={club} value={club}>{club}</option>
+                    <option key={club} value={club} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{club}</option>
                   ))}
                 </select>
 
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="flex-1 p-2 rounded-xl border border-slate-300 dark:border-white/10 glass bg-white dark:bg-neutral-900/80 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="flex-1 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
-                  <option value="name">Sort by Name</option>
-                  <option value="form">Sort by Form</option>
-                  <option value="points_per_game">Sort by PPG</option>
-                  <option value="total_points">Sort by Total Points</option>
-                  <option value="selected_by_percent">Sort by Ownership</option>
+                  <option value="name" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Sort by Name</option>
+                  <option value="form" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Sort by Form</option>
+                  <option value="points_per_game" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Sort by PPG</option>
+                  <option value="total_points" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Sort by Total Points</option>
+                  <option value="selected_by_percent" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Sort by Ownership</option>
                 </select>
               </div>
             </div>
