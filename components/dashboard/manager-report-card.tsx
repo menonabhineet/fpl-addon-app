@@ -186,13 +186,20 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                                       {/* Team & F4 */}
                                       <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
                                         <div>
-                                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Team Prediction</h4>
+                                          <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Survivor Pick</h4>
+                                            {gwPicks.eliminatedGameweekId === gwId && (
+                                              <span className="px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[9px] font-bold uppercase tracking-wider rounded border border-rose-500/30">
+                                                ❌ Eliminated
+                                              </span>
+                                            )}
+                                          </div>
                                           {gwPicks.teamPick ? (
                                             <div className="bg-white/50 dark:bg-black/20 px-4 py-3 rounded-xl border border-slate-200/50 dark:border-white/5 flex items-center justify-center">
                                               <span className="font-heading text-xl text-slate-800 dark:text-slate-100 uppercase tracking-wider">{gwPicks.teamPick.team?.name || 'Unknown Team'}</span>
                                             </div>
                                           ) : (
-                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No team prediction</div>
+                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No survivor pick</div>
                                           )}
                                         </div>
 

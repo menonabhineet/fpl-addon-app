@@ -50,7 +50,7 @@ export async function GET() {
     // Fetch all users from Auth as a fallback for users without scores
     try {
       const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-      const { data: authData } = await adminClient.auth.admin.listUsers()
+      const { data: authData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
       if (authData?.users) {
         authData.users.forEach(u => {
           const name = u.user_metadata?.name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'Unknown'
@@ -103,6 +103,7 @@ export async function GET() {
     const { data: teamPicks } = await supabase.from('team_predictions').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true })
     const { data: fantasticPicks } = await supabase.from('fantastic_four').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true })
     const { data: bonusPicks } = await supabase.from('bonus_predictions').select('*, bonus_questions!inner(gameweek, question, correct_answer)').lt('bonus_questions.gameweek', currentGwId)
+    const { data: survivorEntries } = await supabase.from('survivor_entries').select('*').order('round_id', { ascending: true })
 
     // 5. Transform data for Excel Sheets
     const scoreExportData = (scorePicks || []).map(pick => ({
@@ -142,21 +143,30 @@ export async function GET() {
       Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
     }))
 
+    const survivorStatusExportData = (survivorEntries || []).map(entry => ({
+      Manager_Name: userNamesMap.get(entry.user_id) || 'Unknown',
+      Round: entry.round_id,
+      Status: entry.status,
+      Eliminated_Gameweek: entry.eliminated_gameweek_id || 'N/A'
+    }))
+
     // 6. Build the Excel Workbook
     const workbook = XLSX.utils.book_new()
 
     // Create sheets (handle empty arrays by providing a default object structure so headers still appear)
     const scoreSheet = XLSX.utils.json_to_sheet(scoreExportData.length > 0 ? scoreExportData : [{ Manager_Name: '', Gameweek: '', Fixture: '', Predicted_Home_Score: '', Predicted_Away_Score: '', Points_Earned: '', Created_At: '' }])
-    const teamSheet = XLSX.utils.json_to_sheet(teamExportData.length > 0 ? teamExportData : [{ Manager_Name: '', Gameweek: '', Predicted_Team: '', Points_Earned: '', Created_At: '' }])
+    const survivorSheet = XLSX.utils.json_to_sheet(teamExportData.length > 0 ? teamExportData : [{ Manager_Name: '', Gameweek: '', Predicted_Team: '', Points_Earned: '', Created_At: '' }])
     const fantasticSheet = XLSX.utils.json_to_sheet(fantasticExportData.length > 0 ? fantasticExportData : [{ Manager_Name: '', Gameweek: '', Player: '', Is_Captain: '', Points_Earned: '', Created_At: '' }])
     const bonusSheet = XLSX.utils.json_to_sheet(bonusExportData.length > 0 ? bonusExportData : [{ Manager_Name: '', Gameweek: '', Question: '', Manager_Answer: '', Correct_Answer: '', Points_Earned: '', Created_At: '' }])
     const leaderboardSheet = XLSX.utils.json_to_sheet(leaderboardExportData.length > 0 ? leaderboardExportData : [{ Manager_Name: '', Total_Score_Points: '', Total_Team_Points: '', Total_Fantastic_Four_Points: '', Total_Bonus_Points: '', Total_Penalty_Points: '', Grand_Total: '' }])
+    const survivorStatusSheet = XLSX.utils.json_to_sheet(survivorStatusExportData.length > 0 ? survivorStatusExportData : [{ Manager_Name: '', Round: '', Status: '', Eliminated_Gameweek: '' }])
 
     XLSX.utils.book_append_sheet(workbook, scoreSheet, "Score Predictions")
-    XLSX.utils.book_append_sheet(workbook, teamSheet, "Team Pick")
+    XLSX.utils.book_append_sheet(workbook, survivorSheet, "Survivor Mode")
     XLSX.utils.book_append_sheet(workbook, fantasticSheet, "Fantastic 4")
     XLSX.utils.book_append_sheet(workbook, bonusSheet, "Bonus Question")
     XLSX.utils.book_append_sheet(workbook, leaderboardSheet, "Leaderboard")
+    XLSX.utils.book_append_sheet(workbook, survivorStatusSheet, "Survivor Status")
 
     // 7. Write the file to a buffer
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })

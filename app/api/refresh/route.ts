@@ -38,7 +38,19 @@ export async function POST(request: Request) {
 
     // 4. Perform Data Fetching and Score Calculation
     const updateCount = await syncResults()
-    const scoresResult = await calculateScores()
+    
+    // 4.5 Robust Sequential Grading
+    // We grade the previous gameweek AND the current gameweek to ensure no gameweeks are skipped
+    // during a rapid FPL rollover.
+    const { data: currentGw } = await supabase.from('gameweeks').select('id').eq('is_current', true).maybeSingle()
+    const targetGwId = currentGw?.id || 1
+    
+    let scoresResult
+    const startGw = Math.max(1, targetGwId - 1)
+    
+    for (let gw = startGw; gw <= targetGwId; gw++) {
+      scoresResult = await calculateScores(gw)
+    }
 
     return NextResponse.json({
       success: true,

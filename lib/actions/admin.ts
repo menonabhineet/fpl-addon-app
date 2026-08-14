@@ -48,6 +48,7 @@ export async function saveSelectedFixtures(gameweekId: number, selectedFixtureId
 
     return { success: true, message: 'Selection saved successfully!' }
   } catch (error: any) {
+    console.error("[saveSelectedFixtures] Error:", error)
     return { success: false, error: error.message }
   }
 }

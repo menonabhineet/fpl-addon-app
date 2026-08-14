@@ -63,6 +63,7 @@ export async function createBonusQuestion(
     
     return { success: true, message: 'Bonus question saved successfully!' }
   } catch (error: any) {
+    console.error("[createBonusQuestion] Error:", error)
     return { success: false, error: error.message }
   }
 }
@@ -118,6 +119,7 @@ export async function setBonusCorrectAnswer(questionId: string, correctAnswer: s
     
     return { success: true, message: 'Correct answer set and points awarded!' }
   } catch (error: any) {
+    console.error("[setBonusCorrectAnswer] Error:", error)
     return { success: false, error: error.message }
   }
 }
@@ -130,6 +132,26 @@ export async function submitBonusPrediction(questionId: string, answer: string) 
     if (authError || !user) throw new Error('Unauthorized request.')
 
     const supabaseAdmin = createAdminClient()
+
+    // Enforce deadline
+    const { data: qData, error: qError } = await supabaseAdmin
+      .from('bonus_questions')
+      .select('gameweek, gameweeks ( deadline_time )')
+      .eq('id', questionId)
+      .single()
+
+    if (qError || !qData) throw new Error('Question not found.')
+
+    // Cast the joined data
+    const gameweekData = qData.gameweeks as unknown as { deadline_time: string } | null;
+    
+    if (!gameweekData?.deadline_time) {
+      throw new Error('Gameweek deadline configuration missing.')
+    }
+
+    if (new Date() >= new Date(gameweekData.deadline_time)) {
+      throw new Error('Gameweek deadline has passed. Predictions are locked.')
+    }
 
     // Upsert the prediction
     const { error } = await supabaseAdmin
@@ -146,6 +168,7 @@ export async function submitBonusPrediction(questionId: string, answer: string) 
     
     return { success: true, message: 'Prediction submitted!' }
   } catch (error: any) {
+    console.error("[submitBonusPrediction] Error:", error)
     return { success: false, error: error.message }
   }
 }
@@ -183,6 +206,7 @@ export async function deleteBonusQuestion(questionId: string) {
     
     return { success: true, message: 'Bonus question deleted successfully!' }
   } catch (error: any) {
+    console.error("[deleteBonusQuestion] Error:", error)
     return { success: false, error: error.message }
   }
 }

@@ -54,7 +54,7 @@ export default function DeadlineBanner({ deadlineTime }: DeadlineBannerProps) {
 
   const TimeBlock = ({ value, label }: { value: number, label: string }) => (
     <div className="flex flex-col items-center justify-center">
-      <span className="font-heading text-5xl md:text-7xl text-white drop-shadow-2xl">{value.toString().padStart(2, '0')}</span>
+      <span className="font-heading text-5xl md:text-7xl text-slate-900 dark:text-white drop-shadow-2xl">{value.toString().padStart(2, '0')}</span>
       <span className="text-[10px] md:text-xs font-bold text-slate-400 tracking-widest uppercase mt-1 md:mt-2">{label}</span>
     </div>
   )

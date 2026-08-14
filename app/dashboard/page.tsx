@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DashboardTabs from '@/components/dashboard/dashboard-tabs'
@@ -9,6 +9,7 @@ import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
 import BonusQuestionClient from '@/components/dashboard/bonus-question-client'
 import RefreshButton from '@/components/dashboard/refresh-button'
+import AutoRefresh from '@/components/dashboard/auto-refresh'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data
 export const dynamic = 'force-dynamic' 
@@ -80,6 +81,17 @@ export default async function DashboardPage({
     userScorePicks = data || []
   }
 
+  // 5.5 Fetch active Survivor Round and user status
+  const { data: activeRound } = await supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle()
+  let survivorEntry = null;
+  let isNewRound = false;
+  if (activeRound) {
+    const { data } = await supabase.from('survivor_entries').select('*').eq('round_id', activeRound.id).eq('user_id', user.id).maybeSingle()
+    survivorEntry = data
+    // Consider a round "new" if it started in the current or previous gameweek (just for the banner)
+    isNewRound = activeRound.start_gameweek_id === selectedGwId && !selectedGw.is_survivor_skipped
+  }
+
   // 5. Fetch raw scoring data to power the dynamic Leaderboard UI
   const { data: allScores, error: scoresError } = await supabase
     .from('vw_user_scores_with_profiles')
@@ -126,10 +138,16 @@ export default async function DashboardPage({
   // --- NEW: Calculate User Points and Rank for Hero Section ---
   let userGrandTotal = 0;
   let userRank = 0;
+  let userDisplayName = user?.email?.split('@')[0] || 'Manager';
   if (allScores) {
     const userTotals = new Map<string, number>();
+    let foundMyName = false;
     allScores.forEach(score => {
       userTotals.set(score.user_id, (userTotals.get(score.user_id) || 0) + score.total_points);
+      if (!foundMyName && score.user_id === user.id && score.manager_name) {
+         userDisplayName = score.manager_name;
+         foundMyName = true;
+      }
     });
     userGrandTotal = userTotals.get(user.id) || 0;
     
@@ -213,8 +231,9 @@ export default async function DashboardPage({
       });
 
     return {
-      ...t,
       ...fplT,
+      ...t,
+      position: t.position ?? fplT.position ?? 0,
       next_fixture: nextFixtureStr,
       next_3_fixtures: teamNext3Fixtures
     };
@@ -222,6 +241,7 @@ export default async function DashboardPage({
 
   return (
     <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300 relative overflow-hidden">
+      <AutoRefresh />
       {/* Immersive Background Glows */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 h-[800px] w-[800px] rounded-full bg-emerald-500/10 blur-[200px] mix-blend-multiply dark:mix-blend-screen opacity-70" />
@@ -243,17 +263,27 @@ export default async function DashboardPage({
         </div>
         
         <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 glass px-4 py-2 rounded-full">
-          {allGameweeks && <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />}
+          {allGameweeks && (
+            <Suspense fallback={<span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">Gameweek {selectedGwId}</span>}>
+              <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
+            </Suspense>
+          )}
           <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <RefreshButton />
           <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <ThemeToggle />
-          <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
-          <form action={async () => {
-            'use server'; const supabase = await createClient(); await supabase.auth.signOut(); redirect('/');
-          }}>
-            <button className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-500 transition-colors">Log out</button>
-          </form>
+          
+          <div className="flex items-center gap-2 sm:gap-4 border-l border-slate-300 dark:border-slate-700 pl-2 sm:pl-4 ml-1 sm:ml-0">
+            <div className="flex items-center">
+              <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hidden md:inline-block mr-2">Manager:</span>
+              <span className="text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider truncate max-w-[70px] sm:max-w-[150px]">{userDisplayName}</span>
+            </div>
+            <form action={async () => {
+              'use server'; const supabase = await createClient(); await supabase.auth.signOut(); redirect('/');
+            }}>
+              <button className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-500 transition-colors whitespace-nowrap">Log out</button>
+            </form>
+          </div>
         </div>
       </header>
 
@@ -286,6 +316,30 @@ export default async function DashboardPage({
               <DeadlineBanner deadlineTime={selectedGw.deadline_time} />
             </div>
           )}
+
+          {isNewRound && (
+            <div className="mt-4 sm:mt-6 max-w-2xl mx-auto w-full glass rounded-xl p-4 text-sm bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 border-l-4 text-left animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+              <div className="flex items-start sm:items-center gap-3">
+                <span className="text-2xl mt-0.5 sm:mt-0">🆕</span>
+                <div>
+                  <strong className="font-bold uppercase tracking-wider block mb-0.5 sm:mb-1">New Survivor Round Active!</strong> 
+                  A fresh round has started. Everyone is back in the game and teams are reset. Head over to the <strong className="text-emerald-600 dark:text-emerald-400">Survivor Mode</strong> tab to make your pick!
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedGw?.is_survivor_skipped && (
+            <div className="mt-4 sm:mt-6 max-w-2xl mx-auto w-full glass rounded-xl p-4 text-sm bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 border-l-4 text-left animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+              <div className="flex items-start sm:items-center gap-3">
+                <span className="text-2xl mt-0.5 sm:mt-0">⏸️</span>
+                <div>
+                  <strong className="font-bold uppercase tracking-wider block mb-0.5 sm:mb-1">Survivor Mode Skipped</strong> 
+                  The admin has paused Survivor Mode for this gameweek. No eliminations will occur!
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {bonusQuestion && (
@@ -310,6 +364,9 @@ export default async function DashboardPage({
           allUserFantasticPicks={allUserFantasticPicks || []}
           fplFixtures={fplFixtures}
           fplEvents={fplEvents}
+          survivorEntry={survivorEntry}
+          isNewRound={isNewRound}
+          actualCurrentGwId={currentGwId}
         />
       </main>
     </div>

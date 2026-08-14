@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminFixturesClient from './admin-fixtures-client'
 import AdminVisibilityClient from './admin-visibility-client'
+import AdminSurvivorClient from './admin-survivor-client'
 import AdminBonusClient from './admin-bonus-client'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import Link from 'next/link'
@@ -87,7 +89,11 @@ export default async function AdminPage({
         </div>
         
         <div className="flex items-center gap-4 glass px-4 py-2 rounded-full">
-          {allGameweeks && <GameweekSelector allGameweeks={allGameweeks} selectedGwId={selectedGwId} />}
+          {allGameweeks && (
+            <Suspense fallback={<span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Gameweek {selectedGwId}</span>}>
+              <GameweekSelector allGameweeks={allGameweeks} selectedGwId={selectedGwId} />
+            </Suspense>
+          )}
           <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
           <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-widest text-slate-500">{user.email}</span>
           <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
@@ -115,6 +121,13 @@ export default async function AdminPage({
                     gameweekId={selectedGwId} 
                     initialVisibility={selectedGw.is_available_to_players || false} 
                     isCurrentOrHistoric={selectedGwId <= currentGwId} 
+                  />
+                )}
+                {selectedGw && (
+                  <AdminSurvivorClient
+                    key={`survivor-${selectedGwId}`}
+                    gameweekId={selectedGwId}
+                    initialSkipped={selectedGw.is_survivor_skipped || false}
                   />
                 )}
               </div>

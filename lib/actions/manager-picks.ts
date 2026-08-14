@@ -170,6 +170,11 @@ export async function getAllPicksForGameweek(gameweekId: number) {
       .select('*')
       .eq('gameweek_id', gameweekId)
 
+    // 5. Get Survivor Status
+    const { data: survivorEntries } = await supabase
+      .from('survivor_entries')
+      .select('user_id, status, eliminated_gameweek_id')
+
     // Fetch team short names for the f4 picks
     const f4PlayerIds = f4Picks?.map(p => p.player_id) || []
     const playersMap: Record<number, string> = {}
@@ -202,6 +207,8 @@ export async function getAllPicksForGameweek(gameweekId: number) {
       const isCurrentUser = userId === user.id
       const shouldReveal = deadlinePassed || isCurrentUser
 
+      const userSurvivor = survivorEntries?.find(s => s.user_id === userId)
+
       picksByUser[userId] = {
         scorePicks: shouldReveal ? scorePicks.filter(p => p.user_id === userId) : null,
         teamPick: shouldReveal ? (teamPicks?.find(p => p.user_id === userId) || null) : null,
@@ -210,7 +217,9 @@ export async function getAllPicksForGameweek(gameweekId: number) {
           team_short_name: playersMap[f4.player_id] || ''
         })) || []) : null,
         isRevealed: shouldReveal,
-        isCurrentUser
+        isCurrentUser,
+        survivorStatus: userSurvivor?.status || null,
+        eliminatedGameweekId: userSurvivor?.eliminated_gameweek_id || null
       }
     })
 

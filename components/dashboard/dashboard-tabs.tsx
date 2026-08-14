@@ -12,7 +12,7 @@ import FdrUI from './fdr-ui'
 
 type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'allpicks' | 'fdr'
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -61,7 +61,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
                 : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
             }`}>
               {tab === 'score' && 'Score Picks'}
-              {tab === 'team' && 'Team Pick'}
+              {tab === 'team' && 'Survivor Mode'}
               {tab === 'fantastic' && 'Fantastic Four'}
               {tab === 'leaderboard' && 'Leaderboard'}
               {tab === 'allpicks' && 'All Picks'}
@@ -86,7 +86,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
             )}
             
             {activeTab === 'team' && (
-              <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} />
+              <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} survivorEntry={survivorEntry} isNewRound={isNewRound} actualCurrentGwId={actualCurrentGwId} />
             )}
             
             {activeTab === 'fantastic' && (

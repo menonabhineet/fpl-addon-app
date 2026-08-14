@@ -112,7 +112,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
       </div>
       
       {/* 3D Pitch Container */}
-      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] md:aspect-auto md:min-h-[550px] [perspective:1200px] mx-auto max-w-4xl">
+      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] md:aspect-auto min-h-[550px] sm:min-h-[600px] [perspective:1200px] mx-auto max-w-4xl">
         <div className="absolute inset-0 bg-emerald-600 dark:bg-emerald-800 rounded-[2.5rem] overflow-hidden shadow-[inset_0_0_100px_rgba(0,0,0,0.6),0_20px_40px_rgba(0,0,0,0.4)] border-[12px] border-emerald-700/50 dark:border-emerald-900/50 transition-all duration-700 hover:shadow-[0_0_60px_rgba(16,185,129,0.4)] [transform:rotateX(15deg)_scale(0.95)] [transform-origin:bottom] group/pitch">
           
           {/* Pitch Lines & Grass Pattern */}
@@ -125,7 +125,7 @@ export default function FantasticFourUI({ players, currentGw, initialPicks, allU
           <div className="absolute inset-x-0 top-1/2 h-[3px] bg-white/40" />
 
           {/* Player Slots */}
-          <div className="relative z-10 h-full flex flex-col justify-around py-8 [transform:rotateX(-15deg)] transition-transform duration-700">
+          <div className="relative z-10 h-full flex flex-col justify-around py-4 sm:py-8 [transform:rotateX(-15deg)] transition-transform duration-700">
             {positions.map((pos) => {
               const selectedPlayer = picksByPosition[pos]
 

@@ -13,12 +13,12 @@ export async function submitScorePrediction(formData: FormData) {
     if (authError || !user) throw new Error('Unauthorized request. Please log in.')
 
     // 2. Extract data from the incoming form payload
-    const fixtureId = parseInt(formData.get('fixtureId') as string)
-    const homeScore = parseInt(formData.get('homeScore') as string)
-    const awayScore = parseInt(formData.get('awayScore') as string)
+    const fixtureId = Number(formData.get('fixtureId'))
+    const homeScore = Number(formData.get('homeScore'))
+    const awayScore = Number(formData.get('awayScore'))
 
-    if (isNaN(fixtureId) || isNaN(homeScore) || isNaN(awayScore)) {
-      throw new Error('Invalid input data.')
+    if (isNaN(fixtureId) || isNaN(homeScore) || isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
+      throw new Error('Invalid input data. Scores must be 0 or higher.')
     }
 
     // 3. Deadline Validation: Query the fixture and its parent gameweek
@@ -72,6 +72,7 @@ export async function submitScorePrediction(formData: FormData) {
     return { success: true, message: 'Prediction saved successfully!' }
 
   } catch (error: any) {
+    console.error("[submitScorePrediction] Error:", error)
     return { success: false, error: error.message }
   }
 }

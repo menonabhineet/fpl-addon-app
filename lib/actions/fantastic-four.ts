@@ -91,6 +91,7 @@ export async function submitFantasticFourPrediction(formData: FormData) {
     return { success: true, message: 'Fantastic Four pick saved successfully!' }
 
   } catch (error: any) {
+    console.error("[submitFantasticFourPrediction] Error:", error)
     return { success: false, error: error.message }
   }
 }

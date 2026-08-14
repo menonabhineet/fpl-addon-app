@@ -142,7 +142,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
             <span className="mr-auto">Rank / Manager</span>
             <div className="flex gap-4">
               <button onClick={() => handleSort('total_score_points')} className={`transition-colors ${sortConfig.key === 'total_score_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Scores {getSortIcon('total_score_points')}</button>
-              <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Team {getSortIcon('total_team_points')}</button>
+              <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Surv {getSortIcon('total_team_points')}</button>
               <button onClick={() => handleSort('total_ff_points')} className={`transition-colors ${sortConfig.key === 'total_ff_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>F4 {getSortIcon('total_ff_points')}</button>
               <button onClick={() => handleSort('total_bonus_points')} className={`transition-colors ${sortConfig.key === 'total_bonus_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Bonus {getSortIcon('total_bonus_points')}</button>
               <button onClick={() => handleSort('total_penalty_points')} className={`transition-colors ${sortConfig.key === 'total_penalty_points' ? 'text-rose-500' : 'hover:text-rose-500'}`}>Pens {getSortIcon('total_penalty_points')}</button>
@@ -154,7 +154,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
             <span className="w-full text-center mb-1">Sort by</span>
             <button onClick={() => handleSort('grand_total')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'grand_total' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Total {getSortIcon('grand_total')}</button>
             <button onClick={() => handleSort('total_score_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_score_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Scores {getSortIcon('total_score_points')}</button>
-            <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Team {getSortIcon('total_team_points')}</button>
+            <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Surv {getSortIcon('total_team_points')}</button>
             <button onClick={() => handleSort('total_ff_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_ff_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>F4 {getSortIcon('total_ff_points')}</button>
             <button onClick={() => handleSort('total_bonus_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_bonus_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Bonus {getSortIcon('total_bonus_points')}</button>
             <button onClick={() => handleSort('total_penalty_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_penalty_points' ? 'border-rose-500/50 bg-rose-500/10 text-rose-500' : 'border-white/10 bg-black/20'}`}>Pens {getSortIcon('total_penalty_points')}</button>
@@ -213,7 +213,7 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                       <span className="font-heading text-lg md:text-xl">{row.total_score_points}</span>
                     </div>
                     <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
-                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Team</span>
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Surv</span>
                       <span className="font-heading text-lg md:text-xl">{row.total_team_points}</span>
                     </div>
                     <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
