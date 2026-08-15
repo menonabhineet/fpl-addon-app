@@ -44,7 +44,7 @@ export default function GameweekSelector({ allGameweeks, selectedGwId }: { allGa
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-4 -left-4 w-40 bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-[100]">
+        <div className="absolute top-full mt-3 left-0 sm:-left-4 w-40 bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-[999]">
           <div className="max-h-64 overflow-y-auto custom-scrollbar py-2">
             {allGameweeks.map((gw) => (
               <button

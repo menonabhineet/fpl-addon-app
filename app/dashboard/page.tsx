@@ -280,7 +280,7 @@ export default async function DashboardPage({
           </h1>
         </div>
         
-        <div className="flex flex-nowrap items-center gap-2 sm:gap-4 glass px-3 sm:px-4 py-1.5 sm:py-2 rounded-full max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-nowrap items-center gap-2 sm:gap-4 glass px-3 sm:px-4 py-1.5 sm:py-2 rounded-full relative">
           {allGameweeks && (
             <Suspense fallback={<span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
               <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
