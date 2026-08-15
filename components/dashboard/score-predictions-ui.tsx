@@ -1,12 +1,12 @@
 // components/dashboard/score-predictions-ui.tsx
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useRef, useEffect, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { submitScorePrediction, clearAllScorePredictions, removeIndividualScorePrediction } from '@/lib/actions/score-predictions'
 
-export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePicks }: any) {
+const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentGw, initialScorePicks }: any) {
   const router = useRouter()
   const [currentScorePicks, setCurrentScorePicks] = useState<any[]>(initialScorePicks || [])
   const [showClearModal, setShowClearModal] = useState(false)
@@ -43,7 +43,7 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
       if (res.success) {
         setCurrentScorePicks([])
         setShowClearModal(false)
-        toast.success(res.message)
+        toast.success(`All score predictions cleared for Gameweek ${currentGw.id}!`)
       } else {
         toast.error(res.error || 'Failed to clear score predictions')
       }
@@ -175,7 +175,9 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
       )}
     </div>
   )
-}
+})
+
+export default ScorePredictionsUI
 
 function FixtureCard({ 
   match, 
@@ -224,17 +226,22 @@ function FixtureCard({
       debounceRef.current = setTimeout(() => {
         startTransition(async () => {
           const result = await submitScorePrediction(formData)
+          const homeName = match.home_team?.short_name || match.home_team?.name || 'Home'
+          const awayName = match.away_team?.short_name || match.away_team?.name || 'Away'
+
           if (result.success) {
             setState({ success: true, message: `${homeScore}-${awayScore} saved!`, error: '' })
             if (onPickSaved) {
               onPickSaved(match.id, Number(homeScore), Number(awayScore))
             }
+            toast.success(`Score prediction saved: ${homeName} ${homeScore} - ${awayScore} ${awayName}`)
             if (timeoutRef.current) clearTimeout(timeoutRef.current)
             timeoutRef.current = setTimeout(() => {
               setState(prev => ({ ...prev, success: false, message: '' }))
             }, 3000)
           } else {
             setState({ success: false, message: '', error: result.error || 'Failed' })
+            toast.error(result.error || `Failed to save prediction for ${homeName} vs ${awayName}`)
           }
         })
       }, 750)
@@ -243,6 +250,10 @@ function FixtureCard({
 
   const handleRemoveIndividual = async () => {
     if (isLocked || match.is_finished) return
+    const homeName = match.home_team?.short_name || match.home_team?.name || 'Home'
+    const awayName = match.away_team?.short_name || match.away_team?.name || 'Away'
+    const matchName = `${homeName} vs ${awayName}`
+
     setIsRemoving(true)
     try {
       const res = await removeIndividualScorePrediction({ fixtureId: match.id })
@@ -253,12 +264,12 @@ function FixtureCard({
         if (onPickRemoved) {
           onPickRemoved(match.id)
         }
-        toast.success(res.message)
+        toast.success(`Removed prediction for ${matchName}`)
       } else {
-        toast.error(res.error || 'Failed to remove prediction')
+        toast.error(res.error || `Failed to remove prediction for ${matchName}`)
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to remove prediction'
+      const msg = err instanceof Error ? err.message : `Failed to remove prediction for ${matchName}`
       toast.error(msg)
     } finally {
       setIsRemoving(false)

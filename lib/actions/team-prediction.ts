@@ -182,10 +182,19 @@ export async function submitTeamPrediction(formData: FormData) {
 
     if (upsertError) throw new Error('Failed to save team prediction.')
 
-    // 6. Refresh the UI
+    // 6. Fetch team name for the message and refresh the UI
+    const { data: teamInfo } = await supabase
+      .from('teams')
+      .select('name')
+      .eq('id', teamId)
+      .single()
+
     revalidatePath('/dashboard')
     
-    return { success: true, message: 'Team prediction saved successfully!' }
+    return { 
+      success: true, 
+      message: `${teamInfo?.name || 'Team'} locked in for Gameweek ${gameweekId}!` 
+    }
 
   } catch (error: any) {
     console.error("[submitTeamPrediction] Error:", error)

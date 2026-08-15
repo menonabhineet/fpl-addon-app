@@ -1,8 +1,7 @@
 // components/dashboard/dashboard-tabs.tsx
 'use client'
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useTransition } from 'react'
 import ScorePredictionsUI from './score-predictions-ui'
 import TeamPredictionUI from './team-prediction-ui'
 import FantasticFourUI from './fantastic-four-ui'
@@ -11,6 +10,12 @@ import AllPicksUI from './all-picks-ui'
 import FdrUI from './fdr-ui'
 
 type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'allpicks' | 'fdr'
+
+const BOTTOM_NAV_ITEMS = [
+  { id: 'score', label: 'Score Pred', icon: '🎯' },
+  { id: 'team', label: 'Survivor', icon: '🛡️' },
+  { id: 'fantastic', label: 'Fantastic 4', icon: '⚡' },
+] as const
 
 export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId, currentUserId }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
@@ -35,6 +40,8 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
     })
     setActiveTab(tab)
   }
+
+  const activeBottomIndex = BOTTOM_NAV_ITEMS.findIndex(item => item.id === activeTab)
 
   return (
     <div className="space-y-6">
@@ -127,12 +134,20 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         aria-label="Quick game mode switcher"
         className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-sm sm:max-w-md pointer-events-auto"
       >
-        <div className="glass bg-white/90 dark:bg-neutral-950/90 backdrop-blur-2xl border border-slate-200/90 dark:border-white/15 rounded-full p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.22)] dark:shadow-[0_12px_45px_rgba(0,0,0,0.7)] flex items-center justify-between gap-1">
-          {[
-            { id: 'score', label: 'Score Pred', icon: '🎯' },
-            { id: 'team', label: 'Survivor', icon: '🛡️' },
-            { id: 'fantastic', label: 'Fantastic 4', icon: '⚡' },
-          ].map((item) => {
+        <div className="relative bg-slate-950/95 dark:bg-black/95 backdrop-blur-xl border-2 border-slate-700/80 dark:border-white/20 rounded-full p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_25px_rgba(16,185,129,0.2)] ring-1 ring-white/15 grid grid-cols-3">
+          {/* Hardware-accelerated sliding active pill with 0 layout thrashing */}
+          {activeBottomIndex !== -1 && (
+            <div
+              className="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.5)] border border-emerald-300/30 transition-transform duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)] pointer-events-none will-change-transform"
+              style={{
+                width: 'calc((100% - 12px) / 3)',
+                left: '6px',
+                transform: `translate3d(${activeBottomIndex * 100}%, 0, 0)`,
+              }}
+            />
+          )}
+
+          {BOTTOM_NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button
@@ -141,23 +156,16 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
                 onClick={() => {
                   handleTabChange(item.id as TabState);
                 }}
-                className={`relative flex-1 py-2 sm:py-2.5 px-2 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 transition-colors duration-300 select-none cursor-pointer outline-none ${
+                className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-2 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 transition-colors duration-200 select-none cursor-pointer outline-none ${
                   isActive
-                    ? 'text-white font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/5 font-medium'
+                    ? 'text-white font-black'
+                    : 'text-slate-300 dark:text-slate-400 hover:text-white hover:bg-white/10 font-bold'
                 }`}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="stickyBottomNavActivePill"
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/30"
-                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                  />
-                )}
-                <span className={`relative z-10 text-base sm:text-lg transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
+                <span className={`text-base sm:text-lg transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
                   {item.icon}
                 </span>
-                <span className="relative z-10 text-[11px] sm:text-xs uppercase tracking-wider font-heading truncate">
+                <span className="text-[11px] sm:text-xs uppercase tracking-wider font-heading truncate">
                   {item.label}
                 </span>
               </button>

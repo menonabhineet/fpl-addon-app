@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { submitBonusPrediction } from '@/lib/actions/bonus'
 
 type BonusQuestion = {
@@ -33,14 +34,19 @@ export default function BonusQuestionClient({
 
   const handleSubmit = () => {
     setMessage(null)
-    if (!selectedOption) return setMessage({ type: 'error', text: 'Please select an option' })
+    if (!selectedOption) {
+      toast.error('Please select an option')
+      return setMessage({ type: 'error', text: 'Please select an option' })
+    }
     
     startTransition(async () => {
       const result = await submitBonusPrediction(question.id, selectedOption)
       if (result.success) {
         setMessage({ type: 'success', text: result.message || 'Saved successfully!' })
+        toast.success(`Bonus prediction saved: "${selectedOption}"`)
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to submit' })
+        toast.error(result.error || 'Failed to submit bonus prediction')
       }
     })
   }

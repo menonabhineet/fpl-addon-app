@@ -88,7 +88,7 @@ export async function submitFantasticFourPrediction(formData: FormData) {
     // 6. Refresh the UI
     revalidatePath('/dashboard')
     
-    return { success: true, message: 'Fantastic Four pick saved successfully!' }
+    return { success: true, message: `${playerName} selected as your ${position} pick!` }
 
   } catch (error: unknown) {
     const errMessage = error instanceof Error ? error.message : 'An error occurred.'

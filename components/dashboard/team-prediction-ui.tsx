@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { submitTeamPrediction, clearSurvivorPick } from '@/lib/actions/team-prediction'
 
-export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [], fixtures = [], survivorEntry, isNewRound, actualCurrentGwId }: any) {
+const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [], fixtures = [], survivorEntry, isNewRound, actualCurrentGwId }: any) {
   const router = useRouter()
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeamPick?.team_id || null)
   const [isPending, startTransition] = useTransition()
@@ -73,6 +73,9 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
     setSelectedTeamId(teamId)
     setMessage(null)
 
+    const pickedTeam = teams.find((t: any) => t.id === teamId)
+    const teamName = pickedTeam?.name || 'Team'
+
     startTransition(async () => {
       const formData = new FormData()
       formData.append('teamId', teamId.toString())
@@ -83,11 +86,11 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
       
       const result = await submitTeamPrediction(formData)
       if (result.success) {
-        setMessage({ type: 'success', text: 'Team Locked In!' })
-        toast.success(result.message || 'Team locked in!')
+        setMessage({ type: 'success', text: `${teamName} Locked In!` })
+        toast.success(result.message || `${teamName} locked in for Gameweek ${currentGw.id}!`)
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to save prediction.' })
-        toast.error(result.error || 'Failed to save prediction.')
+        toast.error(result.error || `Failed to lock in ${teamName}`)
         // Revert UI selection on failure
         setSelectedTeamId(initialTeamPick?.team_id || null)
       }
@@ -99,6 +102,9 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
       toast.error('Gameweek deadline has passed. Survivor picks are locked.')
       return
     }
+    const prevTeam = teams.find((t: any) => t.id === selectedTeamId)
+    const teamName = prevTeam?.name || 'Survivor team'
+
     setIsClearing(true)
     try {
       const res = await clearSurvivorPick({ gameweekId: currentGw.id })
@@ -106,12 +112,12 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
         setSelectedTeamId(null)
         setMessage(null)
         setShowClearModal(false)
-        toast.success(res.message)
+        toast.success(`Cleared ${teamName} from Gameweek ${currentGw.id}`)
       } else {
-        toast.error(res.error || 'Failed to clear survivor pick')
+        toast.error(res.error || `Failed to clear ${teamName}`)
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to clear survivor pick'
+      const msg = err instanceof Error ? err.message : `Failed to clear ${teamName}`
       toast.error(msg)
     } finally {
       setIsClearing(false)
@@ -475,4 +481,6 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
       )}
     </div>
   )
-}
+})
+
+export default TeamPredictionUI

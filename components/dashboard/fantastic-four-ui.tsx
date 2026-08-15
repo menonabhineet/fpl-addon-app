@@ -1,12 +1,12 @@
 // components/dashboard/fantastic-four-ui.tsx
 'use client'
 
-import { useState, useActionState, useEffect, useMemo, useDeferredValue } from 'react'
+import { useState, useActionState, useEffect, useMemo, useDeferredValue, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitFantasticFourPrediction, removeFantasticFourPick, clearAllFantasticFourPicks } from '@/lib/actions/fantastic-four'
 import { toast } from 'sonner'
 
-export default function FantasticFourUI({ players = [], currentGw, initialPicks = [], allUserFantasticPicks = [] }: any) {
+const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw, initialPicks = [], allUserFantasticPicks = [] }: any) {
   const router = useRouter()
   const [currentPicks, setCurrentPicks] = useState<any[]>(initialPicks || [])
   const [activeSlot, setActiveSlot] = useState<string | null>(null)
@@ -70,10 +70,10 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
         setActiveSlot(null)
         setComparePlayerId(null)
         setInfoSlot(null)
-        toast.success(result.message)
+        toast.success(result.message || `${playerName} selected as your ${position} pick!`)
         return { success: true, message: result.message, error: '' }
       }
-      toast.error(result.error || 'Failed')
+      toast.error(result.error || `Failed to select ${playerName}`)
       return { success: false, message: '', error: result.error || 'Failed' }
     },
     initialState
@@ -110,18 +110,21 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
       toast.error('Gameweek deadline has passed. Picks are locked.')
       return
     }
+    const playerToRemove = picksByPosition[position]
+    const playerName = playerToRemove?.name || `${position} pick`
+
     setRemovingPos(position)
     try {
       const res = await removeFantasticFourPick({ gameweekId: currentGw.id, position })
       if (res.success) {
         setCurrentPicks(prev => prev.filter((p: any) => p.position !== position))
         if (infoSlot === position) setInfoSlot(null)
-        toast.success(res.message)
+        toast.success(`Removed ${playerName} (${position}) from Fantastic Four`)
       } else {
-        toast.error(res.error || 'Failed to remove player')
+        toast.error(res.error || `Failed to remove ${playerName}`)
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to remove player'
+      const msg = err instanceof Error ? err.message : `Failed to remove ${playerName}`
       toast.error(msg)
     } finally {
       setRemovingPos(null)
@@ -140,7 +143,7 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
         setCurrentPicks([])
         setShowClearModal(false)
         setInfoSlot(null)
-        toast.success(res.message)
+        toast.success(`All Fantastic Four picks cleared for Gameweek ${currentGw.id}!`)
       } else {
         toast.error(res.error || 'Failed to clear picks')
       }
@@ -774,4 +777,6 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
       </div>
     </div>
   )
-}
+})
+
+export default FantasticFourUI

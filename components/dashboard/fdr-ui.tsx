@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 
-export default function FdrUI({ teams = [], fplFixtures = [], fplEvents = [], currentGwId }: any) {
+const FdrUI = memo(function FdrUI({ teams = [], fplFixtures = [], fplEvents = [], currentGwId }: any) {
   // Find the next gameweek
   const { nextGwId, visibleGameweeks, visibleGwIds } = useMemo(() => {
     if (!fplEvents || !fplEvents.length) {
@@ -173,4 +173,6 @@ export default function FdrUI({ teams = [], fplFixtures = [], fplEvents = [], cu
       </div>
     </motion.div>
   )
-}
+})
+
+export default FdrUI

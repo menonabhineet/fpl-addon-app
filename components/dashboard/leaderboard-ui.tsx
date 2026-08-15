@@ -1,9 +1,9 @@
 // components/dashboard/leaderboard-ui.tsx
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, memo } from 'react'
 import ManagerReportCard from './manager-report-card'
 
-export default function LeaderboardUI({ allScores, currentGwId, currentUserId }: { allScores: any[], currentGwId: number, currentUserId?: string }) {
+const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, currentUserId }: { allScores: any[], currentGwId: number, currentUserId?: string }) {
   const [filter, setFilter] = useState<'overall' | 'gameweek'>('overall')
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'grand_total', direction: 'desc' })
   const [selectedManager, setSelectedManager] = useState<{ id: string, name: string } | null>(null)
@@ -299,4 +299,6 @@ export default function LeaderboardUI({ allScores, currentGwId, currentUserId }:
       />
     </div>
   )
-}
+})
+
+export default LeaderboardUI

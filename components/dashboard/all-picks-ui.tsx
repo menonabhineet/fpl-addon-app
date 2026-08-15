@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, memo } from 'react'
 import { getAllPicksForGameweek } from '@/lib/actions/manager-picks'
 
 interface AllPicksUIProps {
@@ -13,7 +13,7 @@ interface AllPicksUIProps {
 const allPicksCache = new Map<number, { data: Record<string, any>; deadlinePassed: boolean; timestamp: number }>()
 const CACHE_TTL_MS = 60 * 1000 // 60 seconds
 
-export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPicksUIProps) {
+const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPicksUIProps) {
   const gwId = currentGw?.id
   const cached = gwId ? allPicksCache.get(gwId) : null
   const isCacheValid = cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)
@@ -351,4 +351,6 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
       )}
     </div>
   )
-}
+})
+
+export default AllPicksUI
