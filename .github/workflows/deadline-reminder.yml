@@ -16,9 +16,16 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ secrets.APP_URL || 'https://fpl-addon-app.vercel.app' }}
         run: |
-          echo "Pinging deadline notification endpoint at $APP_URL..."
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
-            -X POST "$APP_URL/api/cron/send-deadline-notifications" \
+          # Strip trailing slash if present
+          BASE_URL="${APP_URL%/}"
+          # Ensure https protocol
+          if [[ ! "$BASE_URL" =~ ^https?:// ]]; then
+            BASE_URL="https://$BASE_URL"
+          fi
+
+          echo "Pinging deadline notification endpoint at $BASE_URL..."
+          RESPONSE=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST "$BASE_URL/api/cron/send-deadline-notifications" \
             -H "Authorization: Bearer $CRON_SECRET")
           
           HTTP_BODY=$(echo "$RESPONSE" | sed -e '$d')
