@@ -11,6 +11,7 @@ import AnimatedNumber from '@/components/dashboard/animated-number'
 import BonusQuestionClient from '@/components/dashboard/bonus-question-client'
 import RefreshButton from '@/components/dashboard/refresh-button'
 import AutoRefresh from '@/components/dashboard/auto-refresh'
+import ManagerProfileButton from '@/components/dashboard/manager-profile-button'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data from database
 export const dynamic = 'force-dynamic' 
@@ -262,15 +263,15 @@ export default async function DashboardPage({
       </div>
 
       {/* Floating Sleek Header */}
-      <header className="relative z-50 flex flex-col sm:flex-row items-center justify-between px-6 sm:px-12 py-6 w-full max-w-7xl mx-auto gap-4">
+      <header className="relative z-50 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-12 py-4 sm:py-6 w-full max-w-7xl mx-auto gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-emerald-500/20 group hover:scale-105 transition-transform">
+          <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-emerald-500/20 group hover:scale-105 transition-transform">
             <Image
               src="/icon.svg"
               alt="PPL Logo"
               width={40}
               height={40}
-              className="h-10 w-10 object-contain"
+              className="h-9 w-9 sm:h-10 sm:w-10 object-contain"
               priority
             />
           </div>
@@ -279,26 +280,23 @@ export default async function DashboardPage({
           </h1>
         </div>
         
-        <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 glass px-4 py-2 rounded-full">
+        <div className="flex flex-nowrap items-center gap-2 sm:gap-4 glass px-3 sm:px-4 py-1.5 sm:py-2 rounded-full max-w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {allGameweeks && (
-            <Suspense fallback={<span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">Gameweek {selectedGwId}</span>}>
+            <Suspense fallback={<span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
               <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
             </Suspense>
           )}
-          <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
+          <div className="w-px h-5 sm:h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
           <RefreshButton />
-          <div className="hidden sm:block w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
+          <div className="w-px h-5 sm:h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
           <ThemeToggle />
           
-          <div className="flex items-center gap-2 sm:gap-4 border-l border-slate-300 dark:border-slate-700 pl-2 sm:pl-4 ml-1 sm:ml-0">
-            <div className="flex items-center">
-              <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hidden md:inline-block mr-2">Manager:</span>
-              <span className="text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider truncate max-w-[70px] sm:max-w-[150px]">{userDisplayName}</span>
-            </div>
+          <div className="flex items-center gap-2 sm:gap-3 border-l border-slate-300 dark:border-slate-700 pl-2 sm:pl-3 ml-0.5 sm:ml-0 shrink-0">
+            <ManagerProfileButton userDisplayName={userDisplayName} userEmail={user.email} />
             <form action={async () => {
               'use server'; const supabase = await createClient(); await supabase.auth.signOut(); redirect('/');
             }}>
-              <button className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-500 transition-colors whitespace-nowrap">Log out</button>
+              <button className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-500 transition-colors whitespace-nowrap cursor-pointer">Log out</button>
             </form>
           </div>
         </div>

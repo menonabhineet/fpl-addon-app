@@ -1,0 +1,33 @@
+name: Gameweek Deadline Reminder (2h Push)
+
+on:
+  schedule:
+    # Runs at the top of every hour (0 * * * *)
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  check-and-send:
+    name: Check Gameweek Deadline & Send Push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Deadline Notification Cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL || 'https://fpl-addon-app.vercel.app' }}
+        run: |
+          echo "Pinging deadline notification endpoint at $APP_URL..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST "$APP_URL/api/cron/send-deadline-notifications" \
+            -H "Authorization: Bearer $CRON_SECRET")
+          
+          HTTP_BODY=$(echo "$RESPONSE" | sed -e '$d')
+          HTTP_STATUS=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+          
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $HTTP_BODY"
+          
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "::error::Failed with status $HTTP_STATUS"
+            exit 1
+          fi

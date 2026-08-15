@@ -34,10 +34,13 @@ export default function GameweekSelector({ allGameweeks, selectedGwId }: { allGa
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-transparent text-slate-900 dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs outline-none cursor-pointer"
+        className="flex items-center gap-1.5 sm:gap-2 bg-transparent text-slate-900 dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs outline-none cursor-pointer whitespace-nowrap shrink-0"
       >
-        <span>{selectedGw ? `Gameweek ${selectedGw.id}` : 'Select GW'}</span>
-        <span className="text-slate-500 text-[10px]">{isOpen ? '▲' : '▼'}</span>
+        <span>
+          <span className="sm:hidden">{selectedGw ? `GW ${selectedGw.id}` : 'GW'}</span>
+          <span className="hidden sm:inline">{selectedGw ? `Gameweek ${selectedGw.id}` : 'Select GW'}</span>
+        </span>
+        <span className="text-slate-500 text-[9px] sm:text-[10px]">{isOpen ? '▲' : '▼'}</span>
       </button>
 
       {isOpen && (
