@@ -29,5 +29,21 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'maskable',
       },
     ],
+    shortcuts: [
+      {
+        name: 'Dashboard',
+        short_name: 'Dashboard',
+        description: 'View dashboard and live scores',
+        url: '/dashboard',
+        icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'Admin Panel',
+        short_name: 'Admin',
+        description: 'Manage gameweeks, fixtures, and survivor',
+        url: '/admin',
+        icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
+      },
+    ],
   }
 }
