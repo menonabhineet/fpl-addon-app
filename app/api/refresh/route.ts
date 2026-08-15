@@ -36,8 +36,20 @@ export async function POST(request: Request) {
     // 3. Update the rate limit timestamp
     rateLimitMap.set('global', now)
 
-    // 4. Perform Data Fetching and Score Calculation
+    // 4. Perform Data Fetching
     const updateCount = await syncResults()
+    const { searchParams } = new URL(request.url)
+    const isForce = searchParams.get('force') === 'true'
+
+    // If no active matches updated and not forced, return quickly without heavy recalculation
+    if (updateCount === 0 && !isForce) {
+      return NextResponse.json({
+        success: true,
+        hasUpdates: false,
+        message: 'No live match updates detected.',
+        updateCount: 0
+      })
+    }
     
     // 4.5 Robust Sequential Grading
     // We grade the previous gameweek AND the current gameweek to ensure no gameweeks are skipped
@@ -54,6 +66,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      hasUpdates: true,
       message: `Successfully synced ${updateCount} fixtures and recalculated scores.`,
       scoresResult
     })

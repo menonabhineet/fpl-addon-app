@@ -1,4 +1,5 @@
 // lib/fpl-api/index.ts
+import { unstable_cache } from 'next/cache';
 
 const FPL_BASE_URL = 'https://fantasy.premierleague.com/api';
 
@@ -35,6 +36,10 @@ export async function fetchWithRetry(url: string, options?: RequestInit, retries
   throw new Error(`Failed to fetch after ${retries} retries`);
 }
 
+// In-memory fallback in case of transient external network failure
+let cachedBootstrapStaticMemory: { data: unknown; timestamp: number } | null = null;
+let cachedFixturesMemory: { data: unknown; timestamp: number } | null = null;
+
 export async function fetchBootstrapStatic(options?: RequestInit) {
   const defaultOptions: RequestInit = { next: { revalidate: 300 } } as RequestInit;
   const merged = { ...defaultOptions, ...options };
@@ -47,4 +52,43 @@ export async function fetchFixtures(options?: RequestInit) {
   const merged = { ...defaultOptions, ...options };
   const response = await fetchWithRetry(`${FPL_BASE_URL}/fixtures/`, merged);
   return response.json();
-}
+}
+
+export const getCachedBootstrapStatic = unstable_cache(
+  async () => {
+    try {
+      const response = await fetchWithRetry(`${FPL_BASE_URL}/bootstrap-static/`, { cache: 'no-store' });
+      const data = await response.json();
+      cachedBootstrapStaticMemory = { data, timestamp: Date.now() };
+      return data;
+    } catch (err) {
+      if (cachedBootstrapStaticMemory) {
+        console.warn('Using in-memory fallback for bootstrap-static:', err);
+        return cachedBootstrapStaticMemory.data;
+      }
+      throw err;
+    }
+  },
+  ['fpl-bootstrap-static-cache'],
+  { revalidate: 300 }
+);
+
+export const getCachedFixtures = unstable_cache(
+  async () => {
+    try {
+      const response = await fetchWithRetry(`${FPL_BASE_URL}/fixtures/`, { cache: 'no-store' });
+      const data = await response.json();
+      cachedFixturesMemory = { data, timestamp: Date.now() };
+      return data;
+    } catch (err) {
+      if (cachedFixturesMemory) {
+        console.warn('Using in-memory fallback for fixtures:', err);
+        return cachedFixturesMemory.data;
+      }
+      throw err;
+    }
+  },
+  ['fpl-fixtures-cache'],
+  { revalidate: 60 }
+);
+

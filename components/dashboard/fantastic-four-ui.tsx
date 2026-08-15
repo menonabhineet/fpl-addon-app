@@ -1,12 +1,12 @@
 // components/dashboard/fantastic-four-ui.tsx
 'use client'
 
-import { useState, useActionState, useEffect } from 'react'
+import { useState, useActionState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitFantasticFourPrediction, removeFantasticFourPick, clearAllFantasticFourPicks } from '@/lib/actions/fantastic-four'
 import { toast } from 'sonner'
 
-export default function FantasticFourUI({ players, currentGw, initialPicks = [], allUserFantasticPicks = [] }: any) {
+export default function FantasticFourUI({ players = [], currentGw, initialPicks = [], allUserFantasticPicks = [] }: any) {
   const router = useRouter()
   const [currentPicks, setCurrentPicks] = useState<any[]>(initialPicks || [])
   const [activeSlot, setActiveSlot] = useState<string | null>(null)
@@ -15,12 +15,18 @@ export default function FantasticFourUI({ players, currentGw, initialPicks = [],
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClub, setSelectedClub] = useState('All')
   const [sortBy, setSortBy] = useState('name')
+  const [displayLimit, setDisplayLimit] = useState(35)
 
   const [removingPos, setRemovingPos] = useState<string | null>(null)
   const [isClearing, setIsClearing] = useState(false)
   const [showClearModal, setShowClearModal] = useState(false)
 
   const isLocked = currentGw?.deadline_time ? new Date(currentGw.deadline_time) <= new Date() : false
+
+  // Reset display limit when filter or search changes
+  useEffect(() => {
+    setDisplayLimit(35)
+  }, [activeSlot, searchQuery, selectedClub, sortBy])
 
   // Keep local picks in sync if server props change
   useEffect(() => {
@@ -55,29 +61,30 @@ export default function FantasticFourUI({ players, currentGw, initialPicks = [],
   )
 
   // Transform array of current picks into an easy lookup map by position
-  const picksByPosition = currentPicks.reduce((acc: any, pick: any) => {
-    const playerDetails = players.find((p: any) => p.id === pick.player_id)
+  const picksByPosition = useMemo(() => {
+    return currentPicks.reduce((acc: any, pick: any) => {
+      const playerDetails = players.find((p: any) => p.id === pick.player_id)
 
-    // Safely extract the team code (Supabase sometimes returns related data as an array or an object)
-    let tCode = 0 // '0' maps to the generic FPL default grey shirt
-    if (playerDetails?.teams) {
-      if (Array.isArray(playerDetails.teams)) {
-        tCode = playerDetails.teams[0]?.code || 0
-      } else {
-        tCode = playerDetails.teams.code || 0
+      let tCode = 0
+      if (playerDetails?.teams) {
+        if (Array.isArray(playerDetails.teams)) {
+          tCode = playerDetails.teams[0]?.code || 0
+        } else {
+          tCode = playerDetails.teams.code || 0
+        }
       }
-    }
 
-    acc[pick.position] = {
-      id: pick.player_id,
-      name: pick.player_name || playerDetails?.name || '',
-      teamCode: tCode,
-      points: pick.points_earned,
-      teamShortName: playerDetails?.teams ? (Array.isArray(playerDetails.teams) ? playerDetails.teams[0]?.short_name : playerDetails.teams.short_name) : '',
-      nextFixture: playerDetails?.next_fixture || 'None'
-    }
-    return acc
-  }, {})
+      acc[pick.position] = {
+        id: pick.player_id,
+        name: pick.player_name || playerDetails?.name || '',
+        teamCode: tCode,
+        points: pick.points_earned,
+        teamShortName: playerDetails?.teams ? (Array.isArray(playerDetails.teams) ? playerDetails.teams[0]?.short_name : playerDetails.teams.short_name) : '',
+        nextFixture: playerDetails?.next_fixture || 'None'
+      }
+      return acc
+    }, {})
+  }, [currentPicks, players])
 
   const handleRemovePlayer = async (position: string) => {
     if (isLocked) {
@@ -128,57 +135,75 @@ export default function FantasticFourUI({ players, currentGw, initialPicks = [],
     }
   }
 
+  // Pre-calculate disabled players in O(N) once, giving O(1) checks during rendering
+  const disabledPlayerIds = useMemo(() => {
+    const set = new Set<number>()
+    if (!allUserFantasticPicks || allUserFantasticPicks.length === 0) return set
+
+    const isFirstHalf = (currentGw?.id || 1) <= 19
+    const playerPicksMap = new Map<number, any[]>()
+
+    for (const pick of allUserFantasticPicks) {
+      if (pick.gameweek_id === currentGw?.id) continue
+      const list = playerPicksMap.get(pick.player_id) || []
+      list.push(pick)
+      playerPicksMap.set(pick.player_id, list)
+    }
+
+    for (const player of players) {
+      const history = playerPicksMap.get(player.id)
+      if (!history || history.length === 0) continue
+
+      if (player.position === 'DEF' || player.position === 'MID') {
+        set.add(player.id)
+      } else if (player.position === 'GK' || player.position === 'FWD') {
+        const pickedInFirstHalf = history.some(p => p.gameweek_id <= 19)
+        const pickedInSecondHalf = history.some(p => p.gameweek_id > 19)
+        if (isFirstHalf && pickedInFirstHalf) set.add(player.id)
+        if (!isFirstHalf && pickedInSecondHalf) set.add(player.id)
+      }
+    }
+
+    return set
+  }, [allUserFantasticPicks, currentGw?.id, players])
+
   const isPlayerDisabled = (p: any) => {
-    // If the player is the current pick for this gameweek, they are not disabled from this check 
     if (picksByPosition[p.position]?.id === p.id) return false
-
-    const previousPicksForPlayer = allUserFantasticPicks.filter(
-      (pick: any) => pick.player_id === p.id && pick.gameweek_id !== currentGw.id
-    )
-
-    if (p.position === 'DEF' || p.position === 'MID') {
-      return previousPicksForPlayer.length > 0
-    }
-
-    if (p.position === 'GK' || p.position === 'FWD') {
-      const isFirstHalf = currentGw.id <= 19
-      const pickedInCurrentHalf = previousPicksForPlayer.some((pick: any) => {
-        if (isFirstHalf) return pick.gameweek_id <= 19
-        return pick.gameweek_id > 19
-      })
-      return pickedInCurrentHalf
-    }
-
-    return false
+    return disabledPlayerIds.has(p.id)
   }
 
   // Extract unique clubs for the filter
-  const uniqueClubs = Array.from(new Set(players.map((p: any) => {
-    if (p.teams) {
-      return Array.isArray(p.teams) ? p.teams[0]?.name : p.teams.name
-    }
-    return null
-  }).filter(Boolean))).sort()
+  const uniqueClubs = useMemo(() => {
+    return Array.from(new Set(players.map((p: any) => {
+      if (p.teams) {
+        return Array.isArray(p.teams) ? p.teams[0]?.name : p.teams.name
+      }
+      return null
+    }).filter(Boolean))).sort()
+  }, [players])
 
-  let filteredPlayers = players.filter((p: any) => {
-    if (p.position !== activeSlot) return false
-    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+  const filteredPlayers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    let list = players.filter((p: any) => {
+      if (p.position !== activeSlot) return false
+      if (query && !p.name.toLowerCase().includes(query)) return false
 
-    if (selectedClub !== 'All') {
-      const clubName = p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.name : p.teams.name) : null
-      if (clubName !== selectedClub) return false
-    }
+      if (selectedClub !== 'All') {
+        const clubName = p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.name : p.teams.name) : null
+        if (clubName !== selectedClub) return false
+      }
 
-    return true
-  })
+      return true
+    })
 
-  filteredPlayers = filteredPlayers.sort((a: any, b: any) => {
-    if (sortBy === 'form') return (b.form || 0) - (a.form || 0)
-    if (sortBy === 'points_per_game') return (b.points_per_game || 0) - (a.points_per_game || 0)
-    if (sortBy === 'total_points') return (b.total_points || 0) - (a.total_points || 0)
-    if (sortBy === 'selected_by_percent') return (b.selected_by_percent || 0) - (a.selected_by_percent || 0)
-    return a.name.localeCompare(b.name)
-  })
+    return list.sort((a: any, b: any) => {
+      if (sortBy === 'form') return (b.form || 0) - (a.form || 0)
+      if (sortBy === 'points_per_game') return (b.points_per_game || 0) - (a.points_per_game || 0)
+      if (sortBy === 'total_points') return (b.total_points || 0) - (a.total_points || 0)
+      if (sortBy === 'selected_by_percent') return (b.selected_by_percent || 0) - (a.selected_by_percent || 0)
+      return a.name.localeCompare(b.name)
+    })
+  }, [players, activeSlot, searchQuery, selectedClub, sortBy])
 
   const positions = ['FWD', 'MID', 'DEF', 'GK']
   const pickedCount = positions.filter(pos => Boolean(picksByPosition[pos])).length
@@ -550,48 +575,59 @@ export default function FantasticFourUI({ players, currentGw, initialPicks = [],
             {filteredPlayers.length === 0 ? (
               <p className="text-center text-slate-500 mt-4">No players found.</p>
             ) : (
-              filteredPlayers.map((p: any) => {
-                const disabled = isPlayerDisabled(p)
+              <>
+                {filteredPlayers.slice(0, displayLimit).map((p: any) => {
+                  const disabled = isPlayerDisabled(p)
 
-                return (
-                  <form action={formAction} key={p.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 p-3 glass bg-white/80 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors">
-                    <input type="hidden" name="playerId" value={p.id} />
-                    <input type="hidden" name="playerName" value={p.name} />
-                    <input type="hidden" name="position" value={p.position} />
+                  return (
+                    <form action={formAction} key={p.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 p-3 glass bg-white/80 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors">
+                      <input type="hidden" name="playerId" value={p.id} />
+                      <input type="hidden" name="playerName" value={p.name} />
+                      <input type="hidden" name="position" value={p.position} />
 
-                    <div className="flex flex-col w-full sm:w-auto">
-                      <span className="font-semibold text-slate-900 dark:text-white">{p.name} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
-                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                        <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
-                        <span>Form: <strong>{p.form}</strong></span>
-                        <span>PPG: <strong>{p.points_per_game}</strong></span>
-                        <span>Pts: <strong>{p.total_points}</strong></span>
-                        <span>TSB: <strong>{p.selected_by_percent}%</strong></span>
+                      <div className="flex flex-col w-full sm:w-auto">
+                        <span className="font-semibold text-slate-900 dark:text-white">{p.name} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams.short_name) : ''})</span></span>
+                        <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          <span>Fix: <strong>{p.next_fixture || 'None'}</strong></span>
+                          <span>Form: <strong>{p.form}</strong></span>
+                          <span>PPG: <strong>{p.points_per_game}</strong></span>
+                          <span>Pts: <strong>{p.total_points}</strong></span>
+                          <span>TSB: <strong>{p.selected_by_percent}%</strong></span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-end w-full sm:w-auto mt-1 sm:mt-0">
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id) }}
-                        className="bg-slate-200 dark:bg-white/10 border border-transparent dark:border-white/10 text-slate-800 dark:text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-white/20 transition-colors shadow-sm cursor-pointer"
-                      >
-                        Compare
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isPending || disabled}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm ml-2 transition-colors border cursor-pointer ${disabled
-                          ? 'bg-slate-300 dark:bg-black/40 text-slate-500 border-transparent dark:border-white/5 cursor-not-allowed'
-                          : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-600'
-                          }`}
-                      >
-                        {isPending ? '...' : disabled ? 'Max Reached' : 'Pick'}
-                      </button>
-                    </div>
-                  </form>
-                )
-              })
+                      <div className="flex items-center justify-end w-full sm:w-auto mt-1 sm:mt-0">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); setComparePlayerId(p.id) }}
+                          className="bg-slate-200 dark:bg-white/10 border border-transparent dark:border-white/10 text-slate-800 dark:text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-white/20 transition-colors shadow-sm cursor-pointer"
+                        >
+                          Compare
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isPending || disabled}
+                          className={`px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm ml-2 transition-colors border cursor-pointer ${disabled
+                            ? 'bg-slate-300 dark:bg-black/40 text-slate-500 border-transparent dark:border-white/5 cursor-not-allowed'
+                            : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-600'
+                            }`}
+                        >
+                          {isPending ? '...' : disabled ? 'Max Reached' : 'Pick'}
+                        </button>
+                      </div>
+                    </form>
+                  )
+                })}
+                {displayLimit < filteredPlayers.length && (
+                  <button
+                    type="button"
+                    onClick={() => setDisplayLimit(prev => prev + 35)}
+                    className="w-full py-3 my-2 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    Show More Players ({filteredPlayers.length - displayLimit} remaining)
+                  </button>
+                )}
+              </>
             )}
             {/* Comparison Overlay */}
             {comparePlayerId && (() => {

@@ -15,7 +15,7 @@ export default function RefreshButton() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/refresh', {
+      const response = await fetch('/api/refresh?force=true', {
         method: 'POST',
       })
       

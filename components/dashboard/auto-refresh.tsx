@@ -16,14 +16,12 @@ export default function AutoRefresh() {
       try {
         const response = await fetch('/api/refresh', { method: 'POST' })
         
-        // If it succeeds (200 OK), it means data was updated (it wasn't rate limited)
         if (response.ok) {
-          // Refresh the server components to show the latest data
-          // Refresh the server components to show the latest data
-          router.refresh()
-        } else {
-          // 429 Too Many Requests is expected and fine (rate limit)
-          // 429 Too Many Requests is expected and fine (rate limit)
+          const data = await response.json().catch(() => null)
+          // Only refresh the page if there were actual score/fixture updates
+          if (data && data.hasUpdates) {
+            router.refresh()
+          }
         }
       } catch (error) {
         console.error('Auto-refresh failed:', error)

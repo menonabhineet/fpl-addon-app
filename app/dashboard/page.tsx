@@ -4,14 +4,14 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardTabs from '@/components/dashboard/dashboard-tabs'
 import ThemeToggle from '@/components/theme-toggle'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
-import { fetchBootstrapStatic, fetchFixtures } from '@/lib/fpl-api'
+import { getCachedBootstrapStatic, getCachedFixtures } from '@/lib/fpl-api'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
 import BonusQuestionClient from '@/components/dashboard/bonus-question-client'
 import RefreshButton from '@/components/dashboard/refresh-button'
 import AutoRefresh from '@/components/dashboard/auto-refresh'
 
-// 1. KILL THE CACHE: This forces Next.js to always fetch live data
+// 1. KILL THE CACHE: This forces Next.js to always fetch live data from database
 export const dynamic = 'force-dynamic' 
 
 export default async function DashboardPage({ 
@@ -19,17 +19,22 @@ export default async function DashboardPage({
 }: { 
   searchParams: Promise<{ gw?: string }> 
 }) {
-  // 2. Await the Promise to extract the actual URL parameters!
-  const resolvedParams = await searchParams
-  const supabase = await createClient()
+  const [resolvedParams, supabase] = await Promise.all([
+    searchParams,
+    createClient()
+  ])
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  // Batch 1: Authenticate user & fetch gameweeks in parallel
+  const [{ data: authData, error: authError }, { data: allGameweeks }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('gameweeks').select('*').order('id', { ascending: true })
+  ])
+
+  const user = authData?.user
   if (authError || !user) redirect('/')
 
-  // 2. Determine which Gameweek to view
-  const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true })
+  // Determine active and allowed gameweeks
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
-  
   const currentGwId = currentGwObj?.id || 1
   
   // Filter gameweeks to only those that are current/historic OR explicitly made available to players by the admin
@@ -45,71 +50,73 @@ export default async function DashboardPage({
   }
   const selectedGwId = selectedGw?.id || 1
 
-  // 3. Fetch data specifically for the SELECTED Gameweek
-  const { data: fixtures } = await supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, is_selected, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true })
-  const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true })
-  const { data: players } = await supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true })
-
-  // 4. Fetch Bonus Question for the selected Gameweek
-  const { data: bonusQuestion } = await supabase
-    .from('bonus_questions')
-    .select('*')
-    .eq('gameweek', selectedGwId)
-    .maybeSingle()
-
-  let bonusPrediction = null;
-  if (bonusQuestion) {
-    const { data } = await supabase
-      .from('bonus_predictions')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('question_id', bonusQuestion.id)
-      .maybeSingle()
-    bonusPrediction = data;
-  }
-
-  // 5. Fetch user's historical picks for this season to enforce constraints
-  const { data: allUserFantasticPicks } = await supabase.from('fantastic_four').select('*').eq('user_id', user.id)
-  const userPicks = allUserFantasticPicks?.filter((p: any) => p.gameweek_id === selectedGwId) || []
-
-  const { data: allUserTeamPicks } = await supabase.from('team_predictions').select('*').eq('user_id', user.id)
-  const userTeamPick = allUserTeamPicks?.find((p: any) => p.gameweek_id === selectedGwId) || null
-  let userScorePicks: any[] = []
-  if (fixtures && fixtures.length > 0) {
-    const fixtureIds = fixtures.map((f: any) => f.id)
-    const { data } = await supabase.from('score_predictions').select('*').eq('user_id', user.id).in('fixture_id', fixtureIds)
-    userScorePicks = data || []
-  }
-
-  // 5.5 Fetch active Survivor Round and user status
-  const { data: activeRound } = await supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle()
-  let survivorEntry = null;
-  let isNewRound = false;
-  if (activeRound) {
-    const { data } = await supabase.from('survivor_entries').select('*').eq('round_id', activeRound.id).eq('user_id', user.id).maybeSingle()
-    survivorEntry = data
-    // Consider a round "new" if it started in the current or previous gameweek (just for the banner)
-    isNewRound = activeRound.start_gameweek_id === selectedGwId && !selectedGw.is_survivor_skipped
-  }
-
-  // 5. Fetch raw scoring data to power the dynamic Leaderboard UI
-  const { data: allScores, error: scoresError } = await supabase
-    .from('vw_user_scores_with_profiles')
-    .select('*')
+  // Batch 2: Execute all independent read queries and cached FPL data concurrently in parallel
+  const [
+    { data: fixtures },
+    { data: teams },
+    { data: players },
+    { data: bonusQuestion },
+    { data: allUserBonusPredictions },
+    { data: allUserFantasticPicks },
+    { data: allUserTeamPicks },
+    { data: allUserScorePicks },
+    { data: activeRound },
+    { data: allUserSurvivorEntries },
+    { data: allScores, error: scoresError },
+    fplDataResult,
+    fplFixturesResult
+  ] = await Promise.all([
+    supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, is_selected, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true }),
+    supabase.from('teams').select('*').order('name', { ascending: true }),
+    supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true }),
+    supabase.from('bonus_questions').select('*').eq('gameweek', selectedGwId).maybeSingle(),
+    supabase.from('bonus_predictions').select('*').eq('user_id', user.id),
+    supabase.from('fantastic_four').select('*').eq('user_id', user.id),
+    supabase.from('team_predictions').select('*').eq('user_id', user.id),
+    supabase.from('score_predictions').select('*').eq('user_id', user.id),
+    supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
+    supabase.from('survivor_entries').select('*').eq('user_id', user.id),
+    supabase.from('vw_user_scores_with_profiles').select('*'),
+    getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
+    getCachedFixtures().catch((err: any) => { console.error('Failed to get fixtures:', err); return []; })
+  ])
 
   if (scoresError) {
     console.error("Failed to fetch leaderboard data:", scoresError)
   }
 
-  // 6. Fetch FPL live stats for form, points, ownership
-  let fplElements: any = {};
-  let fplTeams: any = {};
-  let fplEvents: any[] = [];
-  let fplFixtures: any[] = [];
-  try {
-    const fplData = await fetchBootstrapStatic();
-    fplEvents = fplData.events || [];
-    fplElements = fplData.elements.reduce((acc: any, el: any) => {
+  // Bonus prediction for selected gameweek
+  const bonusPrediction = bonusQuestion && allUserBonusPredictions
+    ? allUserBonusPredictions.find((p: any) => p.question_id === bonusQuestion.id) || null
+    : null
+
+  // User picks for current selection
+  const userPicks = allUserFantasticPicks?.filter((p: any) => p.gameweek_id === selectedGwId) || []
+  const userTeamPick = allUserTeamPicks?.find((p: any) => p.gameweek_id === selectedGwId) || null
+
+  let userScorePicks: any[] = []
+  if (fixtures && fixtures.length > 0 && allUserScorePicks) {
+    const fixtureIdSet = new Set(fixtures.map((f: any) => f.id))
+    userScorePicks = allUserScorePicks.filter((p: any) => fixtureIdSet.has(p.fixture_id))
+  }
+
+  // Survivor entry resolution
+  let survivorEntry = null
+  let isNewRound = false
+  if (activeRound && allUserSurvivorEntries) {
+    survivorEntry = allUserSurvivorEntries.find((e: any) => e.round_id === activeRound.id) || null
+    isNewRound = activeRound.start_gameweek_id === selectedGwId && !selectedGw.is_survivor_skipped
+  }
+
+  // FPL Data Processing (Form, PPG, Strength, Fixtures)
+  let fplElements: any = {}
+  let fplTeams: any = {}
+  let fplEvents: any[] = []
+  const fplFixtures: any[] = fplFixturesResult || []
+
+  if (fplDataResult) {
+    fplEvents = fplDataResult.events || []
+    fplElements = (fplDataResult.elements || []).reduce((acc: any, el: any) => {
       acc[el.id] = {
         form: parseFloat(el.form) || 0,
         points_per_game: parseFloat(el.points_per_game) || 0,
@@ -117,22 +124,17 @@ export default async function DashboardPage({
         selected_by_percent: parseFloat(el.selected_by_percent) || 0,
         status: el.status || 'a',
         news: el.news || ''
-      };
-      return acc;
-    }, {});
-    fplTeams = (fplData.teams || []).reduce((acc: any, team: any) => {
+      }
+      return acc
+    }, {})
+    fplTeams = (fplDataResult.teams || []).reduce((acc: any, team: any) => {
       acc[team.code] = {
         position: team.position,
         form: team.form,
         strength: team.strength,
-      };
-      return acc;
-    }, {});
-    
-    // Fetch fixtures for FDR
-    fplFixtures = await fetchFixtures();
-  } catch (err) {
-    console.error("Failed to fetch FPL stats:", err);
+      }
+      return acc
+    }, {})
   }
 
   // --- NEW: Calculate User Points and Rank for Hero Section ---
