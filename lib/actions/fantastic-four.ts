@@ -90,8 +90,133 @@ export async function submitFantasticFourPrediction(formData: FormData) {
     
     return { success: true, message: 'Fantastic Four pick saved successfully!' }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : 'An error occurred.'
     console.error("[submitFantasticFourPrediction] Error:", error)
-    return { success: false, error: error.message }
+    return { success: false, error: errMessage }
   }
 }
+
+export async function removeFantasticFourPick(
+  input: FormData | { gameweekId: number | string; position: string }
+) {
+  try {
+    const supabase = await createClient()
+
+    // 1. Authenticate User
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized request. Please log in.')
+
+    // 2. Extract and validate incoming data
+    let gameweekId: number
+    let position: string
+
+    if (input instanceof FormData) {
+      gameweekId = parseInt(input.get('gameweekId') as string)
+      position = input.get('position') as string
+    } else {
+      gameweekId = Number(input.gameweekId)
+      position = input.position
+    }
+
+    if (isNaN(gameweekId) || !['GK', 'DEF', 'MID', 'FWD'].includes(position)) {
+      throw new Error('Invalid input data.')
+    }
+
+    // 3. Deadline Validation
+    const { data: gameweek, error: gwError } = await supabase
+      .from('gameweeks')
+      .select('deadline_time')
+      .eq('id', gameweekId)
+      .single()
+
+    if (gwError || !gameweek) throw new Error('Gameweek not found.')
+
+    const deadline = new Date(gameweek.deadline_time)
+    const now = new Date()
+
+    if (now >= deadline) {
+      throw new Error('Gameweek deadline has passed. Picks are locked.')
+    }
+
+    // 4. Delete pick from Database
+    const { error: deleteError } = await supabase
+      .from('fantastic_four')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('gameweek_id', gameweekId)
+      .eq('position', position)
+
+    if (deleteError) throw new Error('Failed to remove player pick.')
+
+    // 5. Refresh the UI
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'page')
+
+    return { success: true, message: `${position} removed successfully.` }
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : 'An error occurred.'
+    console.error("[removeFantasticFourPick] Error:", error)
+    return { success: false, error: errMessage }
+  }
+}
+
+export async function clearAllFantasticFourPicks(
+  input: FormData | { gameweekId: number | string }
+) {
+  try {
+    const supabase = await createClient()
+
+    // 1. Authenticate User
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized request. Please log in.')
+
+    // 2. Extract and validate incoming data
+    let gameweekId: number
+
+    if (input instanceof FormData) {
+      gameweekId = parseInt(input.get('gameweekId') as string)
+    } else {
+      gameweekId = Number(input.gameweekId)
+    }
+
+    if (isNaN(gameweekId)) {
+      throw new Error('Invalid gameweek ID.')
+    }
+
+    // 3. Deadline Validation
+    const { data: gameweek, error: gwError } = await supabase
+      .from('gameweeks')
+      .select('deadline_time')
+      .eq('id', gameweekId)
+      .single()
+
+    if (gwError || !gameweek) throw new Error('Gameweek not found.')
+
+    const deadline = new Date(gameweek.deadline_time)
+    const now = new Date()
+
+    if (now >= deadline) {
+      throw new Error('Gameweek deadline has passed. Picks are locked.')
+    }
+
+    // 4. Delete all picks for this gameweek
+    const { error: deleteError } = await supabase
+      .from('fantastic_four')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('gameweek_id', gameweekId)
+
+    if (deleteError) throw new Error('Failed to clear Fantastic Four picks.')
+
+    // 5. Refresh the UI
+    revalidatePath('/dashboard')
+    revalidatePath('/dashboard', 'page')
+
+    return { success: true, message: 'All Fantastic Four picks have been cleared.' }
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : 'An error occurred.'
+    console.error("[clearAllFantasticFourPicks] Error:", error)
+    return { success: false, error: errMessage }
+  }
+}

@@ -132,13 +132,13 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* TEAM OF THE WEEK */}
+        {/* SURVIVOR */}
         <div className="glass rounded-xl sm:rounded-[2rem] border border-slate-200/50 dark:border-white/5 overflow-hidden shadow-xl flex flex-col h-full">
           <div className="p-4 sm:p-6 md:p-8 bg-black/5 border-b border-slate-200/50 dark:border-white/5">
             <div className="flex items-center gap-3">
               <div className="w-1.5 h-6 bg-rose-500 rounded-full"></div>
               <h2 className="text-xl sm:text-2xl font-heading uppercase tracking-widest text-slate-800 dark:text-white drop-shadow-md">
-                Team of the Week
+                Survivor
               </h2>
             </div>
           </div>
@@ -155,18 +155,58 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
                   const userPicksData = picksData?.[pundit.id]
                   const isRevealed = userPicksData?.isRevealed
                   const isMe = userPicksData?.isCurrentUser
-                  let display = '—'
-                  if (isRevealed && userPicksData?.teamPick) {
-                    display = userPicksData.teamPick.team?.short_name || '—'
-                  }
-                  
+                  const survivorStatus = userPicksData?.survivorStatus
+                  const eliminatedGwId = userPicksData?.eliminatedGameweekId
+
+                  const isEliminatedPrior = survivorStatus === 'eliminated' && eliminatedGwId && eliminatedGwId < currentGw?.id
+                  const isEliminatedThisGw = survivorStatus === 'eliminated' && eliminatedGwId === currentGw?.id
+                  const isEliminatedGeneral = survivorStatus === 'eliminated' && !eliminatedGwId
+
                   return (
                     <tr key={pundit.id} className="hover:bg-black/5 transition-colors">
                       <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300">
                         {pundit.name} {isMe && <span className="text-[10px] text-emerald-500 ml-1">• you</span>}
                       </td>
                       <td className="px-6 py-4 text-center font-heading text-lg text-slate-600 dark:text-slate-400">
-                        {display}
+                        {(() => {
+                          if (isEliminatedPrior || isEliminatedGeneral) {
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase tracking-wider">
+                                <span>❌</span> Eliminated
+                              </span>
+                            )
+                          }
+
+                          if (isRevealed) {
+                            if (userPicksData?.teamPick) {
+                              const teamName = userPicksData.teamPick.team?.short_name || userPicksData.teamPick.team?.name || '—'
+                              return (
+                                <div className="flex items-center justify-center gap-2">
+                                  <span>{teamName}</span>
+                                  {isEliminatedThisGw && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 uppercase tracking-wider">
+                                      ❌ Out
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            }
+                            if (survivorStatus === 'eliminated') {
+                              return (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase tracking-wider">
+                                  <span>❌</span> Eliminated
+                                </span>
+                              )
+                            }
+                            return <span className="text-slate-400">—</span>
+                          }
+
+                          return (
+                            <span className="text-slate-400 text-sm font-semibold flex items-center justify-center gap-1">
+                              <span>🔒</span> Hidden
+                            </span>
+                          )
+                        })()}
                       </td>
                     </tr>
                   )

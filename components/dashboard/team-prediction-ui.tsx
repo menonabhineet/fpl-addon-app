@@ -1,13 +1,20 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { submitTeamPrediction } from '@/lib/actions/team-prediction'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { submitTeamPrediction, clearSurvivorPick } from '@/lib/actions/team-prediction'
 
 export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [], fixtures = [], survivorEntry, isNewRound, actualCurrentGwId }: any) {
+  const router = useRouter()
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeamPick?.team_id || null)
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(initialTeamPick ? { type: 'success', text: '✓ Your team is securely locked in' } : null)
   
+  // Clear Pick Modal
+  const [showClearModal, setShowClearModal] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
+
   // Modal state for DGW
   const [showModal, setShowModal] = useState(false)
   const [modalTeamId, setModalTeamId] = useState<number | null>(null)
@@ -17,6 +24,9 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
     if (initialTeamPick?.team_id) {
       setSelectedTeamId(initialTeamPick.team_id)
       setMessage({ type: 'success', text: '✓ Your team is securely locked in' })
+    } else {
+      setSelectedTeamId(null)
+      setMessage(null)
     }
   }, [initialTeamPick?.team_id])
 
@@ -35,10 +45,12 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
     return Array.isArray(teamProp) ? teamProp[0] : teamProp
   }
 
+  const isLocked = currentGw?.deadline_time ? new Date(currentGw.deadline_time) <= new Date() : false
   const tableRulesApply = currentGw.id > 1 && !currentGw.is_survivor_skipped
+  const selectedTeam = teams.find((t: any) => t.id === selectedTeamId)
 
   const handleSelectTeam = (teamId: number) => {
-    if (currentGw.is_finished || currentGw.is_survivor_skipped || survivorEntry?.status === 'eliminated') return;
+    if (currentGw.is_finished || currentGw.is_survivor_skipped || survivorEntry?.status === 'eliminated' || isLocked) return;
     
     const teamFixtures = fixtures.filter((f: any) => {
       const hId = getFixtureTeamId(f.home_team)
@@ -72,16 +84,44 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
       const result = await submitTeamPrediction(formData)
       if (result.success) {
         setMessage({ type: 'success', text: 'Team Locked In!' })
+        toast.success(result.message || 'Team locked in!')
+        router.refresh()
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to save prediction.' })
+        toast.error(result.error || 'Failed to save prediction.')
         // Revert UI selection on failure
         setSelectedTeamId(initialTeamPick?.team_id || null)
       }
     })
   }
 
+  const handleClearPick = async () => {
+    if (isLocked) {
+      toast.error('Gameweek deadline has passed. Survivor picks are locked.')
+      return
+    }
+    setIsClearing(true)
+    try {
+      const res = await clearSurvivorPick({ gameweekId: currentGw.id })
+      if (res.success) {
+        setSelectedTeamId(null)
+        setMessage(null)
+        setShowClearModal(false)
+        toast.success(res.message)
+        router.refresh()
+      } else {
+        toast.error(res.error || 'Failed to clear survivor pick')
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to clear survivor pick'
+      toast.error(msg)
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 relative">
+    <div className="space-y-6 animate-in fade-in duration-500 relative">
       <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4">
         📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Survivor Rules:</strong> Pick one team to win each gameweek. 
         If your team wins, you survive and earn <strong className="text-indigo-500 font-bold text-lg">1 pt</strong>. 
@@ -108,6 +148,51 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
           ⏳ <strong className="font-bold uppercase tracking-wider">Future Gameweek:</strong> You can only make a survivor pick for the current active gameweek. Survive the current week first!
         </div>
       )}
+
+      {/* Action Header: Status & Clear Pick */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 glass rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm">
+        <div className="flex items-center gap-3">
+          {selectedTeam ? (
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
+                Your Pick: <span className="text-indigo-600 dark:text-indigo-400 font-heading text-base uppercase tracking-wider">{selectedTeam.name}</span>
+              </span>
+              <img 
+                src={`https://resources.premierleague.com/premierleague/badges/t${selectedTeam.code}.png`} 
+                alt={selectedTeam.name}
+                className="w-5 h-5 object-contain"
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
+              />
+            </div>
+          ) : (
+            <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
+              Pick: <span className="italic text-slate-400">No team selected yet</span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {selectedTeamId && !isLocked && survivorEntry?.status !== 'eliminated' && !currentGw.is_finished && !currentGw.is_survivor_skipped && (
+            <button
+              type="button"
+              onClick={() => setShowClearModal(true)}
+              disabled={isClearing || isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 border border-rose-500/30 transition-all hover:scale-105 disabled:opacity-50 cursor-pointer shadow-sm"
+              title="Clear survivor pick"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+              <span>Clear Pick</span>
+            </button>
+          )}
+          {isLocked && (
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+              🔒 Picks Locked
+            </span>
+          )}
+        </div>
+      </div>
 
       <div className={`glass rounded-3xl p-6 sm:p-8 relative overflow-hidden group transition-colors duration-300 border border-slate-200/50 dark:border-white/5 ${(survivorEntry?.status === 'eliminated' || currentGw.id > actualCurrentGwId) ? 'opacity-60 pointer-events-none grayscale' : ''}`}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
@@ -193,7 +278,7 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
               badgeColor = 'text-slate-400';
             }
 
-            const isDisabled = isUsed || isTop3 || isVsBottom3 || hasNoFixture || currentGw.is_finished || currentGw.is_survivor_skipped;
+            const isDisabled = isUsed || isTop3 || isVsBottom3 || hasNoFixture || currentGw.is_finished || currentGw.is_survivor_skipped || isLocked;
 
             return (
               <div 
@@ -231,59 +316,99 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
         </div>
 
         {/* Selected Team Stats Panel */}
-        {selectedTeamId && (
-          (() => {
-            const selectedTeam = teams.find((t: any) => t.id === selectedTeamId);
-            if (!selectedTeam) return null;
-            return (
-              <div className="p-6 glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 rounded-2xl animate-in slide-in-from-bottom-4 flex flex-col md:flex-row gap-6 items-center justify-between relative z-10 shadow-[0_0_15px_rgba(0,0,0,0.05)]">
-                <div className="flex items-center gap-4">
-                  <img 
-                    src={`https://resources.premierleague.com/premierleague/badges/t${selectedTeam.code}.png`} 
-                    alt={selectedTeam.name}
-                    className="w-16 h-16 object-contain drop-shadow-md"
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
-                  />
-                  <div>
-                    <h3 className="font-heading text-2xl uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-sm">{selectedTeam.name}</h3>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Form: <span className="text-indigo-600 dark:text-indigo-400">{selectedTeam.form || 'N/A'}</span></p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8">
-                  <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Position</span>
-                    <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.position || '-'}</span>
-                  </div>
-                  <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Strength</span>
-                    <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.strength || '-'}</span>
-                  </div>
-                  <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Upcoming Fixtures</span>
-                    <div className="flex items-center gap-3">
-                      {selectedTeam.next_3_fixtures && selectedTeam.next_3_fixtures.length > 0 ? (
-                        <>
-                          <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_3_fixtures[0].opponentShortName} ({selectedTeam.next_3_fixtures[0].isHome ? 'H' : 'A'})</span>
-                          {selectedTeam.next_3_fixtures.length > 1 && (
-                             <div className="flex items-center gap-2 opacity-60">
-                               {selectedTeam.next_3_fixtures.slice(1).map((f: any, i: number) => (
-                                 <span key={i} className="font-heading text-sm text-slate-800 dark:text-slate-200">{f.opponentShortName} ({f.isHome ? 'H' : 'A'})</span>
-                               ))}
-                             </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'N/A'}</span>
+        {selectedTeamId && selectedTeam && (
+          <div className="p-6 glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 rounded-2xl animate-in slide-in-from-bottom-4 flex flex-col md:flex-row gap-6 items-center justify-between relative z-10 shadow-[0_0_15px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center gap-4">
+              <img 
+                src={`https://resources.premierleague.com/premierleague/badges/t${selectedTeam.code}.png`} 
+                alt={selectedTeam.name}
+                className="w-16 h-16 object-contain drop-shadow-md"
+                onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
+              />
+              <div>
+                <h3 className="font-heading text-2xl uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-sm">{selectedTeam.name}</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Form: <span className="text-indigo-600 dark:text-indigo-400">{selectedTeam.form || 'N/A'}</span></p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8">
+              <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Position</span>
+                <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.position || '-'}</span>
+              </div>
+              <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Strength</span>
+                <span className="font-heading text-2xl text-slate-800 dark:text-slate-200">{selectedTeam.strength || '-'}</span>
+              </div>
+              <div className="flex flex-col items-center bg-white/40 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200/50 dark:border-white/5">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Upcoming Fixtures</span>
+                <div className="flex items-center gap-3">
+                  {selectedTeam.next_3_fixtures && selectedTeam.next_3_fixtures.length > 0 ? (
+                    <>
+                      <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_3_fixtures[0].opponentShortName} ({selectedTeam.next_3_fixtures[0].isHome ? 'H' : 'A'})</span>
+                      {selectedTeam.next_3_fixtures.length > 1 && (
+                         <div className="flex items-center gap-2 opacity-60">
+                           {selectedTeam.next_3_fixtures.slice(1).map((f: any, i: number) => (
+                             <span key={i} className="font-heading text-sm text-slate-800 dark:text-slate-200">{f.opponentShortName} ({f.isHome ? 'H' : 'A'})</span>
+                           ))}
+                         </div>
                       )}
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <span className="font-heading text-xl text-slate-800 dark:text-slate-200">{selectedTeam.next_fixture || 'N/A'}</span>
+                  )}
                 </div>
               </div>
-            )
-          })()
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Clear Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="glass max-w-md w-full p-6 rounded-3xl border border-white/10 bg-neutral-950/90 shadow-2xl space-y-6">
+            <div className="flex items-center gap-3 text-rose-500">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-heading uppercase tracking-wider text-slate-900 dark:text-white">Clear Survivor Pick?</h3>
+            </div>
+            
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Are you sure you want to remove your Survivor pick ({selectedTeam?.name}) for <strong>Gameweek {currentGw.id}</strong>? You will be able to select another team before the deadline.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowClearModal(false)}
+                disabled={isClearing}
+                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearPick}
+                disabled={isClearing}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-rose-600 hover:bg-rose-500 active:scale-95 shadow-lg shadow-rose-600/30 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isClearing ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <span>Yes, Clear Pick</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DGW Modal */}
       {showModal && modalTeamId && (

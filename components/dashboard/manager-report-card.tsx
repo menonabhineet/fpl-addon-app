@@ -41,7 +41,7 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
     let totalPoints = 0
 
     userScores.forEach(score => {
-      const gwTotal = score.total_points
+      const gwTotal = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0)
       if (gwTotal > highestScore) highestScore = gwTotal
       if (gwTotal < lowestScore) lowestScore = gwTotal
       totalPoints += gwTotal
@@ -126,9 +126,8 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                           <th className="px-2 py-4 text-center"></th>
                           <th className="px-4 py-4 text-center">GW</th>
                           <th className="px-4 py-4 text-center">Scores</th>
-                          <th className="px-4 py-4 text-center">Team</th>
+                          <th className="px-4 py-4 text-center">Survivor</th>
                           <th className="px-4 py-4 text-center">F4</th>
-                          <th className="px-4 py-4 text-center">Bonus</th>
                           <th className="px-4 py-4 text-center">Pens</th>
                           <th className="px-4 py-4 text-center text-emerald-500">Total</th>
                         </tr>
@@ -139,6 +138,7 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                           const isExpanded = expandedGw === gwId
                           const gwPicks = picks?.[gwId]
                           const hasPicksData = !!gwPicks
+                          const effectiveGwTotal = (record.score_points || 0) + (record.team_points || 0) + (record.fantastic_four_points || 0) + (record.penalty_points || 0)
 
                           return (
                             <React.Fragment key={gwId}>
@@ -157,13 +157,12 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.score_points}</td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.team_points}</td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.fantastic_four_points}</td>
-                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.bonus_points || 0}</td>
                                 <td className="px-4 py-3 text-rose-500 font-bold text-center">{record.penalty_points < 0 ? record.penalty_points : '-'}</td>
-                                <td className="px-4 py-3 font-heading text-2xl text-emerald-600 dark:text-emerald-400 drop-shadow-sm text-center">{record.total_points}</td>
+                                <td className="px-4 py-3 font-heading text-2xl text-emerald-600 dark:text-emerald-400 drop-shadow-sm text-center">{effectiveGwTotal}</td>
                               </tr>
                               {isExpanded && gwPicks && (
                                 <tr className="bg-black/30">
-                                  <td colSpan={8} className="p-6 border-t border-white/5">
+                                  <td colSpan={7} className="p-6 border-t border-white/5">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                       {/* Score Picks */}
                                       <div>

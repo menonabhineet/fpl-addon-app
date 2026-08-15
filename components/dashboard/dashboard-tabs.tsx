@@ -12,7 +12,7 @@ import FdrUI from './fdr-ui'
 
 type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'allpicks' | 'fdr'
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId, currentUserId }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -72,7 +72,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
       </div>
 
       {/* Render the Active Game UI */}
-      <div className="min-h-[400px] relative">
+      <div className="min-h-[400px] relative pb-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -98,7 +98,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
             )}
 
             {activeTab === 'leaderboard' && (
-              <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} />
+              <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} currentUserId={currentUserId} />
             )}
 
             {activeTab === 'fdr' && (
@@ -107,6 +107,50 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Sticky Bottom Quick Navigation Bar for Main 3 Games */}
+      <nav 
+        aria-label="Quick game mode switcher"
+        className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-sm sm:max-w-md pointer-events-auto"
+      >
+        <div className="glass bg-white/90 dark:bg-neutral-950/90 backdrop-blur-2xl border border-slate-200/90 dark:border-white/15 rounded-full p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.22)] dark:shadow-[0_12px_45px_rgba(0,0,0,0.7)] flex items-center justify-between gap-1">
+          {[
+            { id: 'score', label: 'Score Pred', icon: '🎯' },
+            { id: 'team', label: 'Survivor', icon: '🛡️' },
+            { id: 'fantastic', label: 'Fantastic 4', icon: '⚡' },
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(item.id as TabState);
+                }}
+                className={`relative flex-1 py-2 sm:py-2.5 px-2 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 transition-colors duration-300 select-none cursor-pointer outline-none ${
+                  isActive
+                    ? 'text-white font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/5 font-medium'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="stickyBottomNavActivePill"
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/30"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
+                <span className={`relative z-10 text-base sm:text-lg transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
+                  {item.icon}
+                </span>
+                <span className="relative z-10 text-[11px] sm:text-xs uppercase tracking-wider font-heading truncate">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   )
 }

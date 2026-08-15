@@ -170,10 +170,24 @@ export async function getAllPicksForGameweek(gameweekId: number) {
       .select('*')
       .eq('gameweek_id', gameweekId)
 
-    // 5. Get Survivor Status
-    const { data: survivorEntries } = await supabase
+    // 5. Get Survivor Status for the round covering this gameweek
+    const { data: activeRound } = await supabase
+      .from('survivor_rounds')
+      .select('id')
+      .lte('start_gameweek_id', gameweekId)
+      .order('start_gameweek_id', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let survivorEntriesQuery = supabase
       .from('survivor_entries')
-      .select('user_id, status, eliminated_gameweek_id')
+      .select('user_id, status, eliminated_gameweek_id, round_id')
+
+    if (activeRound?.id) {
+      survivorEntriesQuery = survivorEntriesQuery.eq('round_id', activeRound.id)
+    }
+
+    const { data: survivorEntries } = await survivorEntriesQuery
 
     // Fetch team short names for the f4 picks
     const f4PlayerIds = f4Picks?.map(p => p.player_id) || []
@@ -195,11 +209,12 @@ export async function getAllPicksForGameweek(gameweekId: number) {
     // Format data by user
     const picksByUser: Record<string, any> = {}
     
-    // Collect all user IDs who have made any picks
+    // Collect all user IDs who have made any picks or have a survivor entry
     const allUserIds = new Set<string>()
     scorePicks.forEach(p => allUserIds.add(p.user_id))
     teamPicks?.forEach(p => allUserIds.add(p.user_id))
     f4Picks?.forEach(p => allUserIds.add(p.user_id))
+    survivorEntries?.forEach(s => allUserIds.add(s.user_id))
     
     // Note: We'll also rely on the client passing the full leaderboard to know about users who made 0 picks
 

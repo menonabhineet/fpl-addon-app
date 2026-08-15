@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import ManagerReportCard from './manager-report-card'
 
-export default function LeaderboardUI({ allScores, currentGwId }: { allScores: any[], currentGwId: number }) {
+export default function LeaderboardUI({ allScores, currentGwId, currentUserId }: { allScores: any[], currentGwId: number, currentUserId?: string }) {
   const [filter, setFilter] = useState<'overall' | 'gameweek'>('overall')
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'grand_total', direction: 'desc' })
   const [selectedManager, setSelectedManager] = useState<{ id: string, name: string } | null>(null)
@@ -41,7 +41,6 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
       if (filter === 'gameweek' && record.gameweek_id !== currentGwId) return;
 
       const userId = record.user_id
-      // NEW: We no longer need to parse the profile object, the view hands it to us directly!
       const managerName = record.manager_name || 'Unknown Manager'
 
       if (!userMap.has(userId)) {
@@ -51,7 +50,6 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
           total_score_points: 0,
           total_team_points: 0,
           total_ff_points: 0,
-          total_bonus_points: 0,
           total_penalty_points: 0,
           grand_total: 0,
           previous_grand_total: 0
@@ -62,12 +60,12 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
       userStat.total_score_points += record.score_points || 0
       userStat.total_team_points += record.team_points || 0
       userStat.total_ff_points += record.fantastic_four_points || 0
-      userStat.total_bonus_points += record.bonus_points || 0
       userStat.total_penalty_points += record.penalty_points || 0
-      userStat.grand_total += record.total_points || 0
+      const gwPoints = (record.score_points || 0) + (record.team_points || 0) + (record.fantastic_four_points || 0) + (record.penalty_points || 0)
+      userStat.grand_total += gwPoints
 
       if (record.gameweek_id < currentGwId) {
-        userStat.previous_grand_total += record.total_points
+        userStat.previous_grand_total += gwPoints
       }
     })
 
@@ -144,7 +142,6 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
               <button onClick={() => handleSort('total_score_points')} className={`transition-colors ${sortConfig.key === 'total_score_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Scores {getSortIcon('total_score_points')}</button>
               <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Surv {getSortIcon('total_team_points')}</button>
               <button onClick={() => handleSort('total_ff_points')} className={`transition-colors ${sortConfig.key === 'total_ff_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>F4 {getSortIcon('total_ff_points')}</button>
-              <button onClick={() => handleSort('total_bonus_points')} className={`transition-colors ${sortConfig.key === 'total_bonus_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Bonus {getSortIcon('total_bonus_points')}</button>
               <button onClick={() => handleSort('total_penalty_points')} className={`transition-colors ${sortConfig.key === 'total_penalty_points' ? 'text-rose-500' : 'hover:text-rose-500'}`}>Pens {getSortIcon('total_penalty_points')}</button>
             </div>
             <button onClick={() => handleSort('grand_total')} className={`pl-8 transition-colors ${sortConfig.key === 'grand_total' ? 'text-emerald-500' : 'text-emerald-500/80 hover:text-emerald-500'}`}>Total {getSortIcon('grand_total')}</button>
@@ -156,26 +153,34 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
             <button onClick={() => handleSort('total_score_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_score_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Scores {getSortIcon('total_score_points')}</button>
             <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Surv {getSortIcon('total_team_points')}</button>
             <button onClick={() => handleSort('total_ff_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_ff_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>F4 {getSortIcon('total_ff_points')}</button>
-            <button onClick={() => handleSort('total_bonus_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_bonus_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Bonus {getSortIcon('total_bonus_points')}</button>
             <button onClick={() => handleSort('total_penalty_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_penalty_points' ? 'border-rose-500/50 bg-rose-500/10 text-rose-500' : 'border-white/10 bg-black/20'}`}>Pens {getSortIcon('total_penalty_points')}</button>
           </div>
           
           {paginatedData.map((row, index) => {
             const rank = (currentPage - 1) * itemsPerPage + index + 1;
+            const isCurrentUser = Boolean(currentUserId && row.user_id === currentUserId);
             let rankDisplay = <span className="font-heading text-3xl md:text-4xl text-slate-400 dark:text-slate-600">#{rank}</span>;
-            let cardClasses = "glass border border-slate-200/50 dark:border-white/5 opacity-90";
-            let glowEffect = null;
+            let cardClasses = isCurrentUser
+              ? "glass border-emerald-500/70 ring-2 ring-emerald-500/80 dark:ring-emerald-400/80 bg-emerald-500/10 dark:bg-emerald-500/15 shadow-[0_0_30px_rgba(16,185,129,0.25)] z-20"
+              : "glass border border-slate-200/50 dark:border-white/5 opacity-90";
+            let glowEffect = isCurrentUser ? <div className="absolute inset-0 bg-emerald-500/15 blur-xl pointer-events-none rounded-3xl" /> : null;
 
             if (rank === 1) {
               rankDisplay = <span className="font-heading text-5xl md:text-6xl text-amber-500 drop-shadow-md">1</span>;
-              cardClasses = "glass border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)] z-10 scale-[1.01]";
+              cardClasses = isCurrentUser 
+                ? "glass border-amber-500 ring-2 ring-emerald-400 shadow-[0_0_35px_rgba(245,158,11,0.3)] z-20 scale-[1.01] bg-amber-500/10"
+                : "glass border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.2)] z-10 scale-[1.01]";
               glowEffect = <div className="absolute inset-0 bg-amber-500/10 blur-xl pointer-events-none" />;
             } else if (rank === 2) {
               rankDisplay = <span className="font-heading text-4xl md:text-5xl text-slate-400 drop-shadow-sm">2</span>;
-              cardClasses = "glass border-slate-400/50 shadow-[0_0_20px_rgba(148,163,184,0.15)] z-10";
+              cardClasses = isCurrentUser
+                ? "glass border-slate-400 ring-2 ring-emerald-400 shadow-[0_0_25px_rgba(148,163,184,0.25)] z-20 bg-slate-400/10"
+                : "glass border-slate-400/50 shadow-[0_0_20px_rgba(148,163,184,0.15)] z-10";
             } else if (rank === 3) {
               rankDisplay = <span className="font-heading text-4xl md:text-5xl text-orange-400 drop-shadow-sm">3</span>;
-              cardClasses = "glass border-orange-400/30 shadow-[0_0_20px_rgba(251,146,60,0.1)] z-10";
+              cardClasses = isCurrentUser
+                ? "glass border-orange-400 ring-2 ring-emerald-400 shadow-[0_0_25px_rgba(251,146,60,0.2)] z-20 bg-orange-400/10"
+                : "glass border-orange-400/30 shadow-[0_0_20px_rgba(251,146,60,0.1)] z-10";
             }
 
             return (
@@ -192,9 +197,16 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                     {rankDisplay}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-heading text-2xl md:text-3xl text-slate-900 dark:text-white uppercase tracking-wide group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                      {row.manager_name}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-heading text-2xl md:text-3xl uppercase tracking-wide transition-colors ${isCurrentUser ? 'text-emerald-600 dark:text-emerald-400 font-black' : 'text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400'}`}>
+                        {row.manager_name}
+                      </span>
+                      {isCurrentUser && (
+                        <span className="px-2.5 py-0.5 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-emerald-500 text-white rounded-full shadow-md shadow-emerald-500/30 flex items-center gap-1">
+                          <span>👤</span> You
+                        </span>
+                      )}
+                    </div>
                     {filter === 'overall' && row.previous_rank !== undefined && (
                       <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mt-1">
                         {(row.previous_rank - rank) > 0 && <span className="text-emerald-500">▲ Up {row.previous_rank - rank}</span>}
@@ -219,10 +231,6 @@ export default function LeaderboardUI({ allScores, currentGwId }: { allScores: a
                     <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
                       <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">F4</span>
                       <span className="font-heading text-lg md:text-xl">{row.total_ff_points}</span>
-                    </div>
-                    <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
-                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Bonus</span>
-                      <span className="font-heading text-lg md:text-xl">{row.total_bonus_points}</span>
                     </div>
                     <div className="flex flex-col items-center bg-rose-50/50 dark:bg-rose-900/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-rose-200/50 dark:border-rose-500/20">
                       <span className="text-[9px] md:text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-0.5 md:mb-1">Pens</span>

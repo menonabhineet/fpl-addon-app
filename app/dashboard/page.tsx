@@ -143,7 +143,8 @@ export default async function DashboardPage({
     const userTotals = new Map<string, number>();
     let foundMyName = false;
     allScores.forEach(score => {
-      userTotals.set(score.user_id, (userTotals.get(score.user_id) || 0) + score.total_points);
+      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
+      userTotals.set(score.user_id, (userTotals.get(score.user_id) || 0) + effectivePoints);
       if (!foundMyName && score.user_id === user.id && score.manager_name) {
          userDisplayName = score.manager_name;
          foundMyName = true;
@@ -240,7 +241,7 @@ export default async function DashboardPage({
   });
 
   return (
-    <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-32 sm:pb-36 transition-colors duration-300 relative overflow-hidden">
       <AutoRefresh />
       {/* Immersive Background Glows */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -367,6 +368,7 @@ export default async function DashboardPage({
           survivorEntry={survivorEntry}
           isNewRound={isNewRound}
           actualCurrentGwId={currentGwId}
+          currentUserId={user?.id}
         />
       </main>
     </div>

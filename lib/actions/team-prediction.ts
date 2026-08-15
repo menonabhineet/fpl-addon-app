@@ -192,3 +192,49 @@ export async function submitTeamPrediction(formData: FormData) {
     return { success: false, error: error.message }
   }
 }
+
+export async function clearSurvivorPick(input: { gameweekId: number | string }) {
+  try {
+    const supabase = await createClient()
+
+    // 1. Authenticate User
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized request. Please log in.')
+
+    const gameweekId = Number(input.gameweekId)
+    if (isNaN(gameweekId)) throw new Error('Invalid gameweek ID.')
+
+    // 2. Check Deadline
+    const { data: gameweek, error: gwError } = await supabase
+      .from('gameweeks')
+      .select('deadline_time')
+      .eq('id', gameweekId)
+      .single()
+
+    if (gwError || !gameweek) throw new Error('Gameweek not found.')
+
+    const deadline = new Date(gameweek.deadline_time)
+    const now = new Date()
+    if (now >= deadline) {
+      throw new Error('Gameweek deadline has passed. Survivor picks are locked.')
+    }
+
+    // 3. Delete user's team prediction for this gameweek
+    const { error: deleteError } = await supabase
+      .from('team_predictions')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('gameweek_id', gameweekId)
+
+    if (deleteError) {
+      console.error('[clearSurvivorPick] Delete error:', deleteError)
+      throw new Error('Failed to clear survivor pick.')
+    }
+
+    revalidatePath('/dashboard')
+    return { success: true, message: 'Survivor pick cleared successfully!' }
+  } catch (error: any) {
+    console.error('[clearSurvivorPick] Error:', error)
+    return { success: false, error: error.message || 'Failed to clear survivor pick.' }
+  }
+}
