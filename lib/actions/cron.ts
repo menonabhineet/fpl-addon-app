@@ -8,11 +8,31 @@ export async function syncResults() {
   if (!response.ok) throw new Error('Failed to fetch FPL fixtures')
   const allFixtures = await response.json()
 
-  const activeFixtures = allFixtures.filter((f: any) => f.started === true)
+  // Fetch current state of fixtures from DB to only update if scores or status actually changed
+  const { data: dbFixtures } = await supabase.from('fixtures').select('id, home_score, away_score, is_finished')
+  const dbFixtureMap = new Map<number, { home_score: number | null; away_score: number | null; is_finished: boolean }>()
+  if (dbFixtures) {
+    dbFixtures.forEach(f => dbFixtureMap.set(f.id, f))
+  }
 
   let updateCount = 0
 
-  const updatePromises = activeFixtures.map(async (fixture: any) => {
+  const changedFixtures = allFixtures.filter((fixture: any) => {
+    if (!fixture.started) return false
+    const existing = dbFixtureMap.get(fixture.id)
+    if (!existing) return true
+    const newFinished = Boolean(fixture.finished || fixture.finished_provisional)
+    const newHomeScore = fixture.team_h_score ?? 0
+    const newAwayScore = fixture.team_a_score ?? 0
+
+    return (
+      existing.home_score !== newHomeScore ||
+      existing.away_score !== newAwayScore ||
+      existing.is_finished !== newFinished
+    )
+  })
+
+  const updatePromises = changedFixtures.map(async (fixture: any) => {
     const { error } = await supabase
       .from('fixtures')
       .update({

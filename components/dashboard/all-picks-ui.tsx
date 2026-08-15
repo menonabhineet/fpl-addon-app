@@ -9,10 +9,18 @@ interface AllPicksUIProps {
   leaderboard: any[]
 }
 
+// In-memory client cache to make tab switching instant
+const allPicksCache = new Map<number, { data: Record<string, any>; deadlinePassed: boolean; timestamp: number }>()
+const CACHE_TTL_MS = 60 * 1000 // 60 seconds
+
 export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPicksUIProps) {
-  const [picksData, setPicksData] = useState<Record<string, any> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [deadlinePassed, setDeadlinePassed] = useState(false)
+  const gwId = currentGw?.id
+  const cached = gwId ? allPicksCache.get(gwId) : null
+  const isCacheValid = cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)
+
+  const [picksData, setPicksData] = useState<Record<string, any> | null>(isCacheValid ? cached.data : null)
+  const [loading, setLoading] = useState(!isCacheValid)
+  const [deadlinePassed, setDeadlinePassed] = useState(isCacheValid ? cached.deadlinePassed : false)
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -24,17 +32,34 @@ export default function AllPicksUI({ currentGw, fixtures, leaderboard }: AllPick
   }, [itemsPerPage])
 
   useEffect(() => {
-    if (currentGw?.id) {
-      setLoading(true)
-      getAllPicksForGameweek(currentGw.id).then(res => {
-        if (res.success && res.data) {
-          setPicksData(res.data)
-          setDeadlinePassed(!!res.deadlinePassed)
-        }
-        setLoading(false)
-      })
+    if (!gwId) return
+
+    const cachedEntry = allPicksCache.get(gwId)
+    const valid = cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_TTL_MS)
+
+    if (valid) {
+      setPicksData(cachedEntry.data)
+      setDeadlinePassed(cachedEntry.deadlinePassed)
+      setLoading(false)
+      return
     }
-  }, [currentGw?.id])
+
+    setLoading(true)
+    getAllPicksForGameweek(gwId).then(res => {
+      if (res.success && res.data) {
+        allPicksCache.set(gwId, {
+          data: res.data,
+          deadlinePassed: !!res.deadlinePassed,
+          timestamp: Date.now()
+        })
+        setPicksData(res.data)
+        setDeadlinePassed(!!res.deadlinePassed)
+      }
+      setLoading(false)
+    }).catch(() => {
+      setLoading(false)
+    })
+  }, [gwId])
 
   // Get unique pundits from leaderboard and sort alphabetically
   const pundits = useMemo(() => {

@@ -160,78 +160,77 @@ export default async function DashboardPage({
   }
   // -------------------------------------------------------------
 
-  const enhancedPlayers = (players || []).map(p => {
-    const fplData = fplElements[p.id] || { form: 0, total_points: 0, selected_by_percent: 0, status: 'a', news: '' };
-    
-    // Find upcoming fixture for this gameweek
-    let nextFixtureStr = 'No fixture';
-    if (fixtures && p.teams) {
-      const teamData = p.teams as any;
-      const teamCode = Array.isArray(teamData) ? teamData[0]?.code : teamData?.code;
-      if (teamCode) {
-        const playerFixture = fixtures.find((f: any) => {
-          const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
-          const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
-          return home?.code === teamCode || away?.code === teamCode;
-        });
-        if (playerFixture) {
-          const f = playerFixture as any;
-          const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
-          const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
-          const isHome = home?.code === teamCode;
-          const opponent = isHome ? away?.short_name : home?.short_name;
-          nextFixtureStr = `${opponent} (${isHome ? 'H' : 'A'})`;
-        }
+  // Pre-calculate team code to fixture lookup map in O(M) once
+  const teamFixtureMap = new Map<number, string>()
+  const teamFixtureObjMap = new Map<number, { opponentName: string; isHome: boolean }>()
+  if (fixtures) {
+    fixtures.forEach((f: any) => {
+      const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team
+      const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team
+      if (home?.code) {
+        teamFixtureMap.set(home.code, `${away?.short_name || 'UNK'} (H)`)
+        teamFixtureObjMap.set(home.code, { opponentName: away?.name || 'Unknown', isHome: true })
       }
-    }
+      if (away?.code) {
+        teamFixtureMap.set(away.code, `${home?.short_name || 'UNK'} (A)`)
+        teamFixtureObjMap.set(away.code, { opponentName: home?.name || 'Unknown', isHome: false })
+      }
+    })
+  }
+
+  const enhancedPlayers = (players || []).map(p => {
+    const fplData = fplElements[p.id] || { form: 0, total_points: 0, points_per_game: 0, selected_by_percent: 0, status: 'a', news: '' }
+    const teamData = p.teams as any
+    const teamCode = Array.isArray(teamData) ? teamData[0]?.code : teamData?.code
+    const nextFixtureStr = teamCode ? (teamFixtureMap.get(teamCode) || 'No fixture') : 'No fixture'
     
     return {
-      ...p,
-      ...fplData,
+      id: p.id,
+      name: p.name,
+      position: p.position,
+      teams: p.teams,
+      form: fplData.form,
+      points_per_game: fplData.points_per_game,
+      total_points: fplData.total_points,
+      selected_by_percent: fplData.selected_by_percent,
+      status: fplData.status,
+      news: fplData.news,
       next_fixture: nextFixtureStr
-    };
-  });
+    }
+  })
 
-  const nextEvent = fplEvents.find((e: any) => e.is_next) || fplEvents.find((e: any) => e.is_current) || fplEvents[0];
-  const fplNextGwId = nextEvent?.id || 1;
+  const nextEvent = fplEvents.find((e: any) => e.is_next) || fplEvents.find((e: any) => e.is_current) || fplEvents[0]
+  const fplNextGwId = nextEvent?.id || 1
+
+  // Pre-index teams by ID for O(1) lookup when building next 3 fixtures
+  const teamsByIdMap = new Map<number, any>()
+  if (teams) {
+    teams.forEach((t: any) => teamsByIdMap.set(t.id, t))
+  }
 
   const enhancedTeams = (teams || []).map(t => {
-    const fplT = fplTeams[t.code] || {};
-    
-    // Find upcoming fixture for this gameweek (local DB)
-    let nextFixtureStr = 'No fixture';
-    if (fixtures) {
-      const teamFixture = fixtures.find((f: any) => {
-        const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
-        const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
-        return home?.code === t.code || away?.code === t.code;
-      });
-      if (teamFixture) {
-        const f = teamFixture as any;
-        const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team;
-        const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team;
-        const isHome = home?.code === t.code;
-        const opponent = isHome ? away?.name : home?.name;
-        nextFixtureStr = `${opponent} (${isHome ? 'Home' : 'Away'})`;
-      }
-    }
+    const fplT = fplTeams[t.code] || {}
+    const teamFixtureInfo = teamFixtureObjMap.get(t.code)
+    const nextFixtureStr = teamFixtureInfo 
+      ? `${teamFixtureInfo.opponentName} (${teamFixtureInfo.isHome ? 'Home' : 'Away'})`
+      : 'No fixture'
 
     // Find next 3 fixtures from FPL fixtures API data
     const teamNext3Fixtures = fplFixtures
       .filter((f: any) => f.event >= fplNextGwId && (f.team_h === t.id || f.team_a === t.id))
       .slice(0, 3)
       .map((f: any) => {
-        const isHome = f.team_h === t.id;
-        const opponentId = isHome ? f.team_a : f.team_h;
-        const opponent = teams?.find((tt: any) => tt.id === opponentId);
+        const isHome = f.team_h === t.id
+        const opponentId = isHome ? f.team_a : f.team_h
+        const opponent = teamsByIdMap.get(opponentId)
         return {
           opponentName: opponent ? opponent.name : 'Unknown',
           opponentShortName: opponent ? opponent.short_name : 'UNK',
           isHome,
           event: f.event,
           difficulty: isHome ? f.team_h_difficulty : f.team_a_difficulty
-        };
-      });
+        }
+      })
 
     return {
       ...fplT,
@@ -239,17 +238,26 @@ export default async function DashboardPage({
       position: t.position ?? fplT.position ?? 0,
       next_fixture: nextFixtureStr,
       next_3_fixtures: teamNext3Fixtures
-    };
-  });
+    }
+  })
 
   return (
     <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-32 sm:pb-36 transition-colors duration-300 relative overflow-hidden">
       <AutoRefresh />
-      {/* Immersive Background Glows */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 h-[800px] w-[800px] rounded-full bg-emerald-500/10 blur-[200px] mix-blend-multiply dark:mix-blend-screen opacity-70" />
-        <div className="absolute bottom-0 left-0 h-[800px] w-[800px] rounded-full bg-rose-600/10 blur-[200px] mix-blend-multiply dark:mix-blend-screen opacity-70" />
-        <div className="absolute top-[40%] left-[50%] h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-600/5 blur-[150px] mix-blend-multiply dark:mix-blend-screen" />
+      {/* Immersive Background Glows (Hardware-Accelerated Gradients) */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none gpu-accelerated">
+        <div 
+          className="absolute -top-[10%] -right-[10%] h-[700px] w-[700px] rounded-full opacity-70 dark:opacity-40 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, rgba(16,185,129,0) 70%)' }}
+        />
+        <div 
+          className="absolute -bottom-[10%] -left-[10%] h-[700px] w-[700px] rounded-full opacity-70 dark:opacity-40 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(225,29,72,0.14) 0%, rgba(225,29,72,0) 70%)' }}
+        />
+        <div 
+          className="absolute top-[40%] left-[50%] -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full opacity-40 dark:opacity-20 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, rgba(99,102,241,0) 70%)' }}
+        />
       </div>
 
       {/* Floating Sleek Header */}

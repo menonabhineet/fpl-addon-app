@@ -10,6 +10,10 @@ interface ManagerReportCardProps {
   allScores: any[]
 }
 
+// In-memory client cache for manager report card picks
+const managerPicksCache = new Map<string, { data: Record<number, any>; timestamp: number }>()
+const REPORT_CARD_CACHE_TTL = 60 * 1000 // 60 seconds
+
 export default function ManagerReportCard({ isOpen, onClose, managerId, managerName, allScores }: ManagerReportCardProps) {
   const [picks, setPicks] = useState<Record<number, any> | null>(null)
   const [loadingPicks, setLoadingPicks] = useState(false)
@@ -17,13 +21,28 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
 
   useEffect(() => {
     if (isOpen && managerId) {
+      setExpandedGw(null)
+      const cached = managerPicksCache.get(managerId)
+      const isValid = cached && (Date.now() - cached.timestamp < REPORT_CARD_CACHE_TTL)
+
+      if (isValid) {
+        setPicks(cached.data)
+        setLoadingPicks(false)
+        return
+      }
+
       setLoadingPicks(true)
       setPicks(null)
-      setExpandedGw(null)
       getManagerPastPicks(managerId).then(res => {
         if (res.success && res.data) {
+          managerPicksCache.set(managerId, {
+            data: res.data,
+            timestamp: Date.now()
+          })
           setPicks(res.data)
         }
+        setLoadingPicks(false)
+      }).catch(() => {
         setLoadingPicks(false)
       })
     }

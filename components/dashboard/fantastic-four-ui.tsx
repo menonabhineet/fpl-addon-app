@@ -1,7 +1,7 @@
 // components/dashboard/fantastic-four-ui.tsx
 'use client'
 
-import { useState, useActionState, useEffect, useMemo } from 'react'
+import { useState, useActionState, useEffect, useMemo, useDeferredValue } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitFantasticFourPrediction, removeFantasticFourPick, clearAllFantasticFourPicks } from '@/lib/actions/fantastic-four'
 import { toast } from 'sonner'
@@ -11,8 +11,9 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
   const [currentPicks, setCurrentPicks] = useState<any[]>(initialPicks || [])
   const [activeSlot, setActiveSlot] = useState<string | null>(null)
   const [infoSlot, setInfoSlot] = useState<string | null>(null)
-  const [comparePlayerId, setComparePlayerId] = useState<string | null>(null)
+  const [comparePlayerId, setComparePlayerId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const deferredSearchQuery = useDeferredValue(searchQuery)
   const [selectedClub, setSelectedClub] = useState('All')
   const [sortBy, setSortBy] = useState('name')
   const [displayLimit, setDisplayLimit] = useState(35)
@@ -23,10 +24,29 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
 
   const isLocked = currentGw?.deadline_time ? new Date(currentGw.deadline_time) <= new Date() : false
 
+  // Fast pre-indexing by ID and by Position
+  const playersById = useMemo(() => {
+    const map = new Map<number, any>()
+    for (const p of players) {
+      map.set(p.id, p)
+    }
+    return map
+  }, [players])
+
+  const playersByPosition = useMemo(() => {
+    const map: Record<string, any[]> = { FWD: [], MID: [], DEF: [], GK: [] }
+    for (const p of players) {
+      if (map[p.position]) {
+        map[p.position].push(p)
+      }
+    }
+    return map
+  }, [players])
+
   // Reset display limit when filter or search changes
   useEffect(() => {
     setDisplayLimit(35)
-  }, [activeSlot, searchQuery, selectedClub, sortBy])
+  }, [activeSlot, deferredSearchQuery, selectedClub, sortBy])
 
   // Keep local picks in sync if server props change
   useEffect(() => {
@@ -63,7 +83,7 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
   // Transform array of current picks into an easy lookup map by position
   const picksByPosition = useMemo(() => {
     return currentPicks.reduce((acc: any, pick: any) => {
-      const playerDetails = players.find((p: any) => p.id === pick.player_id)
+      const playerDetails = playersById.get(pick.player_id)
 
       let tCode = 0
       if (playerDetails?.teams) {
@@ -84,7 +104,7 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
       }
       return acc
     }, {})
-  }, [currentPicks, players])
+  }, [currentPicks, playersById])
 
   const handleRemovePlayer = async (position: string) => {
     if (isLocked) {
@@ -183,9 +203,11 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
   }, [players])
 
   const filteredPlayers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    let list = players.filter((p: any) => {
-      if (p.position !== activeSlot) return false
+    if (!activeSlot) return []
+    const positionPlayers = playersByPosition[activeSlot] || []
+    const query = deferredSearchQuery.trim().toLowerCase()
+
+    let list = positionPlayers.filter((p: any) => {
       if (query && !p.name.toLowerCase().includes(query)) return false
 
       if (selectedClub !== 'All') {
@@ -203,7 +225,7 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
       if (sortBy === 'selected_by_percent') return (b.selected_by_percent || 0) - (a.selected_by_percent || 0)
       return a.name.localeCompare(b.name)
     })
-  }, [players, activeSlot, searchQuery, selectedClub, sortBy])
+  }, [playersByPosition, activeSlot, deferredSearchQuery, selectedClub, sortBy])
 
   const positions = ['FWD', 'MID', 'DEF', 'GK']
   const pickedCount = positions.filter(pos => Boolean(picksByPosition[pos])).length
@@ -263,7 +285,7 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
       </div>
       
       {/* 3D Pitch Container */}
-      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] md:aspect-auto min-h-[550px] sm:min-h-[600px] [perspective:1200px] mx-auto max-w-4xl">
+      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] md:aspect-auto min-h-[550px] sm:min-h-[600px] [perspective:1200px] mx-auto max-w-4xl gpu-accelerated">
         <div className="absolute inset-0 bg-emerald-600 dark:bg-emerald-800 rounded-[2.5rem] overflow-hidden shadow-[inset_0_0_100px_rgba(0,0,0,0.6),0_20px_40px_rgba(0,0,0,0.4)] border-[12px] border-emerald-700/50 dark:border-emerald-900/50 transition-all duration-700 hover:shadow-[0_0_60px_rgba(16,185,129,0.4)] [transform:rotateX(15deg)_scale(0.95)] [transform-origin:bottom] group/pitch">
           
           {/* Pitch Lines & Grass Pattern */}
@@ -331,6 +353,8 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
                               // Using the highly stable FPL specific CDN for shirts
                               src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${selectedPlayer.teamCode}-66.webp`}
                               alt="Jersey"
+                              loading="lazy"
+                              decoding="async"
                               className="w-16 h-auto object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.6)] relative z-10"
                               onError={(e) => {
                                 // Fallback to the generic FPL grey shirt if code is missing
@@ -419,7 +443,7 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
 
       {/* Player Info Overlay */}
       {infoSlot && (() => {
-        const infoPlayerDetails = players.find((p: any) => p.id === picksByPosition[infoSlot]?.id)
+        const infoPlayerDetails = playersById.get(picksByPosition[infoSlot]?.id)
         if (!infoPlayerDetails) return null
         return (
           <div className="absolute inset-0 z-30 bg-slate-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -431,6 +455,8 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
                 <img
                   src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${picksByPosition[infoSlot].teamCode}-66.webp`}
                   alt="Jersey"
+                  loading="lazy"
+                  decoding="async"
                   className="w-16 h-auto object-contain drop-shadow-md"
                   onError={(e) => { ;(e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp' }}
                 />
@@ -632,8 +658,8 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
             {/* Comparison Overlay */}
             {comparePlayerId && (() => {
               const currentPickId = picksByPosition[activeSlot]?.id
-              const currentPlayer = currentPickId ? players.find((p: any) => p.id === currentPickId) : null
-              const candidatePlayer = players.find((p: any) => p.id === comparePlayerId)
+              const currentPlayer = currentPickId ? playersById.get(currentPickId) : null
+              const candidatePlayer = playersById.get(comparePlayerId)
 
               if (!candidatePlayer) return null
 
@@ -656,6 +682,8 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
                       <img
                         src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${teamCode}-66.webp`}
                         alt="Jersey"
+                        loading="lazy"
+                        decoding="async"
                         className="w-16 h-auto object-contain drop-shadow-md"
                         onError={(e) => { ;(e.target as HTMLImageElement).src = 'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp' }}
                       />

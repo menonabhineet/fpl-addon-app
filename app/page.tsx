@@ -21,14 +21,20 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-6 selection:bg-emerald-500/30">
-      {/* Background Ambient Glows */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        {/* Top-left PL purple-ish/pink */}
-        <div className="absolute -top-[10%] -left-[10%] h-[500px] w-[500px] rounded-full bg-rose-600/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-        {/* Bottom-right PL bright green */}
-        <div className="absolute -bottom-[10%] -right-[10%] h-[600px] w-[600px] rounded-full bg-emerald-500/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-        {/* Center subtle blue */}
-        <div className="absolute top-[40%] left-[50%] h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-600/10 blur-[100px] mix-blend-multiply dark:mix-blend-screen" />
+      {/* Background Ambient Glows (Hardware Accelerated) */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none gpu-accelerated">
+        <div 
+          className="absolute -top-[10%] -left-[10%] h-[500px] w-[500px] rounded-full opacity-60 dark:opacity-30 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(225,29,72,0.18) 0%, rgba(225,29,72,0) 70%)' }}
+        />
+        <div 
+          className="absolute -bottom-[10%] -right-[10%] h-[600px] w-[600px] rounded-full opacity-60 dark:opacity-30 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, rgba(16,185,129,0) 70%)' }}
+        />
+        <div 
+          className="absolute top-[40%] left-[50%] -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full opacity-40 dark:opacity-20 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0) 70%)' }}
+        />
       </div>
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-md">
