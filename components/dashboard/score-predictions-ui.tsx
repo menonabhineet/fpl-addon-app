@@ -44,7 +44,6 @@ export default function ScorePredictionsUI({ fixtures, currentGw, initialScorePi
         setCurrentScorePicks([])
         setShowClearModal(false)
         toast.success(res.message)
-        router.refresh()
       } else {
         toast.error(res.error || 'Failed to clear score predictions')
       }
@@ -255,7 +254,6 @@ function FixtureCard({
           onPickRemoved(match.id)
         }
         toast.success(res.message)
-        router.refresh()
       } else {
         toast.error(res.error || 'Failed to remove prediction')
       }

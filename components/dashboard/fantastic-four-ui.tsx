@@ -71,7 +71,6 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
         setComparePlayerId(null)
         setInfoSlot(null)
         toast.success(result.message)
-        router.refresh()
         return { success: true, message: result.message, error: '' }
       }
       toast.error(result.error || 'Failed')
@@ -118,7 +117,6 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
         setCurrentPicks(prev => prev.filter((p: any) => p.position !== position))
         if (infoSlot === position) setInfoSlot(null)
         toast.success(res.message)
-        router.refresh()
       } else {
         toast.error(res.error || 'Failed to remove player')
       }
@@ -143,7 +141,6 @@ export default function FantasticFourUI({ players = [], currentGw, initialPicks 
         setShowClearModal(false)
         setInfoSlot(null)
         toast.success(res.message)
-        router.refresh()
       } else {
         toast.error(res.error || 'Failed to clear picks')
       }

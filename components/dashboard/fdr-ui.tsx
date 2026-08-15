@@ -1,8 +1,77 @@
 'use client'
 
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 
-export default function FdrUI({ teams, fplFixtures, fplEvents, currentGwId }: any) {
+export default function FdrUI({ teams = [], fplFixtures = [], fplEvents = [], currentGwId }: any) {
+  // Find the next gameweek
+  const { nextGwId, visibleGameweeks, visibleGwIds } = useMemo(() => {
+    if (!fplEvents || !fplEvents.length) {
+      return { nextGwId: currentGwId || 1, visibleGameweeks: [], visibleGwIds: [] }
+    }
+    const nextEvent = fplEvents.find((e: any) => e.is_next) || fplEvents.find((e: any) => e.is_current) || fplEvents[0]
+    const gId = nextEvent?.id || currentGwId || 1
+    const vis = fplEvents.filter((e: any) => e.id >= gId && e.id < gId + 10).slice(0, 10)
+    return {
+      nextGwId: gId,
+      visibleGameweeks: vis,
+      visibleGwIds: vis.map((e: any) => e.id)
+    }
+  }, [fplEvents, currentGwId])
+
+  // Fast pre-indexing of teams and fixtures for O(1) lookup
+  const fdrData = useMemo(() => {
+    if (!teams.length || !fplFixtures.length || !visibleGwIds.length) return []
+
+    const teamsById = new Map<number, any>()
+    for (const t of teams) {
+      teamsById.set(t.id, t)
+    }
+
+    // Pre-index fixtures by `${teamId}_${gwId}` in O(F) once
+    const teamGwFixturesMap = new Map<string, any[]>()
+    for (const f of fplFixtures) {
+      if (f.event) {
+        const homeKey = `${f.team_h}_${f.event}`
+        const awayKey = `${f.team_a}_${f.event}`
+        
+        const homeList = teamGwFixturesMap.get(homeKey) || []
+        homeList.push({ fixture: f, isHome: true })
+        teamGwFixturesMap.set(homeKey, homeList)
+
+        const awayList = teamGwFixturesMap.get(awayKey) || []
+        awayList.push({ fixture: f, isHome: false })
+        teamGwFixturesMap.set(awayKey, awayList)
+      }
+    }
+
+    return teams.map((team: any) => {
+      const teamFixtures = visibleGwIds.map((gwId: number) => {
+        const key = `${team.id}_${gwId}`
+        const matches = teamGwFixturesMap.get(key) || []
+        
+        return {
+          gwId,
+          fixtures: matches.map(({ fixture: f, isHome }: any) => {
+            const opponentId = isHome ? f.team_a : f.team_h
+            const opponent = teamsById.get(opponentId)
+            const difficulty = isHome ? f.team_h_difficulty : f.team_a_difficulty
+            return {
+              opponentShortName: opponent ? opponent.short_name : 'N/A',
+              isHome,
+              difficulty
+            }
+          })
+        }
+      })
+
+      return {
+        ...team,
+        fdr: teamFixtures
+      }
+    })
+  }, [teams, fplFixtures, visibleGwIds])
+
   if (!fplFixtures || !fplFixtures.length || !fplEvents || !fplEvents.length) {
     return (
       <div className="rounded-xl bg-white dark:bg-slate-900 p-8 text-center shadow-sm border border-slate-200 dark:border-slate-800">
@@ -10,40 +79,6 @@ export default function FdrUI({ teams, fplFixtures, fplEvents, currentGwId }: an
       </div>
     )
   }
-
-  // Find the next gameweek
-  const nextEvent = fplEvents.find((e: any) => e.is_next) || fplEvents.find((e: any) => e.is_current) || fplEvents[0];
-  const nextGwId = nextEvent?.id || currentGwId || 1;
-
-  // We want to show a span of gameweeks, say next 10 gameweeks
-  const visibleGameweeks = fplEvents.filter((e: any) => e.id >= nextGwId && e.id < nextGwId + 10).slice(0, 10);
-  const visibleGwIds = visibleGameweeks.map((e: any) => e.id);
-
-  // Group fixtures by team
-  const fdrData = teams.map((team: any) => {
-    const teamFixtures = visibleGwIds.map((gwId: number) => {
-      const fixturesForGw = fplFixtures.filter((f: any) => f.event === gwId && (f.team_h === team.id || f.team_a === team.id));
-      return {
-        gwId,
-        fixtures: fixturesForGw.map((f: any) => {
-          const isHome = f.team_h === team.id;
-          const opponentId = isHome ? f.team_a : f.team_h;
-          const opponent = teams.find((t: any) => t.id === opponentId);
-          const difficulty = isHome ? f.team_h_difficulty : f.team_a_difficulty;
-          return {
-            opponentShortName: opponent ? opponent.short_name : 'N/A',
-            isHome,
-            difficulty
-          }
-        })
-      }
-    });
-
-    return {
-      ...team,
-      fdr: teamFixtures
-    };
-  });
 
   const getDifficultyColor = (difficulty: number) => {
     switch (difficulty) {

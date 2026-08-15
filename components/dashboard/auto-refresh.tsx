@@ -28,7 +28,14 @@ export default function AutoRefresh() {
       }
     }
 
-    syncData()
+    // Run when browser is idle after initial load
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const handle = (window as any).requestIdleCallback(syncData, { timeout: 3000 })
+      return () => (window as any).cancelIdleCallback(handle)
+    } else {
+      const timer = setTimeout(syncData, 1500)
+      return () => clearTimeout(timer)
+    }
   }, [router])
 
   return null // This component has no UI

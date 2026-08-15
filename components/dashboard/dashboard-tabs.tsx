@@ -24,6 +24,18 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
     )
   }
 
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabState>>(new Set(['score']))
+
+  const handleTabChange = (tab: TabState) => {
+    setVisitedTabs(prev => {
+      if (prev.has(tab)) return prev
+      const next = new Set(prev)
+      next.add(tab)
+      return next
+    })
+    setActiveTab(tab)
+  }
+
   return (
     <div className="space-y-6">
       {/* 3D Card Navigation */}
@@ -32,21 +44,21 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
           <button
             key={tab}
             onClick={(e) => {
-              setActiveTab(tab);
+              handleTabChange(tab);
               // Auto-scroll the clicked tab into the center of the view on mobile
               e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
             }}
-            className={`group relative flex-none w-[120px] sm:w-[140px] lg:w-auto flex flex-col items-center justify-center py-4 px-2 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl transition-all duration-500 overflow-hidden text-center snap-center ${
+            className={`group relative flex-none w-[120px] sm:w-[140px] lg:w-auto flex flex-col items-center justify-center py-4 px-2 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl transition-all duration-300 overflow-hidden text-center snap-center ${
               activeTab === tab
                 ? 'glass scale-[1.02] border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)] dark:shadow-[0_0_40px_rgba(16,185,129,0.15)] z-10'
-                : 'bg-white/40 dark:bg-black/20 backdrop-blur-md border border-slate-200/50 dark:border-white/5 hover:scale-[1.02] hover:bg-white/60 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300 opacity-80 hover:opacity-100 cursor-pointer shadow-sm'
+                : 'bg-white/40 dark:bg-black/20 backdrop-blur-md border border-slate-200/50 dark:border-white/5 hover:scale-[1.02] hover:bg-white/60 dark:hover:bg-white/5 hover:border-slate-300 dark:hover:border-white/20 transition-all duration-200 opacity-80 hover:opacity-100 cursor-pointer shadow-sm'
             }`}
           >
             {activeTab === tab && (
               <div className="absolute inset-0 bg-emerald-500/5 blur-2xl pointer-events-none" />
             )}
             
-            <div className={`text-2xl sm:text-3xl md:text-4xl mb-1.5 sm:mb-3 md:mb-4 transition-transform duration-500 ${activeTab === tab ? 'scale-110' : 'group-hover:scale-110 group-hover:-translate-y-1'}`}>
+            <div className={`text-2xl sm:text-3xl md:text-4xl mb-1.5 sm:mb-3 md:mb-4 transition-transform duration-300 ${activeTab === tab ? 'scale-110' : 'group-hover:scale-110 group-hover:-translate-y-1'}`}>
               {tab === 'score' && '🎯'}
               {tab === 'team' && '🛡️'}
               {tab === 'fantastic' && '⚡'}
@@ -71,41 +83,43 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         ))}
       </div>
 
-      {/* Render the Active Game UI */}
+      {/* Render the Active Game UI with Instant Lazy-Persistence (Zero Unmount Lag) */}
       <div className="min-h-[400px] relative pb-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            {activeTab === 'score' && (
-              <ScorePredictionsUI fixtures={fixtures} currentGw={currentGw} initialScorePicks={initialScorePicks} />
-            )}
-            
-            {activeTab === 'team' && (
-              <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} survivorEntry={survivorEntry} isNewRound={isNewRound} actualCurrentGwId={actualCurrentGwId} />
-            )}
-            
-            {activeTab === 'fantastic' && (
-              <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks} allUserFantasticPicks={allUserFantasticPicks} />
-            )}
+        {visitedTabs.has('score') && (
+          <div className={activeTab === 'score' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <ScorePredictionsUI fixtures={fixtures} currentGw={currentGw} initialScorePicks={initialScorePicks} />
+          </div>
+        )}
+        
+        {visitedTabs.has('team') && (
+          <div className={activeTab === 'team' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} survivorEntry={survivorEntry} isNewRound={isNewRound} actualCurrentGwId={actualCurrentGwId} />
+          </div>
+        )}
+        
+        {visitedTabs.has('fantastic') && (
+          <div className={activeTab === 'fantastic' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <FantasticFourUI players={players} currentGw={currentGw} initialPicks={initialPicks} allUserFantasticPicks={allUserFantasticPicks} />
+          </div>
+        )}
 
-            {activeTab === 'allpicks' && (
-              <AllPicksUI currentGw={currentGw} fixtures={fixtures} leaderboard={leaderboard} />
-            )}
+        {visitedTabs.has('allpicks') && (
+          <div className={activeTab === 'allpicks' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <AllPicksUI currentGw={currentGw} fixtures={fixtures} leaderboard={leaderboard} />
+          </div>
+        )}
 
-            {activeTab === 'leaderboard' && (
-              <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} currentUserId={currentUserId} />
-            )}
+        {visitedTabs.has('leaderboard') && (
+          <div className={activeTab === 'leaderboard' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} currentUserId={currentUserId} />
+          </div>
+        )}
 
-            {activeTab === 'fdr' && (
-              <FdrUI teams={teams} fplFixtures={fplFixtures} fplEvents={fplEvents} currentGwId={currentGw.id} />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        {visitedTabs.has('fdr') && (
+          <div className={activeTab === 'fdr' ? 'block animate-in fade-in duration-200' : 'hidden'}>
+            <FdrUI teams={teams} fplFixtures={fplFixtures} fplEvents={fplEvents} currentGwId={currentGw.id} />
+          </div>
+        )}
       </div>
 
       {/* Sticky Bottom Quick Navigation Bar for Main 3 Games */}
@@ -125,7 +139,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  setActiveTab(item.id as TabState);
+                  handleTabChange(item.id as TabState);
                 }}
                 className={`relative flex-1 py-2 sm:py-2.5 px-2 rounded-full flex items-center justify-center gap-1.5 sm:gap-2 transition-colors duration-300 select-none cursor-pointer outline-none ${
                   isActive

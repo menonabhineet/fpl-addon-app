@@ -26,7 +26,6 @@ export default function GameweekSelector({ allGameweeks, selectedGwId }: { allGa
     const params = new URLSearchParams(searchParams.toString())
     params.set('gw', gwId.toString())
     router.push(`${pathname}?${params.toString()}`)
-    router.refresh()
   }
 
   const selectedGw = allGameweeks.find(gw => gw.id === selectedGwId)

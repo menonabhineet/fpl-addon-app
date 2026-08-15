@@ -85,7 +85,6 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
       if (result.success) {
         setMessage({ type: 'success', text: 'Team Locked In!' })
         toast.success(result.message || 'Team locked in!')
-        router.refresh()
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to save prediction.' })
         toast.error(result.error || 'Failed to save prediction.')
@@ -108,7 +107,6 @@ export default function TeamPredictionUI({ teams, currentGw, initialTeamPick, al
         setMessage(null)
         setShowClearModal(false)
         toast.success(res.message)
-        router.refresh()
       } else {
         toast.error(res.error || 'Failed to clear survivor pick')
       }

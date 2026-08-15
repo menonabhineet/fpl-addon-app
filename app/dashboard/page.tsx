@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DashboardTabs from '@/components/dashboard/dashboard-tabs'
@@ -245,7 +246,7 @@ export default async function DashboardPage({
     <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-32 sm:pb-36 transition-colors duration-300 relative overflow-hidden">
       <AutoRefresh />
       {/* Immersive Background Glows (Hardware-Accelerated Gradients) */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none gpu-accelerated">
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none gpu-accelerated" style={{ contain: 'strict' }}>
         <div 
           className="absolute -top-[10%] -right-[10%] h-[700px] w-[700px] rounded-full opacity-70 dark:opacity-40 pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, rgba(16,185,129,0) 70%)' }}
@@ -263,10 +264,15 @@ export default async function DashboardPage({
       {/* Floating Sleek Header */}
       <header className="relative z-50 flex flex-col sm:flex-row items-center justify-between px-6 sm:px-12 py-6 w-full max-w-7xl mx-auto gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </svg>
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-emerald-500/20 group hover:scale-105 transition-transform">
+            <Image
+              src="/icon.svg"
+              alt="PPL Logo"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-contain"
+              priority
+            />
           </div>
           <h1 className="text-xl sm:text-2xl font-heading uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-md">
             PPL
