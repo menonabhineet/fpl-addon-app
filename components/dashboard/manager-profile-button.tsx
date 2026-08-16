@@ -51,7 +51,7 @@ export default function ManagerProfileButton({
     setNicknameInput(currentNickname)
   }, [currentNickname])
 
-  // Detect iOS vs Android user agent on mount
+  // Check service worker & push subscription only when modal opens or on idle
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const ua = window.navigator.userAgent.toLowerCase()
@@ -64,9 +64,8 @@ export default function ManagerProfileButton({
       const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
       setIsSupported(supported)
 
-      if (supported) {
+      if (supported && isOpen) {
         setPermission(Notification.permission)
-        // Check if service worker and push subscription already exist
         navigator.serviceWorker.register('/sw.js').then(async (reg) => {
           const sub = await reg.pushManager.getSubscription()
           setIsSubscribed(!!sub)
@@ -75,7 +74,7 @@ export default function ManagerProfileButton({
         })
       }
     }
-  }, [])
+  }, [isOpen])
 
   const handleSubscribe = () => {
     if (!isSupported) {

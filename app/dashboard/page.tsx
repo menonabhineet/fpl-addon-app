@@ -30,20 +30,16 @@ export default async function DashboardPage({
   ])
 
   // Batch 1: Authenticate user & fetch gameweeks in parallel
-  const [{ data: authData, error: authError }, { data: allGameweeks }, userLeaguesRes] = await Promise.all([
+  const [{ data: authData, error: authError }, { data: allGameweeks }] = await Promise.all([
     supabase.auth.getUser(),
-    supabase.from('gameweeks').select('*').order('id', { ascending: true }),
-    getUserLeagues()
+    supabase.from('gameweeks').select('*').order('id', { ascending: true })
   ])
 
   const user = authData?.user
   if (authError || !user) redirect('/')
 
-  const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
-
-  // Determine active league
+  // Determine active league ID from URL searchParams
   const activeLeagueId = resolvedParams.league || null
-  const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
 
   // Determine active and allowed gameweeks
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
@@ -64,7 +60,7 @@ export default async function DashboardPage({
 
   const adminClient = createAdminClient()
 
-  // Batch 2: Execute all independent read queries and cached FPL data concurrently in parallel
+  // Batch 2: Execute all independent read queries, user leagues (passing authenticated user.id), and cached FPL data concurrently in parallel
   const [
     { data: fixtures },
     { data: teams },
@@ -78,6 +74,7 @@ export default async function DashboardPage({
     { data: allUserSurvivorEntries },
     { data: allScores, error: scoresError },
     { data: allProfiles },
+    userLeaguesRes,
     activeLeagueMembersData,
     fplDataResult,
     fplFixturesResult
@@ -94,7 +91,8 @@ export default async function DashboardPage({
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
     supabase.from('vw_user_scores_with_profiles').select('*'),
     adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url'),
-    activeLeague ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeague.id) : Promise.resolve({ data: null }),
+    getUserLeagues(user.id),
+    activeLeagueId ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeagueId) : Promise.resolve({ data: null }),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
     getCachedFixtures().catch((err: any) => { console.error('Failed to get fixtures:', err); return []; })
   ])
@@ -103,14 +101,17 @@ export default async function DashboardPage({
     console.error("Failed to fetch leaderboard data:", scoresError)
   }
 
+  const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
+  const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
+
   const myProfile = allProfiles?.find((p: any) => p.id === user.id) || null
 
-  // Synthesize complete global leaderboard records including freshly registered users
+  // Synthesize complete global leaderboard records including freshly registered users in O(P + S)
+  const scoreUserIdSet = new Set((allScores || []).map((s: any) => s.user_id))
   let allGlobalScores: any[] = [...(allScores || [])]
   if (allProfiles && allProfiles.length > 0) {
     allProfiles.forEach((prof: any) => {
-      const hasScore = allGlobalScores.some((s: any) => s.user_id === prof.id)
-      if (!hasScore) {
+      if (!scoreUserIdSet.has(prof.id)) {
         const displayName = prof.nickname || prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Manager')
         allGlobalScores.push({
           id: `placeholder-${prof.id}`,
@@ -325,7 +326,7 @@ export default async function DashboardPage({
       </div>
 
       {/* Sleek App Navigation Header (Sticky on Mobile & Desktop with Blurred Backdrop) */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/85 dark:bg-neutral-950/85 border-b border-slate-200/50 dark:border-white/10 transition-colors shadow-xs">
+      <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-background/90 dark:bg-neutral-950/90 border-b border-slate-200/50 dark:border-white/10 transition-colors shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-12 py-2.5 sm:py-4">
           {/* Desktop Layout (sm and up) */}
           <div className="hidden sm:flex items-center justify-between gap-4">
@@ -408,7 +409,7 @@ export default async function DashboardPage({
             </div>
 
             {/* Bottom Row: Full-width 3-segment toolbar utilizing the whole bar */}
-            <div className="flex items-center justify-between bg-slate-900/50 dark:bg-black/40 border border-slate-200/40 dark:border-white/10 rounded-2xl p-1 shadow-xs backdrop-blur-md w-full">
+            <div className="flex items-center justify-between glass bg-white/80 dark:bg-neutral-900/80 border border-slate-200/80 dark:border-white/10 rounded-2xl p-1 shadow-xs w-full">
               {/* Segment 1: League Selector (Left segment) */}
               <div className="flex-1 min-w-0 flex items-center justify-center px-1">
                 <Suspense fallback={null}>

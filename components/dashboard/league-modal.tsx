@@ -233,7 +233,7 @@ export default function LeagueModal({ isOpen, onClose, onLeagueCreatedOrJoined }
                     className="w-full px-4 py-3 bg-slate-800/90 border border-slate-700 rounded-xl text-white font-mono text-center text-lg uppercase tracking-widest placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                   />
                   <p className="text-[11px] text-slate-400 mt-1.5">
-                    Ask your league creator for their 6-character code or invite link.
+                    Ask your league creator for their 6-character code or invite link. (Max 10 total leagues)
                   </p>
                 </div>
 
@@ -261,7 +261,7 @@ export default function LeagueModal({ isOpen, onClose, onLeagueCreatedOrJoined }
                     className="w-full px-4 py-3 bg-slate-800/90 border border-slate-700 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                   />
                   <p className="text-[11px] text-slate-400 mt-1.5">
-                    You will be the league admin and receive an invite code to share.
+                    You will be the league admin. Max 3 created leagues (10 total joined).
                   </p>
                 </div>
 

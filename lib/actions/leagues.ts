@@ -38,14 +38,20 @@ export interface LeagueMemberInfo {
 
 /**
  * Fetch all leagues that the currently authenticated user belongs to.
+ * Accepts an optional userId to eliminate duplicate auth roundtrips when already resolved.
  */
-export async function getUserLeagues(): Promise<{ success: boolean; leagues?: LeagueSummary[]; error?: string }> {
+export async function getUserLeagues(userId?: string): Promise<{ success: boolean; leagues?: LeagueSummary[]; error?: string }> {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    let resolvedUserId = userId
 
-    if (authError || !user) {
-      return { success: false, error: 'Unauthorized' }
+    if (!resolvedUserId) {
+      const supabase = await createClient()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      if (authError || !user) {
+        return { success: false, error: 'Unauthorized' }
+      }
+      resolvedUserId = user.id
     }
 
     const adminClient = createAdminClient()
@@ -54,7 +60,7 @@ export async function getUserLeagues(): Promise<{ success: boolean; leagues?: Le
     const { data: memberships, error: memError } = await adminClient
       .from('league_members')
       .select('league_id, role, joined_at')
-      .eq('user_id', user.id)
+      .eq('user_id', resolvedUserId)
 
     if (memError) throw memError
     if (!memberships || memberships.length === 0) {
@@ -106,6 +112,9 @@ export async function getUserLeagues(): Promise<{ success: boolean; leagues?: Le
   }
 }
 
+const MAX_OWNED_LEAGUES = 3
+const MAX_JOINED_LEAGUES = 10
+
 /**
  * Create a new private league with a unique invite code.
  */
@@ -124,6 +133,36 @@ export async function createLeague(name: string): Promise<{ success: boolean; le
     }
 
     const adminClient = createAdminClient()
+
+    // 1. Enforce max 3 created leagues limit
+    const { count: ownedCount, error: ownedCountError } = await adminClient
+      .from('leagues')
+      .select('*', { count: 'exact', head: true })
+      .eq('created_by', user.id)
+
+    if (ownedCountError) throw ownedCountError
+
+    if ((ownedCount || 0) >= MAX_OWNED_LEAGUES) {
+      return {
+        success: false,
+        error: `You can only create up to ${MAX_OWNED_LEAGUES} leagues. Delete an existing league you own to create a new one.`
+      }
+    }
+
+    // 2. Enforce max 10 total leagues membership limit
+    const { count: totalJoinedCount, error: totalJoinedError } = await adminClient
+      .from('league_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+
+    if (totalJoinedError) throw totalJoinedError
+
+    if ((totalJoinedCount || 0) >= MAX_JOINED_LEAGUES) {
+      return {
+        success: false,
+        error: `You have reached the maximum limit of ${MAX_JOINED_LEAGUES} total leagues. Leave a league before creating or joining another.`
+      }
+    }
 
     // Generate unique code with retry logic
     let uniqueCode = ''
@@ -247,6 +286,21 @@ export async function joinLeagueByCode(code: string): Promise<{
           role: existingMember.role,
           member_count: 1
         }
+      }
+    }
+
+    // Enforce max 10 total leagues membership limit
+    const { count: totalJoinedCount, error: totalJoinedError } = await adminClient
+      .from('league_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+
+    if (totalJoinedError) throw totalJoinedError
+
+    if ((totalJoinedCount || 0) >= MAX_JOINED_LEAGUES) {
+      return {
+        success: false,
+        error: `You have reached the maximum limit of ${MAX_JOINED_LEAGUES} total leagues. Leave a league before joining another.`
       }
     }
 
