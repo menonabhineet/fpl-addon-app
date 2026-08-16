@@ -73,7 +73,7 @@ export default function RefreshButton() {
 
       {/* Tooltip / Status Message */}
       {message && (
-        <div className={`absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-top-2 z-50 ${
+        <div className={`absolute top-full mt-2 right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-top-2 z-50 ${
           message.type === 'success' 
             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/80 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800' 
             : 'bg-rose-100 text-rose-700 dark:bg-rose-900/80 dark:text-rose-200 border border-rose-200 dark:border-rose-800'

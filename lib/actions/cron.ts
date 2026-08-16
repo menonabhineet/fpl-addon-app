@@ -1,4 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const result: T[][] = []
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size))
+  }
+  return result
+}
 import { fetchWithRetry } from '@/lib/fpl-api'
 
 export async function syncResults() {
@@ -140,14 +148,14 @@ export async function calculateScores(targetGwParam?: number) {
     .from('score_predictions')
     .select('*')
     .in('fixture_id', fixtureIds)
-    .limit(10000)
+    
     
   // For penalty logic, we need to know if they made ANY picks for this gameweek
   const { data: allScorePicksGw } = await supabase
     .from('score_predictions')
     .select('user_id')
     .in('fixture_id', allFixtureIds)
-    .limit(10000)
+    
     
   const usersWithScorePicksGw = new Set(allScorePicksGw?.map(p => p.user_id) || [])
 
@@ -218,7 +226,7 @@ export async function calculateScores(targetGwParam?: number) {
     .from('team_predictions')
     .select('*')
     .eq('gameweek_id', TARGET_GW)
-    .limit(10000)
+    
 
   if (teamPicks) {
     for (const pick of teamPicks) {
@@ -276,7 +284,7 @@ export async function calculateScores(targetGwParam?: number) {
       .select('*')
       .eq('round_id', activeRound.id)
       .or(`status.eq.alive,and(status.eq.eliminated,eliminated_gameweek_id.eq.${TARGET_GW})`)
-      .limit(10000)
+      
 
     let survivorsAfterGrading: any[] = []
     let eliminatedThisGw: any[] = []
@@ -404,13 +412,19 @@ export async function calculateScores(targetGwParam?: number) {
     }
   }
   if (teamPredictionUpserts.length > 0) {
-    teamPickUpdates.push(supabase.from('team_predictions').upsert(teamPredictionUpserts))
+    const chunks = chunkArray(teamPredictionUpserts, 500)
+    for (const chunk of chunks) {
+      teamPickUpdates.push(supabase.from('team_predictions').upsert(chunk))
+    }
   }
 
   if (survivorEntryUpdates.length > 0) {
-    const results = await Promise.all(survivorEntryUpdates)
-    for (const res of results) {
-      if (res.error) console.error("Survivor Entry Update Error:", res.error)
+    const promiseChunks = chunkArray(survivorEntryUpdates, 50)
+    for (const chunk of promiseChunks) {
+      const results = await Promise.all(chunk)
+      for (const res of results) {
+        if (res.error) console.error("Survivor Entry Update Error:", res.error)
+      }
     }
   }
 
@@ -429,7 +443,7 @@ export async function calculateScores(targetGwParam?: number) {
     .from('fantastic_four')
     .select('*')
     .eq('gameweek_id', TARGET_GW)
-    .limit(10000)
+    
 
   const f4Updates: any[] = []
   const f4UpdateData: any[] = []
@@ -450,14 +464,24 @@ export async function calculateScores(targetGwParam?: number) {
   }
 
   if (scorePickUpdateData.length > 0) {
-    scorePickUpdates.push(supabase.from('score_predictions').upsert(scorePickUpdateData))
+    const chunks = chunkArray(scorePickUpdateData, 500)
+    for (const chunk of chunks) {
+      scorePickUpdates.push(supabase.from('score_predictions').upsert(chunk))
+    }
   }
   if (f4UpdateData.length > 0) {
-    f4Updates.push(supabase.from('fantastic_four').upsert(f4UpdateData))
+    const chunks = chunkArray(f4UpdateData, 500)
+    for (const chunk of chunks) {
+      f4Updates.push(supabase.from('fantastic_four').upsert(chunk))
+    }
   }
 
-  // Execute all updates simultaneously
-  await Promise.all([...scorePickUpdates, ...teamPickUpdates, ...f4Updates])
+  // Execute all updates simultaneously in chunks of 50 to avoid connection pooling exhaustion
+  const allPromises = [...scorePickUpdates, ...teamPickUpdates, ...f4Updates]
+  const promiseChunks = chunkArray(allPromises, 50)
+  for (const chunk of promiseChunks) {
+    await Promise.all(chunk)
+  }
 
   // ==========================================
   // 3.5. GET BONUS PREDICTIONS
@@ -474,7 +498,7 @@ export async function calculateScores(targetGwParam?: number) {
       .from('bonus_predictions')
       .select('user_id, awarded_points')
       .eq('question_id', bq.id)
-      .limit(10000)
+      
     
     if (bPicks) {
       for (const pick of bPicks) {
@@ -529,12 +553,18 @@ export async function calculateScores(targetGwParam?: number) {
   }
 
   if (leaderboardUpserts.length > 0) {
-    const { error: upsertError } = await supabase
-      .from('user_gameweek_scores')
-      .upsert(leaderboardUpserts, { onConflict: 'user_id, gameweek_id' })
+    const chunks = chunkArray(leaderboardUpserts, 500)
+    for (const chunk of chunks) {
+      const { error: upsertError } = await supabase
+        .from('user_gameweek_scores')
+        .upsert(chunk, { onConflict: 'user_id, gameweek_id' })
 
-    if (upsertError) throw upsertError
+      if (upsertError) throw upsertError
+    }
   }
 
   return { success: true, users_processed: allUsers.length || 0, gw: TARGET_GW }
 }
+
+
+

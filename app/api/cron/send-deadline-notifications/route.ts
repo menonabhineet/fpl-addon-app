@@ -130,21 +130,32 @@ async function handleCron(req: Request) {
       subsByUser.set(sub.user_id, list)
     }
 
-    for (const [userId, userSubs] of Array.from(subsByUser.entries())) {
-      // Check user pick completion status in parallel
-      const [
-        { data: userScorePicks },
-        { data: userTeamPick },
-        { data: userFantasticPicks }
-      ] = await Promise.all([
-        supabase.from('score_predictions').select('id').eq('user_id', userId).in('fixture_id', selectedFixtures?.map(f => f.id) || []),
-        supabase.from('team_predictions').select('id').eq('user_id', userId).eq('gameweek_id', nextGw.id).maybeSingle(),
-        supabase.from('fantastic_four').select('id').eq('user_id', userId).eq('gameweek_id', nextGw.id)
-      ])
+    const allPendingUserIds = Array.from(subsByUser.keys())
 
-      const scoreCount = userScorePicks?.length || 0
-      const hasSurvivor = !!userTeamPick
-      const fantasticCount = userFantasticPicks?.length || 0
+    // Bulk fetch all picks for all pending users in a single Promise.all
+    const [
+      { data: allScorePicks },
+      { data: allTeamPicks },
+      { data: allFantasticPicks }
+    ] = await Promise.all([
+      supabase.from('score_predictions').select('user_id, id').in('user_id', allPendingUserIds).in('fixture_id', selectedFixtures?.map(f => f.id) || []),
+      supabase.from('team_predictions').select('user_id, id').in('user_id', allPendingUserIds).eq('gameweek_id', nextGw.id),
+      supabase.from('fantastic_four').select('user_id, id').in('user_id', allPendingUserIds).eq('gameweek_id', nextGw.id)
+    ])
+
+    const scorePicksByUser = new Map<string, number>()
+    allScorePicks?.forEach(p => scorePicksByUser.set(p.user_id, (scorePicksByUser.get(p.user_id) || 0) + 1))
+    
+    const hasSurvivorByUser = new Set<string>()
+    allTeamPicks?.forEach(p => hasSurvivorByUser.add(p.user_id))
+    
+    const fantasticPicksByUser = new Map<string, number>()
+    allFantasticPicks?.forEach(p => fantasticPicksByUser.set(p.user_id, (fantasticPicksByUser.get(p.user_id) || 0) + 1))
+
+    for (const [userId, userSubs] of Array.from(subsByUser.entries())) {
+      const scoreCount = scorePicksByUser.get(userId) || 0
+      const hasSurvivor = hasSurvivorByUser.has(userId)
+      const fantasticCount = fantasticPicksByUser.get(userId) || 0
 
       const isMissingScores = expectedScoreCount > 0 && scoreCount < expectedScoreCount
       const isMissingSurvivor = !nextGw.is_survivor_skipped && !hasSurvivor

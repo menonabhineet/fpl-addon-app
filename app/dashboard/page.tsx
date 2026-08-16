@@ -73,7 +73,7 @@ export default async function DashboardPage({
     { data: activeRound },
     { data: allUserSurvivorEntries },
     { data: allScores, error: scoresError },
-    { data: allProfiles },
+    { data: currentUserScoreData },
     userLeaguesRes,
     activeLeagueMembersData,
     fplDataResult,
@@ -84,13 +84,15 @@ export default async function DashboardPage({
     supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true }),
     supabase.from('bonus_questions').select('*').eq('gameweek', selectedGwId).maybeSingle(),
     supabase.from('bonus_predictions').select('*').eq('user_id', user.id),
-    supabase.from('fantastic_four').select('*').eq('user_id', user.id),
-    supabase.from('team_predictions').select('*').eq('user_id', user.id),
+    supabase.from('fantastic_four').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId),
+    supabase.from('team_predictions').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId),
     supabase.from('score_predictions').select('*').eq('user_id', user.id),
     supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
-    supabase.from('vw_user_scores_with_profiles').select('*'),
-    adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url'),
+    activeLeagueId 
+      ? supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId)
+      : supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId).order('total_points', { ascending: false }).limit(100),
+    supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId).eq('user_id', user.id).maybeSingle(),
     getUserLeagues(user.id),
     activeLeagueId ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeagueId) : Promise.resolve({ data: null }),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
@@ -104,32 +106,13 @@ export default async function DashboardPage({
   const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
   const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
 
-  const myProfile = allProfiles?.find((p: any) => p.id === user.id) || null
+  const myProfile = currentUserScoreData || null
 
-  // Synthesize complete global leaderboard records including freshly registered users in O(P + S)
-  const scoreUserIdSet = new Set((allScores || []).map((s: any) => s.user_id))
+  // Ensure current user is in the scores list if they have a score
   let allGlobalScores: any[] = [...(allScores || [])]
-  if (allProfiles && allProfiles.length > 0) {
-    allProfiles.forEach((prof: any) => {
-      if (!scoreUserIdSet.has(prof.id)) {
-        const displayName = prof.nickname || prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Manager')
-        allGlobalScores.push({
-          id: `placeholder-${prof.id}`,
-          user_id: prof.id,
-          gameweek_id: selectedGwId,
-          score_points: 0,
-          team_points: 0,
-          fantastic_four_points: 0,
-          penalty_points: 0,
-          total_points: 0,
-          bonus_points: 0,
-          manager_name: displayName,
-          full_name: prof.full_name,
-          nickname: prof.nickname,
-          avatar_url: prof.avatar_url || null
-        })
-      }
-    })
+  const scoreUserIdSet = new Set(allGlobalScores.map((s: any) => s.user_id))
+  if (currentUserScoreData && !scoreUserIdSet.has(currentUserScoreData.user_id)) {
+    allGlobalScores.push(currentUserScoreData)
   }
 
   // Filter leaderboard scores strictly by active league if a league is selected
