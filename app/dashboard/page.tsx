@@ -13,8 +13,6 @@ import RefreshButton from '@/components/dashboard/refresh-button'
 import AutoRefresh from '@/components/dashboard/auto-refresh'
 import ManagerProfileButton from '@/components/dashboard/manager-profile-button'
 import { createAdminClient } from '@/lib/supabase/admin'
-import LeagueSelector from '@/components/dashboard/league-selector'
-import { getUserLeagues } from '@/lib/actions/leagues'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data from database
 export const dynamic = 'force-dynamic' 
@@ -22,7 +20,7 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage({ 
   searchParams 
 }: { 
-  searchParams: Promise<{ gw?: string; league?: string }> 
+  searchParams: Promise<{ gw?: string }> 
 }) {
   const [resolvedParams, supabase] = await Promise.all([
     searchParams,
@@ -37,9 +35,6 @@ export default async function DashboardPage({
 
   const user = authData?.user
   if (authError || !user) redirect('/')
-
-  // Determine active league ID from URL searchParams
-  const activeLeagueId = resolvedParams.league || null
 
   // Determine active and allowed gameweeks
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
@@ -60,7 +55,7 @@ export default async function DashboardPage({
 
   const adminClient = createAdminClient()
 
-  // Batch 2: Execute all independent read queries, user leagues (passing authenticated user.id), and cached FPL data concurrently in parallel
+  // Batch 2: Execute all independent read queries and cached FPL data concurrently in parallel
   const [
     { data: fixtures },
     { data: teams },
@@ -73,9 +68,7 @@ export default async function DashboardPage({
     { data: activeRound },
     { data: allUserSurvivorEntries },
     { data: allScores, error: scoresError },
-    { data: currentUserScoreData },
-    userLeaguesRes,
-    activeLeagueMembersData,
+    { data: allProfiles },
     fplDataResult,
     fplFixturesResult
   ] = await Promise.all([
@@ -89,12 +82,8 @@ export default async function DashboardPage({
     supabase.from('score_predictions').select('*').eq('user_id', user.id),
     supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
-    activeLeagueId 
-      ? supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId)
-      : supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId).order('total_points', { ascending: false }).limit(100),
-    supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId).eq('user_id', user.id).maybeSingle(),
-    getUserLeagues(user.id),
-    activeLeagueId ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeagueId) : Promise.resolve({ data: null }),
+    supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId).order('total_points', { ascending: false }),
+    adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url'),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
     getCachedFixtures().catch((err: any) => { console.error('Failed to get fixtures:', err); return []; })
   ])
@@ -103,26 +92,32 @@ export default async function DashboardPage({
     console.error("Failed to fetch leaderboard data:", scoresError)
   }
 
-  const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
-  const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
+  const myProfile = allProfiles?.find((p: any) => p.id === user.id) || null
 
-  const myProfile = currentUserScoreData || null
-
-  // Ensure current user is in the scores list if they have a score
-  let allGlobalScores: any[] = [...(allScores || [])]
-  const scoreUserIdSet = new Set(allGlobalScores.map((s: any) => s.user_id))
-  if (currentUserScoreData && !scoreUserIdSet.has(currentUserScoreData.user_id)) {
-    allGlobalScores.push(currentUserScoreData)
-  }
-
-  // Filter leaderboard scores strictly by active league if a league is selected
-  let scopedScores: any[] = []
-  if (activeLeague) {
-    const memberUserIds: string[] = (activeLeagueMembersData?.data || []).map((m: any) => m.user_id)
-    const memberIdSet = new Set(memberUserIds)
-    scopedScores = allGlobalScores.filter((score: any) => memberIdSet.has(score.user_id))
-  } else {
-    scopedScores = allGlobalScores
+  // Synthesize complete leaderboard records including freshly registered users
+  let groupScores: any[] = [...(allScores || [])]
+  if (allProfiles && allProfiles.length > 0) {
+    allProfiles.forEach((prof: any) => {
+      const hasScore = groupScores.some((s: any) => s.user_id === prof.id)
+      if (!hasScore) {
+        const displayName = prof.nickname || prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Manager')
+        groupScores.push({
+          id: `placeholder-${prof.id}`,
+          user_id: prof.id,
+          gameweek_id: selectedGwId,
+          score_points: 0,
+          team_points: 0,
+          fantastic_four_points: 0,
+          penalty_points: 0,
+          total_points: 0,
+          bonus_points: 0,
+          manager_name: displayName,
+          full_name: prof.full_name,
+          nickname: prof.nickname,
+          avatar_url: prof.avatar_url || null
+        })
+      }
+    })
   }
 
   // Bonus prediction for selected gameweek
@@ -131,7 +126,7 @@ export default async function DashboardPage({
     : null
 
   // User picks for current selection
-  const userPicks = allUserFantasticPicks?.filter((p: any) => p.gameweek_id === selectedGwId) || []
+  const userPicks = allUserFantasticPicks || []
   const userTeamPick = allUserTeamPicks?.find((p: any) => p.gameweek_id === selectedGwId) || null
 
   let userScorePicks: any[] = []
@@ -177,28 +172,19 @@ export default async function DashboardPage({
     }, {})
   }
 
-  // --- Calculate User Points and Rank for Hero Section (Scoped to active league or global) ---
+  // --- Calculate User Points and Rank for Hero Section ---
   let userGrandTotal = 0;
   let userRank = 0;
   let userDisplayName = myProfile?.nickname || myProfile?.full_name || user?.email?.split('@')[0] || 'Manager';
-  if (allScores) {
+  if (groupScores && groupScores.length > 0) {
     const userTotals = new Map<string, number>();
-    
-    // First determine overall total
-    allScores.forEach(score => {
+    groupScores.forEach(score => {
       const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
       userTotals.set(score.user_id, (userTotals.get(score.user_id) || 0) + effectivePoints);
     });
     userGrandTotal = userTotals.get(user.id) || 0;
 
-    // Determine rank within the scoped league or global
-    const scopedUserTotals = new Map<string, number>();
-    scopedScores.forEach((score: any) => {
-      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
-      scopedUserTotals.set(score.user_id, (scopedUserTotals.get(score.user_id) || 0) + effectivePoints);
-    });
-
-    const sortedUsers = Array.from(scopedUserTotals.entries()).sort((a, b) => b[1] - a[1]);
+    const sortedUsers = Array.from(userTotals.entries()).sort((a, b) => b[1] - a[1]);
     const rankIndex = sortedUsers.findIndex(([id]) => id === user.id);
     userRank = rankIndex !== -1 ? rankIndex + 1 : 0;
   }
@@ -281,9 +267,13 @@ export default async function DashboardPage({
       })
 
     return {
-      ...fplT,
-      ...t,
-      position: t.position ?? fplT.position ?? 0,
+      id: t.id,
+      name: t.name,
+      short_name: t.short_name,
+      code: t.code,
+      position: fplT.position || null,
+      form: fplT.form || null,
+      strength: fplT.strength || null,
       next_fixture: nextFixtureStr,
       next_3_fixtures: teamNext3Fixtures
     }
@@ -309,7 +299,7 @@ export default async function DashboardPage({
       </div>
 
       {/* Sleek App Navigation Header (Sticky on Mobile & Desktop with Blurred Backdrop) */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-background/90 dark:bg-neutral-950/90 border-b border-slate-200/50 dark:border-white/10 transition-colors shadow-xs">
+      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/85 dark:bg-neutral-950/85 border-b border-slate-200/50 dark:border-white/10 transition-colors shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-12 py-2.5 sm:py-4">
           {/* Desktop Layout (sm and up) */}
           <div className="hidden sm:flex items-center justify-between gap-4">
@@ -330,12 +320,8 @@ export default async function DashboardPage({
             </div>
 
             <div className="flex flex-nowrap items-center gap-2 sm:gap-4 glass px-4 py-2 rounded-full relative">
-              <Suspense fallback={null}>
-                <LeagueSelector userLeagues={userLeagues} activeLeague={activeLeague} currentUserId={user.id} />
-              </Suspense>
-              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
               {allGameweeks && (
-                <Suspense fallback={<span className="text-xs font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
+                <Suspense fallback={<span className="text-xs font-bold uppercase tracking-widest text-slate-500">Gameweek {selectedGwId}</span>}>
                   <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
                 </Suspense>
               )}
@@ -391,30 +377,19 @@ export default async function DashboardPage({
               </div>
             </div>
 
-            {/* Bottom Row: Full-width 3-segment toolbar utilizing the whole bar */}
-            <div className="flex items-center justify-between glass bg-white/80 dark:bg-neutral-900/80 border border-slate-200/80 dark:border-white/10 rounded-2xl p-1 shadow-xs w-full">
-              {/* Segment 1: League Selector (Left segment) */}
-              <div className="flex-1 min-w-0 flex items-center justify-center px-1">
-                <Suspense fallback={null}>
-                  <LeagueSelector userLeagues={userLeagues} activeLeague={activeLeague} currentUserId={user.id} />
-                </Suspense>
-              </div>
-
-              <div className="w-px h-5 bg-slate-300/60 dark:bg-white/10 shrink-0" />
-
-              {/* Segment 2: Gameweek Selector (Center segment) */}
-              <div className="flex-1 min-w-0 flex items-center justify-center px-1">
+            {/* Bottom Row: Centered Gameweek Selector + Refresh Toolbar */}
+            <div className="flex items-center justify-between glass bg-white/80 dark:bg-neutral-900/80 border border-slate-200/80 dark:border-white/10 rounded-2xl px-3 py-1.5 shadow-xs w-full">
+              <div className="flex-1 min-w-0 flex items-center justify-center">
                 {allGameweeks && (
-                  <Suspense fallback={<span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
+                  <Suspense fallback={<span className="text-xs font-bold uppercase tracking-widest text-slate-500">Gameweek {selectedGwId}</span>}>
                     <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
                   </Suspense>
                 )}
               </div>
 
-              <div className="w-px h-5 bg-slate-300/60 dark:bg-white/10 shrink-0" />
+              <div className="w-px h-5 bg-slate-300/60 dark:bg-white/10 shrink-0 mx-2" />
 
-              {/* Segment 3: Refresh Button (Right segment) */}
-              <div className="px-2 flex items-center justify-center shrink-0">
+              <div className="flex items-center justify-center shrink-0">
                 <RefreshButton />
               </div>
             </div>
@@ -431,14 +406,6 @@ export default async function DashboardPage({
               <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
               {selectedGw ? (selectedGw.name || `Gameweek ${selectedGw.id}`) : 'Season inactive'}
             </div>
-
-            {activeLeague && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
-                <span>🏆</span>
-                <span>{activeLeague.name}</span>
-                <span className="text-[10px] opacity-70">({activeLeague.member_count} {activeLeague.member_count === 1 ? 'manager' : 'managers'})</span>
-              </div>
-            )}
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 md:gap-12 items-end mt-1 sm:mt-2">
@@ -450,7 +417,7 @@ export default async function DashboardPage({
             </div>
             <div className="flex flex-col items-center pb-0.5 sm:pb-1 md:pb-2">
               <span className="text-slate-500 dark:text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase mb-0.5 sm:mb-1">
-                {activeLeague ? `${activeLeague.name} Rank` : 'Global Rank'}
+                Rank
               </span>
               <span className="font-heading text-3xl sm:text-4xl md:text-5xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">
                 #{userRank > 0 ? <AnimatedNumber value={userRank} /> : '-'}
@@ -506,7 +473,7 @@ export default async function DashboardPage({
           initialPicks={userPicks || []} 
           initialTeamPick={userTeamPick}
           initialScorePicks={userScorePicks || []}
-          leaderboard={scopedScores || []}
+          leaderboard={groupScores || []}
           allUserTeamPicks={allUserTeamPicks || []}
           allUserFantasticPicks={allUserFantasticPicks || []}
           fplFixtures={fplFixtures}
@@ -515,7 +482,6 @@ export default async function DashboardPage({
           isNewRound={isNewRound}
           actualCurrentGwId={currentGwId}
           currentUserId={user?.id}
-          activeLeague={activeLeague}
         />
       </main>
     </div>

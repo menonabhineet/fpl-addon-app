@@ -2,15 +2,21 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { submitScorePrediction, clearAllScorePredictions, removeIndividualScorePrediction } from '@/lib/actions/score-predictions'
 
 const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentGw, initialScorePicks }: any) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [currentScorePicks, setCurrentScorePicks] = useState<any[]>(initialScorePicks || [])
   const [showClearModal, setShowClearModal] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Sync state when props change
   useEffect(() => {
@@ -112,7 +118,7 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {selectedFixtures.map((match: any) => {
+          {selectedFixtures.map((match: any, index: number) => {
             const pick = currentScorePicks.find((p: any) => p.fixture_id === match.id)
             return (
               <FixtureCard 
@@ -120,6 +126,8 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
                 match={match} 
                 existingPick={pick} 
                 isLocked={isLocked}
+                fixtureIndex={index}
+                totalFixtures={selectedFixtures.length}
                 onPickSaved={handlePickSaved}
                 onPickRemoved={handlePickRemoved}
               />
@@ -129,9 +137,15 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
       )}
 
       {/* Clear All Confirmation Modal */}
-      {showClearModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="glass max-w-md w-full p-6 rounded-3xl border border-white/10 bg-neutral-950/90 shadow-2xl space-y-6">
+      {showClearModal && mounted && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setShowClearModal(false)}
+        >
+          <div 
+            className="glass max-w-md w-full p-6 sm:p-8 rounded-3xl border border-white/10 bg-neutral-950/95 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 text-rose-500">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -150,7 +164,7 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
                 type="button"
                 onClick={() => setShowClearModal(false)}
                 disabled={isClearing}
-                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
               >
                 Cancel
               </button>
@@ -158,7 +172,7 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
                 type="button"
                 onClick={handleClearAll}
                 disabled={isClearing}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-rose-600 hover:bg-rose-500 active:scale-95 shadow-lg shadow-rose-600/30 transition-all disabled:opacity-50 cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-white bg-rose-600 hover:bg-rose-500 active:scale-95 shadow-lg shadow-rose-600/30 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isClearing ? (
                   <>
@@ -171,7 +185,8 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -183,12 +198,16 @@ function FixtureCard({
   match, 
   existingPick, 
   isLocked,
+  fixtureIndex = 0,
+  totalFixtures = 0,
   onPickSaved,
   onPickRemoved 
 }: { 
   match: any, 
   existingPick?: any, 
   isLocked?: boolean,
+  fixtureIndex?: number,
+  totalFixtures?: number,
   onPickSaved?: (fixtureId: number, home: number, away: number) => void,
   onPickRemoved?: (fixtureId: number) => void 
 }) {
@@ -198,6 +217,9 @@ function FixtureCard({
   const [state, setState] = useState({ success: false, message: '', error: '' })
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const homeInputRef = useRef<HTMLInputElement>(null)
+  const awayInputRef = useRef<HTMLInputElement>(null)
 
   const [currentHomeScore, setCurrentHomeScore] = useState<string | number>(existingPick?.predicted_home_score ?? '')
   const [currentAwayScore, setCurrentAwayScore] = useState<string | number>(existingPick?.predicted_away_score ?? '')
@@ -211,30 +233,30 @@ function FixtureCard({
   const totalGoals = (Number(currentHomeScore) || 0) + (Number(currentAwayScore) || 0)
   const isGoalFest = currentHomeScore !== '' && currentAwayScore !== '' && totalGoals >= 5
 
-  const handleScoreChange = (e: React.ChangeEvent<HTMLFormElement>) => {
-    const form = e.currentTarget
-    const formData = new FormData(form)
-    const homeScore = formData.get('homeScore') as string
-    const awayScore = formData.get('awayScore') as string
+  const triggerAutoSave = (homeScore: string | number, awayScore: string | number) => {
+    const homeStr = String(homeScore).trim()
+    const awayStr = String(awayScore).trim()
 
-    setCurrentHomeScore(homeScore)
-    setCurrentAwayScore(awayScore)
-
-    if (homeScore !== '' && awayScore !== '') {
+    if (homeStr !== '' && awayStr !== '') {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       
       debounceRef.current = setTimeout(() => {
         startTransition(async () => {
+          const formData = new FormData()
+          formData.append('fixtureId', String(match.id))
+          formData.append('homeScore', homeStr)
+          formData.append('awayScore', awayStr)
+
           const result = await submitScorePrediction(formData)
           const homeName = match.home_team?.short_name || match.home_team?.name || 'Home'
           const awayName = match.away_team?.short_name || match.away_team?.name || 'Away'
 
           if (result.success) {
-            setState({ success: true, message: `${homeScore}-${awayScore} saved!`, error: '' })
+            setState({ success: true, message: `${homeStr}-${awayStr} saved!`, error: '' })
             if (onPickSaved) {
-              onPickSaved(match.id, Number(homeScore), Number(awayScore))
+              onPickSaved(match.id, Number(homeStr), Number(awayStr))
             }
-            toast.success(`Score prediction saved: ${homeName} ${homeScore} - ${awayScore} ${awayName}`)
+            toast.success(`Score prediction saved: ${homeName} ${homeStr} - ${awayStr} ${awayName}`)
             if (timeoutRef.current) clearTimeout(timeoutRef.current)
             timeoutRef.current = setTimeout(() => {
               setState(prev => ({ ...prev, success: false, message: '' }))
@@ -244,8 +266,68 @@ function FixtureCard({
             toast.error(result.error || `Failed to save prediction for ${homeName} vs ${awayName}`)
           }
         })
-      }, 750)
+      }, 600)
     }
+  }
+
+  const handleHomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setCurrentHomeScore(val)
+    triggerAutoSave(val, currentAwayScore)
+
+    // Auto-advance cursor to away input when home score is typed
+    if (val !== '') {
+      awayInputRef.current?.focus()
+      awayInputRef.current?.select()
+    }
+  }
+
+  const handleAwayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setCurrentAwayScore(val)
+    triggerAutoSave(currentHomeScore, val)
+
+    // Auto-advance cursor to the next fixture card's home input when away score is typed
+    if (val !== '' && fixtureIndex + 1 < totalFixtures) {
+      const nextHomeInput = document.querySelector(`[data-fixture-input="home-${fixtureIndex + 1}"]`) as HTMLInputElement
+      if (nextHomeInput) {
+        nextHomeInput.focus()
+        nextHomeInput.select()
+      }
+    }
+  }
+
+  const handleHomeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && currentHomeScore === '' && fixtureIndex > 0) {
+      const prevAwayInput = document.querySelector(`[data-fixture-input="away-${fixtureIndex - 1}"]`) as HTMLInputElement
+      if (prevAwayInput) {
+        prevAwayInput.focus()
+        prevAwayInput.select()
+      }
+    }
+  }
+
+  const handleAwayKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && currentAwayScore === '') {
+      homeInputRef.current?.focus()
+      homeInputRef.current?.select()
+    }
+  }
+
+  const handleHomeStep = (delta: number) => {
+    if (isLocked || match.is_finished) return
+    const current = currentHomeScore === '' ? 0 : Number(currentHomeScore)
+    const next = Math.max(0, Math.min(20, current + delta))
+    setCurrentHomeScore(String(next))
+    triggerAutoSave(next, currentAwayScore)
+  }
+
+  const handleAwayStep = (delta: number) => {
+    if (isLocked || match.is_finished) return
+    const current = currentAwayScore === '' ? 0 : Number(currentAwayScore)
+    const next = Math.max(0, Math.min(20, current + delta))
+    setCurrentAwayScore(String(next))
+    triggerAutoSave(currentHomeScore, next)
   }
 
   const handleRemoveIndividual = async () => {
@@ -315,9 +397,7 @@ function FixtureCard({
         </div>
       </div>
 
-      <form onChange={handleScoreChange} className="p-6 space-y-6 flex-1 flex flex-col justify-between relative z-10">
-        <input type="hidden" name="fixtureId" value={match.id} />
-        
+      <div className="p-6 space-y-6 flex-1 flex flex-col justify-between relative z-10">
         <div className="flex items-center justify-between gap-2">
           {/* Home Team */}
           <div className="flex items-center gap-3 w-5/12">
@@ -330,28 +410,81 @@ function FixtureCard({
             <span className="font-heading text-xl sm:text-2xl text-slate-900 dark:text-white uppercase truncate">{match.home_team.short_name}</span>
           </div>
 
-          <div className="flex items-center gap-2 w-2/12 justify-center relative">
-            <input 
-              type="number" 
-              name="homeScore" 
-              min="0" 
-              required 
-              disabled={match.is_finished || isLocked}
-              value={currentHomeScore}
-              onChange={(e) => setCurrentHomeScore(e.target.value)}
-              className="w-12 h-12 bg-white/50 dark:bg-black/20 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-xl text-center font-heading text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all disabled:opacity-60 shadow-inner"
-            />
-            <span className="text-slate-400 font-bold">-</span>
-            <input 
-              type="number" 
-              name="awayScore" 
-              min="0" 
-              required 
-              disabled={match.is_finished || isLocked}
-              value={currentAwayScore}
-              onChange={(e) => setCurrentAwayScore(e.target.value)}
-              className="w-12 h-12 bg-white/50 dark:bg-black/20 backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-xl text-center font-heading text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all disabled:opacity-60 shadow-inner"
-            />
+          {/* Stepper Scores Area */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 justify-center relative shrink-0">
+            {/* Home Stepper */}
+            <div className="flex flex-col items-center">
+              <button
+                type="button"
+                disabled={match.is_finished || isLocked || Number(currentHomeScore) >= 20}
+                onClick={() => handleHomeStep(1)}
+                className="w-10 sm:w-12 h-5 rounded-t-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-t border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
+                title="Increase home score"
+              >
+                ▲
+              </button>
+              <input 
+                ref={homeInputRef}
+                data-fixture-input={`home-${fixtureIndex}`}
+                type="text" 
+                inputMode="numeric"
+                pattern="[0-9]*"
+                name="homeScore" 
+                disabled={match.is_finished || isLocked}
+                value={currentHomeScore}
+                onChange={handleHomeChange}
+                onKeyDown={handleHomeKeyDown}
+                onFocus={(e) => e.target.select()}
+                className="w-10 sm:w-12 h-10 sm:h-11 bg-white/70 dark:bg-black/30 backdrop-blur-md border-x border-slate-200/80 dark:border-white/10 text-center font-heading text-xl sm:text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-60 shadow-inner"
+              />
+              <button
+                type="button"
+                disabled={match.is_finished || isLocked || Number(currentHomeScore) <= 0 || currentHomeScore === ''}
+                onClick={() => handleHomeStep(-1)}
+                className="w-10 sm:w-12 h-5 rounded-b-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-b border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
+                title="Decrease home score"
+              >
+                ▼
+              </button>
+            </div>
+
+            <span className="text-slate-400 font-bold text-lg">-</span>
+
+            {/* Away Stepper */}
+            <div className="flex flex-col items-center">
+              <button
+                type="button"
+                disabled={match.is_finished || isLocked || Number(currentAwayScore) >= 20}
+                onClick={() => handleAwayStep(1)}
+                className="w-10 sm:w-12 h-5 rounded-t-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-t border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
+                title="Increase away score"
+              >
+                ▲
+              </button>
+              <input 
+                ref={awayInputRef}
+                data-fixture-input={`away-${fixtureIndex}`}
+                type="text" 
+                inputMode="numeric"
+                pattern="[0-9]*"
+                name="awayScore" 
+                disabled={match.is_finished || isLocked}
+                value={currentAwayScore}
+                onChange={handleAwayChange}
+                onKeyDown={handleAwayKeyDown}
+                onFocus={(e) => e.target.select()}
+                className="w-10 sm:w-12 h-10 sm:h-11 bg-white/70 dark:bg-black/30 backdrop-blur-md border-x border-slate-200/80 dark:border-white/10 text-center font-heading text-xl sm:text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-60 shadow-inner"
+              />
+              <button
+                type="button"
+                disabled={match.is_finished || isLocked || Number(currentAwayScore) <= 0 || currentAwayScore === ''}
+                onClick={() => handleAwayStep(-1)}
+                className="w-10 sm:w-12 h-5 rounded-b-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-b border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
+                title="Decrease away score"
+              >
+                ▼
+              </button>
+            </div>
           </div>
 
           {/* Away Team */}
@@ -385,7 +518,7 @@ function FixtureCard({
             </span>
           )}
         </div>
-      </form>
+      </div>
     </div>
   )
 }

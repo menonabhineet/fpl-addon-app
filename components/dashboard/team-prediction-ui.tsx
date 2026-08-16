@@ -131,7 +131,8 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
         If your team wins, you survive and earn <strong className="text-indigo-500 font-bold text-lg">1 pt</strong>. 
         If they draw, lose, or you miss the deadline, you are eliminated! You can only use each team <strong>ONCE</strong> per round.
         <div className="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
-          🚫 <strong>Banned Picks:</strong> Teams in 1st–3rd place, and non-bottom-3 clubs facing bottom-3 opponents (18th–20th) are off the board. (Gameweek 1 is exempt).
+          🚫 <strong>Banned Picks:</strong> Teams in 1st–3rd place, and non-bottom-3 clubs facing bottom-3 opponents (18th–20th) are off the board. (Gameweek 1 is exempt). 
+          <span className="inline-block ml-2 text-emerald-600 dark:text-emerald-400 font-bold">H = Home</span>, <span className="inline-block text-sky-500 dark:text-sky-400 font-bold">A = Away</span>.
         </div>
       </div>
       
@@ -221,7 +222,7 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
         )}
 
         {/* 3D Grid of Teams */}
-        <div className={`grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-8 relative z-10 transition-opacity ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3.5 sm:gap-4 mb-8 relative z-10 transition-opacity ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
           {teams.map((team: any) => {
             const pickCount = getTeamPickCount(team.id);
             const isUsed = pickCount > 0;
@@ -290,27 +291,61 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
                 onClick={() => {
                   if (!isDisabled) handleSelectTeam(team.id)
                 }}
-                className={`relative rounded-2xl border-2 p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 overflow-hidden ${
+                className={`relative rounded-2xl border-2 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 transition-all duration-300 overflow-hidden ${
                   isDisabled ? 'opacity-40 cursor-not-allowed bg-black/5 dark:bg-white/5 grayscale border-transparent' : 'cursor-pointer'
                 } ${
                   selectedTeamId === team.id && !isDisabled
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 shadow-[0_0_20px_rgba(99,102,241,0.2)] scale-[1.05] z-10' 
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 shadow-[0_0_20px_rgba(99,102,241,0.2)] scale-[1.04] z-10' 
                     : !isDisabled ? 'border-white/10 hover:border-indigo-500/30 bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02]' : ''
                 }`}
               >
                 {selectedTeamId === team.id && !isDisabled && <div className="absolute inset-0 bg-indigo-500/10 blur-xl pointer-events-none" />}
                 
+                {/* Rule badge if disabled (Top Right Corner) */}
+                {isDisabled && badgeLabel && (
+                  <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider ${badgeColor} bg-black/60 dark:bg-black/80 backdrop-blur-xs border border-white/10 z-20`}>
+                    {badgeLabel}
+                  </span>
+                )}
+
+                {/* Team Crest */}
                 <img 
                   src={`https://resources.premierleague.com/premierleague/badges/t${team.code}.png`} 
                   alt={team.name}
-                  className="w-14 h-14 object-contain drop-shadow-md relative z-10"
+                  className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-md relative z-10"
                   onError={(e) => { (e.target as HTMLImageElement).src = 'https://resources.premierleague.com/premierleague/badges/t1.png' }}
                 />
-                <div className="flex flex-col items-center relative z-10 text-center">
-                  <span className="font-heading text-xl uppercase tracking-wide text-slate-900 dark:text-white">{team.short_name}</span>
-                  {isDisabled && badgeLabel && (
-                    <span className={`text-[10px] ${badgeColor} font-bold uppercase tracking-widest mt-1`}>
-                      {badgeLabel}
+
+                {/* Team Short Name + Opponent Fixture Subtext */}
+                <div className="flex flex-col items-center relative z-10 text-center gap-0.5 w-full">
+                  <span className="font-heading text-lg sm:text-xl uppercase tracking-wide text-slate-900 dark:text-white leading-none">
+                    {team.short_name}
+                  </span>
+
+                  {/* Opponent Subtext (e.g. H v COV or A v BHA) */}
+                  {teamFixtures.length > 0 ? (
+                    <div className="flex flex-col items-center gap-0.5 w-full mt-0.5">
+                      {teamFixtures.map((f: any, idx: number) => {
+                        const isHome = getFixtureTeamId(f.home_team) === team.id;
+                        const oppObj = isHome ? getFixtureTeamObj(f.away_team) : getFixtureTeamObj(f.home_team);
+                        if (!oppObj) return null;
+
+                        return (
+                          <div key={f.id || idx} className="flex items-center justify-center gap-1 text-[11px] sm:text-xs font-semibold tracking-tight">
+                            <span className={`font-black text-[11px] sm:text-xs ${isHome ? 'text-emerald-500 dark:text-emerald-400' : 'text-sky-500 dark:text-sky-400'}`}>
+                              {isHome ? 'H' : 'A'}
+                            </span>
+                            <span className="text-slate-400 dark:text-slate-500 text-[10px] lowercase font-medium">v</span>
+                            <span className="text-slate-700 dark:text-slate-300 font-bold text-[11px] sm:text-xs uppercase">
+                              {oppObj.short_name || 'UNK'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
+                      Blank GW
                     </span>
                   )}
                 </div>
