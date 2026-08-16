@@ -1,11 +1,91 @@
 // components/dashboard/score-predictions-ui.tsx
 'use client'
 
-import { useState, useTransition, useRef, useEffect, memo } from 'react'
+import { useState, useTransition, useRef, useEffect, useMemo, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { submitScorePrediction, clearAllScorePredictions, removeIndividualScorePrediction } from '@/lib/actions/score-predictions'
+
+// Famous derbies lookup helper for Premier League matches
+export function getFamousDerby(homeTeam: any, awayTeam: any): string | null {
+  const hRaw = (Array.isArray(homeTeam) ? homeTeam[0] : homeTeam) || {}
+  const aRaw = (Array.isArray(awayTeam) ? awayTeam[0] : awayTeam) || {}
+
+  const hShort = String(hRaw.short_name || '').toUpperCase().trim()
+  const aShort = String(aRaw.short_name || '').toUpperCase().trim()
+  const hName = String(hRaw.name || '').toUpperCase().trim()
+  const aName = String(aRaw.name || '').toUpperCase().trim()
+
+  const matchTeams = (t1: string, t2: string) => {
+    return (hShort === t1 && aShort === t2) || (hShort === t2 && aShort === t1) ||
+           (hName.includes(t1) && aName.includes(t2)) || (hName.includes(t2) && aName.includes(t1))
+  }
+
+  // 1. North London Derby: Arsenal vs Tottenham
+  if (matchTeams('ARS', 'TOT') || matchTeams('ARSENAL', 'TOTTENHAM')) {
+    return 'NORTH LONDON DERBY 🔴⚪'
+  }
+
+  // 2. Northwest Derby: Liverpool vs Manchester United
+  if (matchTeams('LIV', 'MUN') || matchTeams('LIVERPOOL', 'MANCHESTER UNITED') || matchTeams('LIVERPOOL', 'MAN UTD')) {
+    return 'NORTHWEST DERBY ⚔️'
+  }
+
+  // 3. Manchester Derby: Manchester City vs Manchester United
+  if (matchTeams('MCI', 'MUN') || matchTeams('MANCHESTER CITY', 'MANCHESTER UNITED') || matchTeams('MAN CITY', 'MAN UTD')) {
+    return 'MANCHESTER DERBY 🏙️'
+  }
+
+  // 4. Merseyside Derby: Liverpool vs Everton
+  if (matchTeams('LIV', 'EVE') || matchTeams('LIVERPOOL', 'EVERTON')) {
+    return 'MERSEYSIDE DERBY 🔵🔴'
+  }
+
+  // 5. West London Derby: Chelsea, Fulham, Brentford pairings
+  if (
+    matchTeams('CHE', 'FUL') || matchTeams('CHELSEA', 'FULHAM') ||
+    matchTeams('CHE', 'BRE') || matchTeams('CHELSEA', 'BRENTFORD') ||
+    matchTeams('FUL', 'BRE') || matchTeams('FULHAM', 'BRENTFORD')
+  ) {
+    return 'WEST LONDON DERBY 👑'
+  }
+
+  // 6. M23 Derby: Brighton vs Crystal Palace
+  if (matchTeams('BHA', 'CRY') || matchTeams('BRIGHTON', 'CRYSTAL PALACE')) {
+    return 'M23 DERBY 🦅🕊️'
+  }
+
+  // 7. Tyne-Wear Derby: Newcastle vs Sunderland
+  if (matchTeams('NEW', 'SUN') || matchTeams('NEWCASTLE', 'SUNDERLAND')) {
+    return 'TYNE-WEAR DERBY ⚡'
+  }
+
+  // 8. East Midlands Derby: Nottingham Forest vs Leicester City
+  if (matchTeams('NFO', 'LEI') || matchTeams('NOTTINGHAM FOREST', 'LEICESTER') || matchTeams('NOTTINGHAM', 'LEICESTER')) {
+    return 'EAST MIDLANDS DERBY 🌳'
+  }
+
+  // 9. Midlands Derby: Aston Villa vs Wolves
+  if (matchTeams('AVL', 'WOL') || matchTeams('ASTON VILLA', 'WOLVES') || matchTeams('ASTON VILLA', 'WOLVERHAMPTON')) {
+    return 'MIDLANDS DERBY 🦁'
+  }
+
+  // 10. South Coast Derby: Southampton vs Bournemouth / Brighton
+  if (
+    matchTeams('SOU', 'BOU') || matchTeams('SOUTHAMPTON', 'BOURNEMOUTH') ||
+    matchTeams('SOU', 'BHA') || matchTeams('SOUTHAMPTON', 'BRIGHTON')
+  ) {
+    return 'SOUTH COAST DERBY 🌊'
+  }
+
+  // 11. Roses Rivalry: Leeds vs Manchester United
+  if (matchTeams('LEE', 'MUN') || matchTeams('LEEDS', 'MANCHESTER UNITED') || matchTeams('LEEDS', 'MAN UTD')) {
+    return 'ROSES RIVALRY 🌹'
+  }
+
+  return null
+}
 
 const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentGw, initialScorePicks }: any) {
   const router = useRouter()
@@ -230,8 +310,27 @@ function FixtureCard({
     setCurrentAwayScore(existingPick?.predicted_away_score ?? '')
   }, [existingPick?.predicted_home_score, existingPick?.predicted_away_score])
 
+  const homeNum = Number(currentHomeScore)
+  const awayNum = Number(currentAwayScore)
+  const hasBothScores = currentHomeScore !== '' && currentAwayScore !== '' && !isNaN(homeNum) && !isNaN(awayNum)
+
   const totalGoals = (Number(currentHomeScore) || 0) + (Number(currentAwayScore) || 0)
-  const isGoalFest = currentHomeScore !== '' && currentAwayScore !== '' && totalGoals >= 5
+  const goalDiff = Math.abs(homeNum - awayNum)
+
+  const is00 = hasBothScores && homeNum === 0 && awayNum === 0
+  const isMassacre = hasBothScores && goalDiff >= 4
+  const isGoalFest = hasBothScores && totalGoals >= 5 && !isMassacre
+
+  // Zero-zero randomized tag: randomly select between "PARK THE BUS" and "BORE DRAW"
+  const [zeroZeroTag, setZeroZeroTag] = useState(() => Math.random() < 0.5 ? 'PARK THE BUS' : 'BORE DRAW')
+
+  useEffect(() => {
+    if (is00) {
+      setZeroZeroTag(Math.random() < 0.5 ? 'PARK THE BUS' : 'BORE DRAW')
+    }
+  }, [is00, currentHomeScore, currentAwayScore])
+
+  const famousDerby = useMemo(() => getFamousDerby(match.home_team, match.away_team), [match.home_team, match.away_team])
 
   const triggerAutoSave = (homeScore: string | number, awayScore: string | number) => {
     const homeStr = String(homeScore).trim()
@@ -368,11 +467,29 @@ function FixtureCard({
     <div className={`relative glass rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 group hover:scale-[1.01] hover:border-white/20 hover:shadow-[0_0_25px_rgba(255,255,255,0.05)] ${hasPick ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : ''}`}>
       {hasPick && <div className="absolute inset-0 bg-emerald-500/5 blur-xl pointer-events-none" />}
       
-      <div className="bg-black/5 dark:bg-black/20 px-6 py-3 border-b border-slate-200/50 dark:border-white/5 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 font-bold tracking-widest uppercase relative z-10">
-        <span>{formattedTime}</span>
-        <div className="flex gap-2 items-center">
+      <div className="bg-black/5 dark:bg-black/20 px-4 sm:px-6 py-3 border-b border-slate-200/50 dark:border-white/5 flex flex-wrap justify-between items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-bold tracking-widest uppercase relative z-10">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span>{formattedTime}</span>
+          {famousDerby && (
+            <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-[9px] sm:text-[10px] text-purple-600 dark:text-purple-400 font-black shadow-[0_0_10px_rgba(168,85,247,0.2)] animate-in zoom-in duration-300">
+              {famousDerby}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          {is00 && (
+            <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-indigo-500/40 bg-indigo-500/10 text-[9px] sm:text-[10px] text-indigo-600 dark:text-indigo-400 font-black shadow-[0_0_10px_rgba(99,102,241,0.2)] animate-in zoom-in duration-300">
+              {zeroZeroTag === 'PARK THE BUS' ? '🚌 PARK THE BUS' : '🥱 BORE DRAW'}
+            </span>
+          )}
+          {isMassacre && (
+            <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-rose-500/40 bg-rose-500/10 text-[9px] sm:text-[10px] text-rose-600 dark:text-rose-400 font-black shadow-[0_0_10px_rgba(244,63,94,0.2)] animate-in zoom-in duration-300">
+              <svg className="w-3 h-3 fill-rose-500 drop-shadow-sm" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.527.82-1.17 2.05-1.923 3.49C7.26 8.35 6 10.97 6 13a6 6 0 1012 0c0-1.74-.83-3.69-1.99-5.59-.75-1.23-1.63-2.35-2.45-3.32-.42-.5-.83-.98-1.165-1.537z" clipRule="evenodd" /></svg>
+              MASSACRE
+            </span>
+          )}
           {isGoalFest && (
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)] animate-in zoom-in duration-300">
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 font-black shadow-[0_0_10px_rgba(245,158,11,0.2)] animate-in zoom-in duration-300">
               <svg className="w-3 h-3 fill-amber-500 drop-shadow-sm" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" /></svg>
               THRILLER
             </span>

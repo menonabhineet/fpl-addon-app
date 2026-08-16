@@ -82,7 +82,7 @@ export default async function DashboardPage({
     supabase.from('score_predictions').select('*').eq('user_id', user.id),
     supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
-    supabase.from('vw_user_scores_with_profiles').select('*').eq('gameweek_id', selectedGwId).order('total_points', { ascending: false }),
+    supabase.from('vw_user_scores_with_profiles').select('*').order('total_points', { ascending: false }),
     adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url'),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
     getCachedFixtures().catch((err: any) => { console.error('Failed to get fixtures:', err); return []; })
