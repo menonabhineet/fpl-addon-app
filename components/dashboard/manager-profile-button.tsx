@@ -2,11 +2,16 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import { updateNickname } from '@/lib/actions/profile'
 
 interface ManagerProfileButtonProps {
   userDisplayName: string
   userEmail?: string
+  currentNickname?: string
+  userFullName?: string
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -20,13 +25,31 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
-export default function ManagerProfileButton({ userDisplayName, userEmail }: ManagerProfileButtonProps) {
+export default function ManagerProfileButton({ 
+  userDisplayName, 
+  userEmail,
+  currentNickname = '',
+  userFullName = ''
+}: ManagerProfileButtonProps) {
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [activeDeviceTab, setActiveDeviceTab] = useState<'ios' | 'android'>('ios')
   const [isSupported, setIsSupported] = useState(true)
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [nicknameInput, setNicknameInput] = useState(currentNickname)
+  const [isSavingNickname, startNicknameTransition] = useTransition()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Keep nicknameInput synced when props change
+  useEffect(() => {
+    setNicknameInput(currentNickname)
+  }, [currentNickname])
 
   // Detect iOS vs Android user agent on mount
   useEffect(() => {
@@ -151,6 +174,19 @@ export default function ManagerProfileButton({ userDisplayName, userEmail }: Man
     })
   }
 
+  const handleSaveNickname = (e: React.FormEvent) => {
+    e.preventDefault()
+    startNicknameTransition(async () => {
+      const res = await updateNickname(nicknameInput)
+      if (res.success) {
+        toast.success('Nickname updated successfully! 🏷️')
+        router.refresh()
+      } else {
+        toast.error(res.error || 'Failed to update nickname.')
+      }
+    })
+  }
+
   return (
     <>
       {/* Exact Native Look on Dashboard Header */}
@@ -165,15 +201,21 @@ export default function ManagerProfileButton({ userDisplayName, userEmail }: Man
           title="Click to manage notifications & app setup"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          <span className="truncate max-w-[65px] sm:max-w-[120px]">{userDisplayName}</span>
+          <span className="truncate max-w-[130px] sm:max-w-[180px]">{userDisplayName}</span>
           <span className="text-[9px] sm:text-[10px] text-emerald-500/80 group-hover:text-emerald-400 transition-transform group-hover:rotate-45">⚙️</span>
         </button>
       </div>
 
       {/* Sleek Manager & Notifications Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative glass max-w-lg w-full p-6 sm:p-8 rounded-3xl border border-slate-700/80 dark:border-white/15 bg-neutral-950/95 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {isOpen && mounted && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setIsOpen(false)}
+        >
+          <div 
+            className="relative glass max-w-lg w-full p-6 sm:p-8 rounded-3xl border border-slate-700/80 dark:border-white/15 bg-neutral-950/95 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
@@ -200,6 +242,50 @@ export default function ManagerProfileButton({ userDisplayName, userEmail }: Man
               >
                 ✕
               </button>
+            </div>
+
+            {/* Manager Nickname Editor */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/5 dark:bg-black/30 border border-slate-200/20 dark:border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🏷️</span>
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                    Manager Nickname
+                  </h4>
+                </div>
+                {userFullName && (
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Google: {userFullName}
+                  </span>
+                )}
+              </div>
+              
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Set a custom nickname to display on the leaderboard and picks table.
+              </p>
+
+              <form onSubmit={handleSaveNickname} className="flex gap-2">
+                <input
+                  type="text"
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameInput(e.target.value)}
+                  placeholder={userFullName || 'Enter a nickname...'}
+                  maxLength={30}
+                  disabled={isSavingNickname}
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-800/80 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={isSavingNickname || nicknameInput.trim() === (currentNickname || '')}
+                  className="py-2 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-950 bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-emerald-500/20 cursor-pointer shrink-0 flex items-center justify-center min-w-[70px]"
+                >
+                  {isSavingNickname ? (
+                    <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+              </form>
             </div>
 
             {/* Notification Management Section */}
@@ -336,8 +422,21 @@ export default function ManagerProfileButton({ userDisplayName, userEmail }: Man
               )}
             </div>
 
-            {/* Footer Close */}
-            <div className="flex justify-end pt-1">
+            {/* Footer Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={async () => {
+                  const { createClient } = await import('@/lib/supabase/client')
+                  const supabase = createClient()
+                  await supabase.auth.signOut()
+                  window.location.href = '/'
+                }}
+                className="py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>🚪</span> Log Out
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -348,7 +447,8 @@ export default function ManagerProfileButton({ userDisplayName, userEmail }: Man
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

@@ -31,20 +31,19 @@ export default function GameweekSelector({ allGameweeks, selectedGwId }: { allGa
   const selectedGw = allGameweeks.find(gw => gw.id === selectedGwId)
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative flex items-center justify-center w-full" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 sm:gap-2 bg-transparent text-slate-900 dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs outline-none cursor-pointer whitespace-nowrap shrink-0"
+        className="flex items-center justify-center gap-1.5 sm:gap-2 bg-transparent text-slate-900 dark:text-white font-bold uppercase tracking-widest text-[10px] sm:text-xs outline-none cursor-pointer whitespace-nowrap shrink-0 w-full"
       >
         <span>
-          <span className="sm:hidden">{selectedGw ? `GW ${selectedGw.id}` : 'GW'}</span>
-          <span className="hidden sm:inline">{selectedGw ? `Gameweek ${selectedGw.id}` : 'Select GW'}</span>
+          {selectedGw ? `Gameweek ${selectedGw.id}` : 'Gameweek'}
         </span>
         <span className="text-slate-500 text-[9px] sm:text-[10px]">{isOpen ? '▲' : '▼'}</span>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-3 left-0 sm:-left-4 w-40 bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-[999]">
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-44 bg-white dark:bg-[#0f0f0f] border border-slate-200 dark:border-white/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden z-[999] animate-in fade-in zoom-in-95 duration-150">
           <div className="max-h-64 overflow-y-auto custom-scrollbar py-2">
             {allGameweeks.map((gw) => (
               <button

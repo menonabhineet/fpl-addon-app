@@ -41,11 +41,11 @@ export default function RefreshButton() {
   }
 
   return (
-    <div className="relative group">
+    <div className="relative group flex items-center justify-center">
       <button
         onClick={handleRefresh}
         disabled={isLoading}
-        className={`flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 rounded-full transition-all duration-300 shadow-sm
+        className={`flex items-center justify-center h-8 w-8 sm:h-9 sm:w-auto sm:px-3.5 rounded-xl sm:rounded-full transition-all duration-300 shadow-xs cursor-pointer
           ${isLoading 
             ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-wait' 
             : 'bg-white/40 dark:bg-black/20 backdrop-blur-md border border-slate-200/50 dark:border-white/5 hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-emerald-900/20 dark:hover:border-emerald-500/30 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400'

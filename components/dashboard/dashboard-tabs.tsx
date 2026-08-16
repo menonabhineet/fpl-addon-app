@@ -17,7 +17,7 @@ const BOTTOM_NAV_ITEMS = [
   { id: 'fantastic', label: 'Fantastic 4', icon: '⚡' },
 ] as const
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId, currentUserId }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId, currentUserId, activeLeague }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -118,7 +118,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
 
         {visitedTabs.has('leaderboard') && (
           <div className={activeTab === 'leaderboard' ? 'block animate-in fade-in duration-200' : 'hidden'}>
-            <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} currentUserId={currentUserId} />
+            <LeaderboardUI allScores={leaderboard} currentGwId={currentGw.id} currentUserId={currentUserId} activeLeague={activeLeague} />
           </div>
         )}
 

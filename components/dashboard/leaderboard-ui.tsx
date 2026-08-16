@@ -2,11 +2,21 @@
 'use client'
 import { useState, useMemo, useEffect, memo } from 'react'
 import ManagerReportCard from './manager-report-card'
+import { LeagueSummary } from '@/lib/actions/leagues'
+import LeagueSettingsDialog from './league-settings-dialog'
 
-const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, currentUserId }: { allScores: any[], currentGwId: number, currentUserId?: string }) {
+interface LeaderboardUIProps {
+  allScores: any[]
+  currentGwId: number
+  currentUserId?: string
+  activeLeague?: LeagueSummary | null
+}
+
+const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, currentUserId, activeLeague }: LeaderboardUIProps) {
   const [filter, setFilter] = useState<'overall' | 'gameweek'>('overall')
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'grand_total', direction: 'desc' })
   const [selectedManager, setSelectedManager] = useState<{ id: string, name: string } | null>(null)
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -42,11 +52,15 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
 
       const userId = record.user_id
       const managerName = record.manager_name || 'Unknown Manager'
+      const fullName = record.full_name || null
+      const nickname = record.nickname || null
 
       if (!userMap.has(userId)) {
         userMap.set(userId, {
           user_id: userId,
           manager_name: managerName,
+          full_name: fullName,
+          nickname: nickname,
           total_score_points: 0,
           total_team_points: 0,
           total_ff_points: 0,
@@ -109,8 +123,20 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 glass rounded-xl p-4 transition-colors">
-        <div className="text-sm text-slate-700 dark:text-slate-300">
-          🏆 <strong>Global Standings:</strong> Track the cumulative season or drill down into Gameweek {currentGwId}.
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+          <span>{activeLeague ? '🏆' : '🌐'}</span>
+          <strong>{activeLeague ? activeLeague.name : 'Global Standings'}:</strong>
+          <span className="text-slate-500 dark:text-slate-400">
+            {activeLeague ? `(${leaderboardData.length} ${leaderboardData.length === 1 ? 'manager' : 'managers'})` : `Track cumulative season or GW ${currentGwId}.`}
+          </span>
+          {activeLeague && (
+            <button
+              onClick={() => setShowSettingsDialog(true)}
+              className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-500 hover:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded-md transition-colors cursor-pointer ml-1"
+            >
+              <span>⚙️</span> Invite & Info
+            </button>
+          )}
         </div>
 
         {/* The Filter Toggle */}
@@ -207,6 +233,12 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
                         </span>
                       )}
                     </div>
+                    {/* Original name shown in small letters underneath custom nickname */}
+                    {row.full_name && row.nickname && row.full_name.trim().toLowerCase() !== row.nickname.trim().toLowerCase() && (
+                      <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+                        {row.full_name}
+                      </span>
+                    )}
                     {filter === 'overall' && row.previous_rank !== undefined && (
                       <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mt-1">
                         {(row.previous_rank - rank) > 0 && <span className="text-emerald-500">▲ Up {row.previous_rank - rank}</span>}
@@ -297,6 +329,19 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
         managerName={selectedManager?.name || ''}
         allScores={allScores} 
       />
+
+      {/* League Settings Dialog */}
+      {activeLeague && (
+        <LeagueSettingsDialog
+          league={activeLeague}
+          currentUserId={currentUserId}
+          isOpen={showSettingsDialog}
+          onClose={() => setShowSettingsDialog(false)}
+          onLeagueUpdated={() => {
+            window.location.reload()
+          }}
+        />
+      )}
     </div>
   )
 })

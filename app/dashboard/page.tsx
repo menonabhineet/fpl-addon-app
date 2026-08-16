@@ -12,6 +12,9 @@ import BonusQuestionClient from '@/components/dashboard/bonus-question-client'
 import RefreshButton from '@/components/dashboard/refresh-button'
 import AutoRefresh from '@/components/dashboard/auto-refresh'
 import ManagerProfileButton from '@/components/dashboard/manager-profile-button'
+import { createAdminClient } from '@/lib/supabase/admin'
+import LeagueSelector from '@/components/dashboard/league-selector'
+import { getUserLeagues } from '@/lib/actions/leagues'
 
 // 1. KILL THE CACHE: This forces Next.js to always fetch live data from database
 export const dynamic = 'force-dynamic' 
@@ -19,7 +22,7 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage({ 
   searchParams 
 }: { 
-  searchParams: Promise<{ gw?: string }> 
+  searchParams: Promise<{ gw?: string; league?: string }> 
 }) {
   const [resolvedParams, supabase] = await Promise.all([
     searchParams,
@@ -27,13 +30,20 @@ export default async function DashboardPage({
   ])
 
   // Batch 1: Authenticate user & fetch gameweeks in parallel
-  const [{ data: authData, error: authError }, { data: allGameweeks }] = await Promise.all([
+  const [{ data: authData, error: authError }, { data: allGameweeks }, userLeaguesRes] = await Promise.all([
     supabase.auth.getUser(),
-    supabase.from('gameweeks').select('*').order('id', { ascending: true })
+    supabase.from('gameweeks').select('*').order('id', { ascending: true }),
+    getUserLeagues()
   ])
 
   const user = authData?.user
   if (authError || !user) redirect('/')
+
+  const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
+
+  // Determine active league
+  const activeLeagueId = resolvedParams.league || null
+  const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
 
   // Determine active and allowed gameweeks
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
@@ -52,6 +62,8 @@ export default async function DashboardPage({
   }
   const selectedGwId = selectedGw?.id || 1
 
+  const adminClient = createAdminClient()
+
   // Batch 2: Execute all independent read queries and cached FPL data concurrently in parallel
   const [
     { data: fixtures },
@@ -65,6 +77,8 @@ export default async function DashboardPage({
     { data: activeRound },
     { data: allUserSurvivorEntries },
     { data: allScores, error: scoresError },
+    { data: allProfiles },
+    activeLeagueMembersData,
     fplDataResult,
     fplFixturesResult
   ] = await Promise.all([
@@ -79,12 +93,52 @@ export default async function DashboardPage({
     supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
     supabase.from('vw_user_scores_with_profiles').select('*'),
+    adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url'),
+    activeLeague ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeague.id) : Promise.resolve({ data: null }),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
     getCachedFixtures().catch((err: any) => { console.error('Failed to get fixtures:', err); return []; })
   ])
 
   if (scoresError) {
     console.error("Failed to fetch leaderboard data:", scoresError)
+  }
+
+  const myProfile = allProfiles?.find((p: any) => p.id === user.id) || null
+
+  // Synthesize complete global leaderboard records including freshly registered users
+  let allGlobalScores: any[] = [...(allScores || [])]
+  if (allProfiles && allProfiles.length > 0) {
+    allProfiles.forEach((prof: any) => {
+      const hasScore = allGlobalScores.some((s: any) => s.user_id === prof.id)
+      if (!hasScore) {
+        const displayName = prof.nickname || prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Manager')
+        allGlobalScores.push({
+          id: `placeholder-${prof.id}`,
+          user_id: prof.id,
+          gameweek_id: selectedGwId,
+          score_points: 0,
+          team_points: 0,
+          fantastic_four_points: 0,
+          penalty_points: 0,
+          total_points: 0,
+          bonus_points: 0,
+          manager_name: displayName,
+          full_name: prof.full_name,
+          nickname: prof.nickname,
+          avatar_url: prof.avatar_url || null
+        })
+      }
+    })
+  }
+
+  // Filter leaderboard scores strictly by active league if a league is selected
+  let scopedScores: any[] = []
+  if (activeLeague) {
+    const memberUserIds: string[] = (activeLeagueMembersData?.data || []).map((m: any) => m.user_id)
+    const memberIdSet = new Set(memberUserIds)
+    scopedScores = allGlobalScores.filter((score: any) => memberIdSet.has(score.user_id))
+  } else {
+    scopedScores = allGlobalScores
   }
 
   // Bonus prediction for selected gameweek
@@ -139,24 +193,28 @@ export default async function DashboardPage({
     }, {})
   }
 
-  // --- NEW: Calculate User Points and Rank for Hero Section ---
+  // --- Calculate User Points and Rank for Hero Section (Scoped to active league or global) ---
   let userGrandTotal = 0;
   let userRank = 0;
-  let userDisplayName = user?.email?.split('@')[0] || 'Manager';
+  let userDisplayName = myProfile?.nickname || myProfile?.full_name || user?.email?.split('@')[0] || 'Manager';
   if (allScores) {
     const userTotals = new Map<string, number>();
-    let foundMyName = false;
+    
+    // First determine overall total
     allScores.forEach(score => {
       const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
       userTotals.set(score.user_id, (userTotals.get(score.user_id) || 0) + effectivePoints);
-      if (!foundMyName && score.user_id === user.id && score.manager_name) {
-         userDisplayName = score.manager_name;
-         foundMyName = true;
-      }
     });
     userGrandTotal = userTotals.get(user.id) || 0;
-    
-    const sortedUsers = Array.from(userTotals.entries()).sort((a, b) => b[1] - a[1]);
+
+    // Determine rank within the scoped league or global
+    const scopedUserTotals = new Map<string, number>();
+    scopedScores.forEach((score: any) => {
+      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
+      scopedUserTotals.set(score.user_id, (scopedUserTotals.get(score.user_id) || 0) + effectivePoints);
+    });
+
+    const sortedUsers = Array.from(scopedUserTotals.entries()).sort((a, b) => b[1] - a[1]);
     const rankIndex = sortedUsers.findIndex(([id]) => id === user.id);
     userRank = rankIndex !== -1 ? rankIndex + 1 : 0;
   }
@@ -220,6 +278,10 @@ export default async function DashboardPage({
     // Find next 3 fixtures from FPL fixtures API data
     const teamNext3Fixtures = fplFixtures
       .filter((f: any) => f.event >= fplNextGwId && (f.team_h === t.id || f.team_a === t.id))
+      .sort((a: any, b: any) => {
+        if (a.event !== b.event) return (a.event || 99) - (b.event || 99)
+        return new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime()
+      })
       .slice(0, 3)
       .map((f: any) => {
         const isHome = f.team_h === t.id
@@ -244,7 +306,7 @@ export default async function DashboardPage({
   })
 
   return (
-    <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-32 sm:pb-36 transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 pb-32 sm:pb-36 transition-colors duration-300 relative">
       <AutoRefresh />
       {/* Immersive Background Glows (Hardware-Accelerated Gradients) */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none gpu-accelerated" style={{ contain: 'strict' }}>
@@ -262,42 +324,116 @@ export default async function DashboardPage({
         />
       </div>
 
-      {/* Floating Sleek Header */}
-      <header className="relative z-50 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-12 py-4 sm:py-6 w-full max-w-7xl mx-auto gap-3 sm:gap-4">
-        <div className="flex items-center gap-3">
-          <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-emerald-500/20 group hover:scale-105 transition-transform">
-            <Image
-              src="/icon.svg"
-              alt="PPL Logo"
-              width={40}
-              height={40}
-              className="h-9 w-9 sm:h-10 sm:w-10 object-contain"
-              priority
-            />
+      {/* Sleek App Navigation Header (Sticky on Mobile & Desktop with Blurred Backdrop) */}
+      <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-background/85 dark:bg-neutral-950/85 border-b border-slate-200/50 dark:border-white/10 transition-colors shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-12 py-2.5 sm:py-4">
+          {/* Desktop Layout (sm and up) */}
+          <div className="hidden sm:flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-emerald-500/20 group hover:scale-105 transition-transform">
+                <Image
+                  src="/icon.svg"
+                  alt="PPL Logo"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain"
+                  priority
+                />
+              </div>
+              <h1 className="text-2xl font-heading uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-md">
+                PPL
+              </h1>
+            </div>
+
+            <div className="flex flex-nowrap items-center gap-2 sm:gap-4 glass px-4 py-2 rounded-full relative">
+              <Suspense fallback={null}>
+                <LeagueSelector userLeagues={userLeagues} activeLeague={activeLeague} currentUserId={user.id} />
+              </Suspense>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
+              {allGameweeks && (
+                <Suspense fallback={<span className="text-xs font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
+                  <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
+                </Suspense>
+              )}
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
+              <RefreshButton />
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
+              <ThemeToggle />
+              
+              <div className="flex items-center gap-3 border-l border-slate-300 dark:border-slate-700 pl-3 ml-0 shrink-0">
+                <ManagerProfileButton 
+                  userDisplayName={userDisplayName} 
+                  userEmail={user.email} 
+                  currentNickname={myProfile?.nickname || ''} 
+                  userFullName={myProfile?.full_name || ''} 
+                />
+                <form action={async () => {
+                  'use server'; const supabase = await createClient(); await supabase.auth.signOut(); redirect('/');
+                }}>
+                  <button className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-500 transition-colors whitespace-nowrap cursor-pointer">Log out</button>
+                </form>
+              </div>
+            </div>
           </div>
-          <h1 className="text-xl sm:text-2xl font-heading uppercase tracking-widest text-slate-900 dark:text-white drop-shadow-md">
-            PPL
-          </h1>
-        </div>
-        
-        <div className="flex flex-nowrap items-center gap-2 sm:gap-4 glass px-3 sm:px-4 py-1.5 sm:py-2 rounded-full relative">
-          {allGameweeks && (
-            <Suspense fallback={<span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
-              <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
-            </Suspense>
-          )}
-          <div className="w-px h-5 sm:h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
-          <RefreshButton />
-          <div className="w-px h-5 sm:h-6 bg-slate-300 dark:bg-slate-700 shrink-0"></div>
-          <ThemeToggle />
-          
-          <div className="flex items-center gap-2 sm:gap-3 border-l border-slate-300 dark:border-slate-700 pl-2 sm:pl-3 ml-0.5 sm:ml-0 shrink-0">
-            <ManagerProfileButton userDisplayName={userDisplayName} userEmail={user.email} />
-            <form action={async () => {
-              'use server'; const supabase = await createClient(); await supabase.auth.signOut(); redirect('/');
-            }}>
-              <button className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-rose-500 transition-colors whitespace-nowrap cursor-pointer">Log out</button>
-            </form>
+
+          {/* Mobile Layout (< sm) */}
+          <div className="flex sm:hidden flex-col gap-2.5 w-full">
+            {/* Top Row: App Brand on Left, Theme & Profile on Right */}
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden shadow-md shadow-emerald-500/20">
+                  <Image
+                    src="/icon.svg"
+                    alt="PPL Logo"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 object-contain"
+                    priority
+                  />
+                </div>
+                <span className="text-lg font-heading uppercase tracking-widest text-slate-900 dark:text-white">
+                  PPL
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <ManagerProfileButton 
+                  userDisplayName={userDisplayName} 
+                  userEmail={user.email} 
+                  currentNickname={myProfile?.nickname || ''} 
+                  userFullName={myProfile?.full_name || ''} 
+                />
+              </div>
+            </div>
+
+            {/* Bottom Row: Full-width 3-segment toolbar utilizing the whole bar */}
+            <div className="flex items-center justify-between bg-slate-900/50 dark:bg-black/40 border border-slate-200/40 dark:border-white/10 rounded-2xl p-1 shadow-xs backdrop-blur-md w-full">
+              {/* Segment 1: League Selector (Left segment) */}
+              <div className="flex-1 min-w-0 flex items-center justify-center px-1">
+                <Suspense fallback={null}>
+                  <LeagueSelector userLeagues={userLeagues} activeLeague={activeLeague} currentUserId={user.id} />
+                </Suspense>
+              </div>
+
+              <div className="w-px h-5 bg-slate-300/60 dark:bg-white/10 shrink-0" />
+
+              {/* Segment 2: Gameweek Selector (Center segment) */}
+              <div className="flex-1 min-w-0 flex items-center justify-center px-1">
+                {allGameweeks && (
+                  <Suspense fallback={<span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">GW {selectedGwId}</span>}>
+                    <GameweekSelector allGameweeks={allowedGameweeks} selectedGwId={selectedGwId} />
+                  </Suspense>
+                )}
+              </div>
+
+              <div className="w-px h-5 bg-slate-300/60 dark:bg-white/10 shrink-0" />
+
+              {/* Segment 3: Refresh Button (Right segment) */}
+              <div className="px-2 flex items-center justify-center shrink-0">
+                <RefreshButton />
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -306,9 +442,19 @@ export default async function DashboardPage({
         
         {/* HERO SECTION */}
         <section className="flex flex-col items-center justify-center text-center mb-4 sm:mb-8 relative">
-          <div className="mb-1 sm:mb-2 inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
-            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
-            {selectedGw ? (selectedGw.name || `Gameweek ${selectedGw.id}`) : 'Season inactive'}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-1 sm:mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
+              {selectedGw ? (selectedGw.name || `Gameweek ${selectedGw.id}`) : 'Season inactive'}
+            </div>
+
+            {activeLeague && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
+                <span>🏆</span>
+                <span>{activeLeague.name}</span>
+                <span className="text-[10px] opacity-70">({activeLeague.member_count} {activeLeague.member_count === 1 ? 'manager' : 'managers'})</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 md:gap-12 items-end mt-1 sm:mt-2">
@@ -319,7 +465,9 @@ export default async function DashboardPage({
               </span>
             </div>
             <div className="flex flex-col items-center pb-0.5 sm:pb-1 md:pb-2">
-              <span className="text-slate-500 dark:text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase mb-0.5 sm:mb-1">Global Rank</span>
+              <span className="text-slate-500 dark:text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase mb-0.5 sm:mb-1">
+                {activeLeague ? `${activeLeague.name} Rank` : 'Global Rank'}
+              </span>
               <span className="font-heading text-3xl sm:text-4xl md:text-5xl text-emerald-600 dark:text-emerald-400 drop-shadow-md leading-none">
                 #{userRank > 0 ? <AnimatedNumber value={userRank} /> : '-'}
               </span>
@@ -374,7 +522,7 @@ export default async function DashboardPage({
           initialPicks={userPicks || []} 
           initialTeamPick={userTeamPick}
           initialScorePicks={userScorePicks || []}
-          leaderboard={allScores || []}
+          leaderboard={scopedScores || []}
           allUserTeamPicks={allUserTeamPicks || []}
           allUserFantasticPicks={allUserFantasticPicks || []}
           fplFixtures={fplFixtures}
@@ -383,6 +531,7 @@ export default async function DashboardPage({
           isNewRound={isNewRound}
           actualCurrentGwId={currentGwId}
           currentUserId={user?.id}
+          activeLeague={activeLeague}
         />
       </main>
     </div>
