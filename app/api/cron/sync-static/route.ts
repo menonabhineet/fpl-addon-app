@@ -5,6 +5,7 @@ export const fetchCache = 'force-no-store'
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchBootstrapStatic } from '@/lib/fpl-api';
+import { autoSelectFixturesAndOpenNextGw } from '@/lib/actions/auto-admin';
 
 export async function GET(request: Request) {
   // 1. Authorization Guard (Enforced in Production)
@@ -115,7 +116,14 @@ export async function GET(request: Request) {
         .insert({ start_gameweek_id: 1, status: 'active' });
     }
 
-    return NextResponse.json({ success: true, message: 'Static data synced successfully' });
+    // 5. Automatically open the upcoming Gameweek and auto-select 5 marquee fixtures if unselected
+    const autoAdminRes = await autoSelectFixturesAndOpenNextGw(1);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Static data synced successfully',
+      autoAdmin: autoAdminRes.results
+    });
   } catch (error: any) {
     console.error('Unhandled Sync-Static Error:', error);
     return NextResponse.json(

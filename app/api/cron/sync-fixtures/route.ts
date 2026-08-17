@@ -5,6 +5,7 @@ export const fetchCache = 'force-no-store'
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchFixtures } from '@/lib/fpl-api';
+import { autoSelectFixturesAndOpenNextGw } from '@/lib/actions/auto-admin';
 
 export async function GET(request: Request) {
   // 1. Authorization Guard (Enforced in Production)
@@ -53,10 +54,14 @@ export async function GET(request: Request) {
       );
     }
 
+    // 4. Automatically open upcoming gameweek and auto-select 5 marquee fixtures if unselected
+    const autoAdminRes = await autoSelectFixturesAndOpenNextGw(1);
+
     return NextResponse.json({
       success: true,
       message: 'Fixtures synced successfully',
       matches_processed: fixturesData.length,
+      autoAdmin: autoAdminRes.results
     });
   } catch (error: any) {
     console.error('Unhandled Sync-Fixtures Error:', error);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { saveSelectedFixtures } from '@/lib/actions/admin'
+import { getAutoRecommendedFixtureIds } from '@/lib/actions/auto-admin'
 
 export default function AdminFixturesClient({ fixtures, gameweekId, isLocked = false, lockedFixtureIds = [] }: { fixtures: any[], gameweekId: number, isLocked?: boolean, lockedFixtureIds?: number[] }) {
   // Initialize with the fixtures that are already selected
@@ -9,6 +10,7 @@ export default function AdminFixturesClient({ fixtures, gameweekId, isLocked = f
     fixtures.filter(f => f.is_selected).map(f => f.id)
   )
   const [isSaving, setIsSaving] = useState(false)
+  const [isAutoSelecting, setIsAutoSelecting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   useEffect(() => {
@@ -25,13 +27,37 @@ export default function AdminFixturesClient({ fixtures, gameweekId, isLocked = f
         return prev.filter(pId => pId !== id)
       } else {
         if (prev.length >= maxSelections) {
-          // Optionally, don't allow selecting more than maxSelections
           return prev
         }
         return [...prev, id]
       }
     })
     setMessage(null) // clear previous messages
+  }
+
+  const handleAutoSelect = async () => {
+    if (isLocked || isAutoSelecting) return
+    setIsAutoSelecting(true)
+    setMessage(null)
+
+    try {
+      const res = await getAutoRecommendedFixtureIds(gameweekId)
+      if (res.success && res.fixtureIds && res.fixtureIds.length > 0) {
+        // Merge with any locked fixture IDs that already have user predictions
+        const mergedIds = Array.from(new Set([...lockedFixtureIds, ...res.fixtureIds])).slice(0, maxSelections)
+        setSelectedIds(mergedIds)
+        setMessage({
+          type: 'success',
+          text: `🪄 Auto-selected ${mergedIds.length} balanced fixtures (3-GW consecutive limit applied). Click 'Save Selection' to confirm.`
+        })
+      } else {
+        setMessage({ type: 'error', text: res.error || 'Failed to auto-select fixtures.' })
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Auto-selection failed.' })
+    } finally {
+      setIsAutoSelecting(false)
+    }
   }
 
   const handleSave = async () => {
@@ -56,7 +82,7 @@ export default function AdminFixturesClient({ fixtures, gameweekId, isLocked = f
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
             Selected Fixtures: 
@@ -66,14 +92,29 @@ export default function AdminFixturesClient({ fixtures, gameweekId, isLocked = f
           </div>
         </div>
         
-        <button
-          onClick={handleSave}
-          disabled={isLocked || isSaving || selectedIds.length !== maxSelections || maxSelections === 0}
-          className="relative group overflow-hidden bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
-        >
-          <span className="relative z-10">{isSaving ? 'Saving...' : 'Save Selection'}</span>
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {!isLocked && (
+            <button
+              type="button"
+              onClick={handleAutoSelect}
+              disabled={isAutoSelecting || isSaving}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold tracking-widest uppercase transition-all glass bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+              title="Automatically pick top 5 balanced marquee matches (max 3 consecutive GW limit per club)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+              <span>{isAutoSelecting ? 'Selecting...' : 'Auto-Select 5'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={isLocked || isSaving || selectedIds.length !== maxSelections || maxSelections === 0}
+            className="flex-1 sm:flex-none relative group overflow-hidden bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+          >
+            <span className="relative z-10">{isSaving ? 'Saving...' : 'Save Selection'}</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+        </div>
       </div>
 
       {isLocked && (
