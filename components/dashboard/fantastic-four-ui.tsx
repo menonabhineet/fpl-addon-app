@@ -93,6 +93,57 @@ function getFuzzyMatchScore(query: string, playerName: string, teamShort: string
   return 0
 }
 
+// Detect transferred out, injured, suspended, or doubtful player status
+function getPlayerStatusInfo(p: any) {
+  const status = p?.status || 'a'
+  const news = (p?.news || '').trim()
+  const newsLower = news.toLowerCase()
+  const chance = p?.chance_of_playing_next_round ?? p?.chance
+
+  const isTransferred = 
+    status === 'u' || 
+    status === 'n' || 
+    newsLower.includes('transferred') || 
+    newsLower.includes('joined') || 
+    newsLower.includes('left the club') || 
+    newsLower.includes('season-long loan') ||
+    newsLower.includes('permanent transfer')
+
+  const isInjured = status === 'i' || newsLower.includes('injury') || newsLower.includes('injured') || newsLower.includes('surgery')
+  const isSuspended = status === 's' || newsLower.includes('suspended')
+  const isDoubtful = status === 'd' || (chance !== null && chance !== undefined && chance < 100)
+
+  let label: string | null = null
+  let severity: 'transferred' | 'injured' | 'suspended' | 'doubtful' | null = null
+
+  if (isTransferred) {
+    label = 'Transferred'
+    severity = 'transferred'
+  } else if (isSuspended) {
+    label = 'Suspended'
+    severity = 'suspended'
+  } else if (isInjured) {
+    label = 'Injured'
+    severity = 'injured'
+  } else if (isDoubtful) {
+    label = chance !== null && chance !== undefined ? `${chance}% Doubt` : 'Doubtful'
+    severity = 'doubtful'
+  }
+
+  return {
+    isTransferred,
+    isInjured,
+    isSuspended,
+    isDoubtful,
+    isAvailable: !isTransferred && !isInjured && !isSuspended && !isDoubtful,
+    status,
+    news,
+    chance,
+    label,
+    severity
+  }
+}
+
 const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw, initialPicks = [], allUserFantasticPicks = [] }: any) {
   const router = useRouter()
   const [currentPicks, setCurrentPicks] = useState<any[]>(initialPicks || [])
@@ -180,13 +231,19 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
         }
       }
 
+      const statusInfo = getPlayerStatusInfo(playerDetails || pick)
+
       acc[pick.position] = {
         id: pick.player_id,
         name: pick.player_name || playerDetails?.name || '',
         teamCode: tCode,
         points: pick.points_earned,
         teamShortName: playerDetails?.teams ? (Array.isArray(playerDetails.teams) ? playerDetails.teams[0]?.short_name : playerDetails.teams.short_name) : '',
-        nextFixture: playerDetails?.next_fixture || 'None'
+        nextFixture: playerDetails?.next_fixture || 'None',
+        status: playerDetails?.status || 'a',
+        news: playerDetails?.news || '',
+        chance: playerDetails?.chance_of_playing_next_round,
+        statusInfo
       }
       return acc
     }, {})
@@ -346,6 +403,26 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
   const positions = ['FWD', 'MID', 'DEF', 'GK']
   const pickedCount = positions.filter(pos => Boolean(picksByPosition[pos])).length
 
+  // Flag any active squad player who has transferred, is injured, or is suspended
+  const transferredOrUnavailablePicks = useMemo(() => {
+    const flagged: any[] = []
+    positions.forEach(pos => {
+      const pick = picksByPosition[pos]
+      if (pick) {
+        const playerDetails = playersById.get(pick.id)
+        const statusInfo = getPlayerStatusInfo(playerDetails || pick)
+        if (statusInfo.isTransferred || statusInfo.isInjured || statusInfo.isSuspended || statusInfo.isDoubtful) {
+          flagged.push({
+            ...pick,
+            position: pos,
+            statusInfo
+          })
+        }
+      }
+    })
+    return flagged
+  }, [picksByPosition, playersById])
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Collapsible Rules Accordion */}
@@ -449,6 +526,50 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
           )}
         </div>
       </div>
+
+      {/* Prominent Transfer / Injury Warning Alert Banner */}
+      {transferredOrUnavailablePicks.length > 0 && (
+        <div className="bg-rose-500/10 dark:bg-rose-950/40 border-2 border-rose-500/40 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-700 dark:text-rose-300 shadow-sm w-full overflow-hidden">
+          <div className="flex items-start gap-3 min-w-0 flex-1 w-full">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-lg sm:text-xl shrink-0 border border-rose-500/30 mt-0.5">
+              ⚠️
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <h4 className="font-heading text-xs sm:text-sm uppercase tracking-wider text-rose-600 dark:text-rose-400 font-bold">
+                Player Availability Alert
+              </h4>
+              <div className="space-y-1">
+                {transferredOrUnavailablePicks.map(p => (
+                  <div key={p.id} className="text-xs font-medium text-slate-800 dark:text-slate-200 break-words leading-relaxed">
+                    <span className="text-rose-600 dark:text-rose-400 font-extrabold">[{p.position}] {p.name}: </span>
+                    <span className="font-bold">{p.statusInfo.label}</span>
+                    {p.statusInfo.news && (
+                      <span className="text-slate-600 dark:text-slate-400 font-normal block sm:inline sm:ml-1">
+                        ({p.statusInfo.news})
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {!isLocked && (
+            <button
+              type="button"
+              onClick={() => {
+                const firstFlagged = transferredOrUnavailablePicks[0]
+                if (firstFlagged) {
+                  setActiveSlot(firstFlagged.position)
+                  setSearchQuery('')
+                }
+              }}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-rose-600/20 transition-all cursor-pointer shrink-0 text-center active:scale-95"
+            >
+              Swap Now
+            </button>
+          )}
+        </div>
+      )}
       
       {/* 3D Pitch Container */}
       <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] md:aspect-auto min-h-[550px] sm:min-h-[600px] [perspective:1200px] mx-auto max-w-4xl gpu-accelerated">
@@ -515,6 +636,20 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                           <div className="relative w-20 h-24 flex items-end justify-center mb-1 group-hover:scale-110 transition-transform duration-200">
                             {/* Glow behind jersey */}
                             <div className="absolute inset-0 bg-white/20 blur-xl rounded-full" />
+                            
+                            {/* Availability Status Badge (Transferred / Injured / Suspended / Doubtful) */}
+                            {selectedPlayer.statusInfo?.label && (
+                              <span className={`absolute -top-2 -right-3 px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider rounded-full shadow-md border-2 border-white dark:border-black z-30 ${
+                                selectedPlayer.statusInfo.severity === 'transferred'
+                                  ? 'bg-rose-600 text-white'
+                                  : selectedPlayer.statusInfo.severity === 'injured' || selectedPlayer.statusInfo.severity === 'suspended'
+                                  ? 'bg-rose-600 text-white'
+                                  : 'bg-amber-400 text-slate-950'
+                              }`}>
+                                {selectedPlayer.statusInfo.label}
+                              </span>
+                            )}
+
                             <img
                               // Using the highly stable FPL specific CDN for shirts
                               src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${selectedPlayer.teamCode}-66.webp`}
@@ -664,17 +799,22 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                   <div className="bg-slate-50 dark:bg-neutral-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-white/5">
                     <p className="text-[10px] uppercase font-bold text-slate-400">Status</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      {infoPlayerDetails.status === 'a' ? (
-                        <><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="font-semibold text-xs text-emerald-600 dark:text-emerald-400">Available</span></>
-                      ) : infoPlayerDetails.status === 'i' ? (
-                        <><span className="w-2 h-2 rounded-full bg-rose-500"></span><span className="font-semibold text-xs text-rose-600 dark:text-rose-400">Injured</span></>
-                      ) : infoPlayerDetails.status === 'd' ? (
-                        <><span className="w-2 h-2 rounded-full bg-amber-500"></span><span className="font-semibold text-xs text-amber-600 dark:text-amber-400">Doubtful</span></>
-                      ) : infoPlayerDetails.status === 's' ? (
-                        <><span className="w-2 h-2 rounded-full bg-rose-500"></span><span className="font-semibold text-xs text-rose-600 dark:text-rose-400">Suspended</span></>
-                      ) : (
-                        <><span className="w-2 h-2 rounded-full bg-slate-400"></span><span className="font-semibold text-xs text-slate-400">Unknown</span></>
-                      )}
+                      {(() => {
+                        const sInfo = getPlayerStatusInfo(infoPlayerDetails)
+                        if (sInfo.isTransferred) {
+                          return <><span className="w-2 h-2 rounded-full bg-rose-500"></span><span className="font-semibold text-xs text-rose-600 dark:text-rose-400">Transferred</span></>
+                        }
+                        if (sInfo.isInjured) {
+                          return <><span className="w-2 h-2 rounded-full bg-rose-500"></span><span className="font-semibold text-xs text-rose-600 dark:text-rose-400">Injured</span></>
+                        }
+                        if (sInfo.isSuspended) {
+                          return <><span className="w-2 h-2 rounded-full bg-rose-500"></span><span className="font-semibold text-xs text-rose-600 dark:text-rose-400">Suspended</span></>
+                        }
+                        if (sInfo.isDoubtful) {
+                          return <><span className="w-2 h-2 rounded-full bg-amber-500"></span><span className="font-semibold text-xs text-amber-600 dark:text-amber-400">{sInfo.label}</span></>
+                        }
+                        return <><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="font-semibold text-xs text-emerald-600 dark:text-emerald-400">Available</span></>
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -824,6 +964,7 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                   const disabled = isPlayerDisabled(p)
                   const isCurrentPick = picksByPosition[activeSlot]?.id === p.id
                   const isHotForm = (p.form || 0) >= 5.0
+                  const statusInfo = getPlayerStatusInfo(p)
 
                   const teamCode = p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.code : p.teams?.code) || 0 : 0
                   const teamShort = p.teams ? (Array.isArray(p.teams) ? p.teams[0]?.short_name : p.teams?.short_name) || '' : ''
@@ -838,6 +979,8 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                       className={`group relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 rounded-2xl border transition-colors ${
                         isCurrentPick 
                           ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' 
+                          : statusInfo.isTransferred
+                          ? 'border-rose-500/50 bg-rose-50/40 dark:bg-rose-950/20 hover:border-rose-500/70'
                           : isHotForm && !disabled
                           ? 'border-amber-500/40 bg-amber-50/30 dark:bg-amber-950/20 hover:border-amber-500/60'
                           : disabled
@@ -891,22 +1034,35 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                             )}
 
                             {/* Status Badges */}
-                            {p.status === 'i' && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shrink-0" title={p.news || 'Injured'}>
+                            {statusInfo.isTransferred && (
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider bg-rose-600 text-white shadow-xs shrink-0">
+                                Transferred
+                              </span>
+                            )}
+                            {statusInfo.isInjured && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shrink-0" title={statusInfo.news || 'Injured'}>
                                 Injured
                               </span>
                             )}
-                            {p.status === 'd' && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0" title={p.news || 'Doubtful'}>
-                                Doubtful
+                            {statusInfo.isDoubtful && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0" title={statusInfo.news || 'Doubtful'}>
+                                {statusInfo.label}
                               </span>
                             )}
-                            {p.status === 's' && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shrink-0" title={p.news || 'Suspended'}>
+                            {statusInfo.isSuspended && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shrink-0" title={statusInfo.news || 'Suspended'}>
                                 Suspended
                               </span>
                             )}
                           </div>
+
+                          {/* Direct News / Transfer Info Bar */}
+                          {statusInfo.news && (
+                            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-950/40 px-2 py-0.5 rounded-md border border-rose-500/20 w-fit max-w-full">
+                              <span className="shrink-0 text-xs">⚠️</span>
+                              <span className="truncate">{statusInfo.news}</span>
+                            </div>
+                          )}
 
                           {/* Stats Chips Row */}
                           <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500 dark:text-slate-400 mt-1">
@@ -1111,6 +1267,14 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
                           {p1TeamShort} • {p1.next_fixture || 'No fixture'}
                         </span>
+                        {(() => {
+                          const p1Status = getPlayerStatusInfo(p1)
+                          return p1Status.label ? (
+                            <span className="mt-1 px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                              {p1Status.label}
+                            </span>
+                          ) : null
+                        })()}
                       </>
                     ) : (
                       <div className="my-6 text-slate-400 text-xs italic">No current pick</div>
@@ -1155,6 +1319,14 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
                       {p2TeamShort} • {p2.next_fixture || 'No fixture'}
                     </span>
+                    {(() => {
+                      const p2Status = getPlayerStatusInfo(p2)
+                      return p2Status.label ? (
+                        <span className="mt-1 px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                          {p2Status.label}
+                        </span>
+                      ) : null
+                    })()}
                   </div>
                 </div>
 

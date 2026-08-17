@@ -240,6 +240,7 @@ export default async function DashboardPage({
         selected_by_percent: parseFloat(el.selected_by_percent) || 0,
         status: el.status || 'a',
         news: el.news || '',
+        chance_of_playing_next_round: el.chance_of_playing_next_round,
         event_points: el.event_points || 0,
         now_cost: el.now_cost ? (el.now_cost / 10).toFixed(1) : null
       }
@@ -299,7 +300,7 @@ export default async function DashboardPage({
   }
 
   const enhancedPlayers = (players || []).map(p => {
-    const fplData = fplElements[p.id] || { form: 0, total_points: 0, points_per_game: 0, selected_by_percent: 0, status: 'a', news: '' }
+    const fplData = fplElements[p.id] || { form: 0, total_points: 0, points_per_game: 0, selected_by_percent: 0, status: 'a', news: '', chance_of_playing_next_round: null }
     const teamData = p.teams as any
     const teamCode = Array.isArray(teamData) ? teamData[0]?.code : teamData?.code
     const nextFixtureStr = teamCode ? (teamFixtureMap.get(teamCode) || 'No fixture') : 'No fixture'
@@ -315,6 +316,7 @@ export default async function DashboardPage({
       selected_by_percent: fplData.selected_by_percent,
       status: fplData.status,
       news: fplData.news,
+      chance_of_playing_next_round: fplData.chance_of_playing_next_round,
       event_points: fplData.event_points || 0,
       now_cost: fplData.now_cost || null,
       next_fixture: nextFixtureStr
