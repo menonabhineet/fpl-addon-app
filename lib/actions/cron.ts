@@ -72,7 +72,6 @@ export async function syncResults() {
             name: gw.name,
             deadline_time: gw.deadline_time,
             is_current: gw.is_current,
-            is_finished: gw.finished || false,
           }))
           await supabase.from('gameweeks').upsert(gameweeksData, { onConflict: 'id' })
         }
@@ -93,13 +92,14 @@ export async function calculateScores(targetGwParam?: number) {
   if (targetGwParam) {
     TARGET_GW = targetGwParam
   } else {
-    const { data: currentGw } = await supabase
+    const { data: currentGws } = await supabase
       .from('gameweeks')
       .select('id, is_survivor_skipped')
       .eq('is_current', true)
-      .maybeSingle()
+      .order('id', { ascending: false })
+      .limit(1)
 
-    TARGET_GW = currentGw?.id || 1
+    TARGET_GW = currentGws?.[0]?.id || 1
   }
 
   // Fetch gameweek details for the target
@@ -426,3 +426,36 @@ export async function calculateScores(targetGwParam?: number) {
 
   return { success: true, users_processed: allUsers.length || 0, gw: TARGET_GW }
 }
+
+/**
+ * Robust Sequential Window Grading:
+ * Iterates through recent gameweeks (from currentGw - lookback up to currentGw)
+ * to ensure that completed gameweeks are finalized with locked official points,
+ * survivor streaks are chronologically evaluated, and live gameweeks are kept current.
+ */
+export async function calculateActiveScoresWindow(lookback = 1) {
+  const supabase = createAdminClient()
+  const { data: currentGws } = await supabase
+    .from('gameweeks')
+    .select('id')
+    .eq('is_current', true)
+    .order('id', { ascending: false })
+    .limit(1)
+
+  const currentGwId = currentGws?.[0]?.id || 1
+  const startGw = Math.max(1, currentGwId - lookback)
+
+  const results: any[] = []
+  for (let gw = startGw; gw <= currentGwId; gw++) {
+    const res = await calculateScores(gw)
+    results.push(res)
+  }
+
+  return {
+    success: true,
+    currentGw: currentGwId,
+    gradedWindow: `${startGw}..${currentGwId}`,
+    results
+  }
+}
+

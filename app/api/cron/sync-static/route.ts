@@ -54,7 +54,6 @@ export async function GET(request: Request) {
       name: gw.name,
       deadline_time: gw.deadline_time,
       is_current: gw.is_current,
-      is_finished: gw.finished || false,
     }));
 
     const { error: gwError } = await supabase

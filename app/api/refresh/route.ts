@@ -1,7 +1,7 @@
 // app/api/refresh/route.ts
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { syncResults, calculateScores } from '@/lib/actions/cron'
+import { syncResults, calculateActiveScoresWindow } from '@/lib/actions/cron'
 
 // In-memory rate limiting map. In a serverless environment (like Vercel), this 
 // limits rate per-instance. For a Hobby project, this is sufficient to prevent
@@ -52,17 +52,9 @@ export async function POST(request: Request) {
     }
     
     // 4.5 Robust Sequential Grading
-    // We grade the previous gameweek AND the current gameweek to ensure no gameweeks are skipped
+    // Grade previous gameweek AND current gameweek to ensure no gameweeks are skipped
     // during a rapid FPL rollover.
-    const { data: currentGw } = await supabase.from('gameweeks').select('id').eq('is_current', true).maybeSingle()
-    const targetGwId = currentGw?.id || 1
-    
-    let scoresResult
-    const startGw = Math.max(1, targetGwId - 1)
-    
-    for (let gw = startGw; gw <= targetGwId; gw++) {
-      scoresResult = await calculateScores(gw)
-    }
+    const scoresResult = await calculateActiveScoresWindow(1)
 
     return NextResponse.json({
       success: true,

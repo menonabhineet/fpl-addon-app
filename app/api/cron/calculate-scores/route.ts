@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 import { NextResponse } from 'next/server'
-import { calculateScores } from '@/lib/actions/cron'
+import { calculateScores, calculateActiveScoresWindow } from '@/lib/actions/cron'
 
 export async function GET(request: Request) {
   // 1. Authorization Guard (Enforced in Production)
@@ -18,18 +18,25 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
     const paramGw = url.searchParams.get('gw')
-    let targetGwParam: number | undefined
 
     if (paramGw) {
-      targetGwParam = parseInt(paramGw, 10)
+      const targetGwParam = parseInt(paramGw, 10)
+      const result = await calculateScores(targetGwParam)
+      return NextResponse.json({
+        success: true,
+        message: result.message || `Successfully graded predictions for Gameweek ${result.gw}!`,
+        users_processed: result.users_processed,
+        gw: result.gw
+      })
     }
 
-    const result = await calculateScores(targetGwParam)
+    // Default cron behavior: Run sequential multi-gameweek window grading (lookback + active GW)
+    const windowResult = await calculateActiveScoresWindow(1)
 
     return NextResponse.json({
       success: true,
-      message: result.message || `Successfully graded predictions, applied penalties, and updated leaderboard for Gameweek ${result.gw}!`,
-      users_processed: result.users_processed,
+      message: `Successfully graded Gameweek window (${windowResult.gradedWindow}).`,
+      details: windowResult
     })
   } catch (error: any) {
     console.error('Grading Error:', error)
