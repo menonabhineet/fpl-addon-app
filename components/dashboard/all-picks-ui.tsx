@@ -179,7 +179,7 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
             <div className="flex items-center gap-3">
               <div className="w-1.5 h-6 bg-rose-500 rounded-full"></div>
               <h2 className="text-xl sm:text-2xl font-heading uppercase tracking-widest text-slate-800 dark:text-white drop-shadow-md">
-                Survivor
+                Survivor Streak 🔥
               </h2>
             </div>
           </div>
@@ -196,12 +196,6 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
                   const userPicksData = picksData?.[pundit.id]
                   const isRevealed = userPicksData?.isRevealed
                   const isMe = userPicksData?.isCurrentUser
-                  const survivorStatus = userPicksData?.survivorStatus
-                  const eliminatedGwId = userPicksData?.eliminatedGameweekId
-
-                  const isEliminatedPrior = survivorStatus === 'eliminated' && eliminatedGwId && eliminatedGwId < currentGw?.id
-                  const isEliminatedThisGw = survivorStatus === 'eliminated' && eliminatedGwId === currentGw?.id
-                  const isEliminatedGeneral = survivorStatus === 'eliminated' && !eliminatedGwId
 
                   return (
                     <tr key={pundit.id} className="hover:bg-black/5 transition-colors">
@@ -210,33 +204,23 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
                       </td>
                       <td className="px-6 py-4 text-center font-heading text-lg text-slate-600 dark:text-slate-400">
                         {(() => {
-                          if (isEliminatedPrior || isEliminatedGeneral) {
-                            return (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase tracking-wider">
-                                <span>❌</span> Eliminated
-                              </span>
-                            )
-                          }
-
                           if (isRevealed) {
                             if (userPicksData?.teamPick) {
                               const teamName = userPicksData.teamPick.team?.short_name || userPicksData.teamPick.team?.name || '—'
+                              const result = userPicksData.teamPick.match_result
                               return (
                                 <div className="flex items-center justify-center gap-2">
                                   <span>{teamName}</span>
-                                  {isEliminatedThisGw && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-500 border border-rose-500/30 uppercase tracking-wider">
-                                      ❌ Out
-                                    </span>
+                                  {result === 'win' && (
+                                    <span className="text-xs text-emerald-500 font-bold" title="Win (+ points awarded)">✅</span>
+                                  )}
+                                  {result === 'draw' && (
+                                    <span className="text-xs text-amber-500 font-bold" title="Draw (0 points - Streak reset)">🤝</span>
+                                  )}
+                                  {result === 'loss' && (
+                                    <span className="text-xs text-rose-500 font-bold" title="Loss (0 points - Streak reset)">❌</span>
                                   )}
                                 </div>
-                              )
-                            }
-                            if (survivorStatus === 'eliminated') {
-                              return (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 uppercase tracking-wider">
-                                  <span>❌</span> Eliminated
-                                </span>
                               )
                             }
                             return <span className="text-slate-400">—</span>

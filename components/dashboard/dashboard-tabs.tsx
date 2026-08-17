@@ -13,11 +13,11 @@ type TabState = 'score' | 'team' | 'fantastic' | 'leaderboard' | 'allpicks' | 'f
 
 const BOTTOM_NAV_ITEMS = [
   { id: 'score', label: 'Score Pred', icon: '🎯' },
-  { id: 'team', label: 'Survivor', icon: '🛡️' },
+  { id: 'team', label: 'Streak', icon: '🔥' },
   { id: 'fantastic', label: 'Fantastic 4', icon: '⚡' },
 ] as const
 
-export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId, currentUserId, activeLeague }: any) {
+export default function DashboardTabs({ currentGw, fixtures, teams, players, initialPicks, initialTeamPick, initialScorePicks, leaderboard, allUserTeamPicks, allUserFantasticPicks, fplFixtures, fplEvents, survivorEntry, isNewRound, actualCurrentGwId, currentUserId, activeLeague, allGameweeks = [] }: any) {
   const [activeTab, setActiveTab] = useState<TabState>('score')
 
   if (!currentGw) {
@@ -67,7 +67,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
             
             <div className={`text-2xl sm:text-3xl md:text-4xl mb-1.5 sm:mb-3 md:mb-4 transition-transform duration-300 ${activeTab === tab ? 'scale-110' : 'group-hover:scale-110 group-hover:-translate-y-1'}`}>
               {tab === 'score' && '🎯'}
-              {tab === 'team' && '🛡️'}
+              {tab === 'team' && '🔥'}
               {tab === 'fantastic' && '⚡'}
               {tab === 'leaderboard' && '🏆'}
               {tab === 'allpicks' && '👀'}
@@ -80,7 +80,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
                 : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
             }`}>
               {tab === 'score' && 'Score Picks'}
-              {tab === 'team' && 'Survivor Mode'}
+              {tab === 'team' && 'Survivor Streak'}
               {tab === 'fantastic' && 'Fantastic Four'}
               {tab === 'leaderboard' && 'Leaderboard'}
               {tab === 'allpicks' && 'All Picks'}
@@ -100,7 +100,7 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
         
         {visitedTabs.has('team') && (
           <div className={activeTab === 'team' ? 'block animate-in fade-in duration-200' : 'hidden'}>
-            <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} survivorEntry={survivorEntry} isNewRound={isNewRound} actualCurrentGwId={actualCurrentGwId} />
+            <TeamPredictionUI teams={teams} currentGw={currentGw} initialTeamPick={initialTeamPick} allUserTeamPicks={allUserTeamPicks} fixtures={fixtures} survivorEntry={survivorEntry} isNewRound={isNewRound} actualCurrentGwId={actualCurrentGwId} allGameweeks={allGameweeks} />
           </div>
         )}
         

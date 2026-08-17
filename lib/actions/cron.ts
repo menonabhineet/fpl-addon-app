@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchWithRetry } from '@/lib/fpl-api'
 
 function chunkArray<T>(array: T[], size: number): T[][] {
   const result: T[][] = []
@@ -7,7 +8,6 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   }
   return result
 }
-import { fetchWithRetry } from '@/lib/fpl-api'
 
 export async function syncResults() {
   const supabase = createAdminClient()
@@ -64,18 +64,18 @@ export async function syncResults() {
   if (process.env.NODE_ENV !== 'development') {
     try {
       const staticRes = await fetchWithRetry('https://fantasy.premierleague.com/api/bootstrap-static/', { cache: 'no-store' })
-    if (staticRes.ok) {
-      const data = await staticRes.json()
-      if (data && data.events) {
-        const gameweeksData = data.events.map((gw: any) => ({
-          id: gw.id,
-          name: gw.name,
-          deadline_time: gw.deadline_time,
-          is_current: gw.is_current,
-          is_finished: gw.finished || false,
-        }))
-        await supabase.from('gameweeks').upsert(gameweeksData, { onConflict: 'id' })
-      }
+      if (staticRes.ok) {
+        const data = await staticRes.json()
+        if (data && data.events) {
+          const gameweeksData = data.events.map((gw: any) => ({
+            id: gw.id,
+            name: gw.name,
+            deadline_time: gw.deadline_time,
+            is_current: gw.is_current,
+            is_finished: gw.finished || false,
+          }))
+          await supabase.from('gameweeks').upsert(gameweeksData, { onConflict: 'id' })
+        }
       }
     } catch (err) {
       console.error("Failed to sync gameweeks in cron:", err)
@@ -149,13 +149,11 @@ export async function calculateScores(targetGwParam?: number) {
     .select('*')
     .in('fixture_id', fixtureIds)
     
-    
   // For penalty logic, we need to know if they made ANY picks for this gameweek
   const { data: allScorePicksGw } = await supabase
     .from('score_predictions')
     .select('user_id')
     .in('fixture_id', allFixtureIds)
-    
     
   const usersWithScorePicksGw = new Set(allScorePicksGw?.map(p => p.user_id) || [])
 
@@ -194,39 +192,43 @@ export async function calculateScores(targetGwParam?: number) {
     }
   }
 
-  // 2. GRADE SURVIVOR PICKS & UPDATE LEADERBOARD POINTS
+  // 2. GRADE SURVIVOR STREAK PICKS & UPDATE LEADERBOARD POINTS
   const userTeamPicksMap = new Map<string, number>()
   const teamPickUpdates: any[] = []
   const teamPickPointsUpdatesMap = new Map<string, { points_earned: number, match_result: string | null }>()
-  const survivorEntryUpdates: any[] = []
   
-  // Determine if this is a Historic Regrade
-  const { data: activeRound } = await supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle()
-  const isHistoricRegrade = activeRound ? TARGET_GW < activeRound.start_gameweek_id : true
-  
-  // Fetch historic round completions to restore survivor bonuses during regrades
-  const { data: endingRounds } = await supabase
-    .from('survivor_rounds')
-    .select('id')
-    .eq('end_gameweek_id', TARGET_GW)
-    
-  let historicWinners = new Set<string>()
-  if (isHistoricRegrade && endingRounds && endingRounds.length > 0) {
-    const roundIds = endingRounds.map(r => r.id)
-    const { data: winnerEntries } = await supabase
-      .from('survivor_entries')
-      .select('user_id')
-      .in('round_id', roundIds)
-      .eq('status', 'winner')
-    historicWinners = new Set(winnerEntries?.map(w => w.user_id) || [])
-  }
-  
-  // A. Grade ALL team picks for this Gameweek (for points/leaderboard)
+  // A. Grade ALL team picks for this Gameweek (Survivor Streak Mode)
   const { data: teamPicks } = await supabase
     .from('team_predictions')
     .select('*')
     .eq('gameweek_id', TARGET_GW)
-    
+
+  // Query all gameweeks to know if any prior gameweeks were admin-skipped
+  const { data: allGwRecords } = await supabase
+    .from('gameweeks')
+    .select('id, is_survivor_skipped')
+
+  const skippedGwsSet = new Set<number>()
+  allGwRecords?.forEach(gw => {
+    if (gw.is_survivor_skipped) skippedGwsSet.add(gw.id)
+  })
+
+  // Query past picks before TARGET_GW to accurately calculate each user's consecutive winning streak
+  const { data: pastPicksBeforeGw } = await supabase
+    .from('team_predictions')
+    .select('user_id, gameweek_id, match_result, points_earned')
+    .lt('gameweek_id', TARGET_GW)
+    .order('gameweek_id', { ascending: false })
+
+  const userHistoricalPicksMap = new Map<string, any[]>()
+  if (pastPicksBeforeGw) {
+    for (const p of pastPicksBeforeGw) {
+      if (!userHistoricalPicksMap.has(p.user_id)) {
+        userHistoricalPicksMap.set(p.user_id, [])
+      }
+      userHistoricalPicksMap.get(p.user_id)!.push(p)
+    }
+  }
 
   if (teamPicks) {
     for (const pick of teamPicks) {
@@ -248,22 +250,49 @@ export async function calculateScores(targetGwParam?: number) {
         const isDraw = homeScore === awayScore
         
         if (teamWon) {
-          points = 1
           matchResult = 'win'
+          
+          // Calculate active streak strictly checking consecutive gameweeks backwards from TARGET_GW - 1
+          const userHistory = userHistoricalPicksMap.get(pick.user_id) || []
+          const userPicksByGw = new Map<number, any>()
+          for (const hp of userHistory) {
+            userPicksByGw.set(hp.gameweek_id, hp)
+          }
+
+          let prevWinsCount = 0
+          let checkGw = TARGET_GW - 1
+          while (checkGw >= 1) {
+            if (skippedGwsSet.has(checkGw)) {
+              // Gameweek was skipped by admin, keep streak alive across the skipped week
+              checkGw -= 1
+              continue
+            }
+            const pastPick = userPicksByGw.get(checkGw)
+            if (pastPick && (pastPick.match_result === 'win' || (pastPick.points_earned && pastPick.points_earned > 0))) {
+              prevWinsCount += 1
+              checkGw -= 1
+            } else {
+              // Missed pick or loss/draw breaks consecutive streak
+              break
+            }
+          }
+          const currentStreak = prevWinsCount + 1
+          // Escalating streak formula: Streak 1 = 1pt, Streak 2 = 2pts, Streak 3 = 3pts, etc.
+          points = currentStreak
         } else {
           matchResult = isDraw ? 'draw' : 'loss'
+          points = 0
         }
       } else {
         // Match not finished or invalid. 
         if (isGameweekFullyFinished) {
           matchResult = 'loss'
+          points = 0
         }
       }
       
       if (isSurvivorSkipped) {
          points = 0 // No points awarded if skipped
-      } else if (isHistoricRegrade && historicWinners.has(pick.user_id)) {
-         points += 1 // Restore historic survivor bonus
       }
       
       userTeamPicksMap.set(pick.user_id, points)
@@ -271,134 +300,6 @@ export async function calculateScores(targetGwParam?: number) {
       // Update team_predictions if match is finished or gameweek is fully finished
       if (match || isGameweekFullyFinished) {
          teamPickPointsUpdatesMap.set(pick.id, { points_earned: points, match_result: matchResult })
-      }
-    }
-  }
-
-  // B. Resolve Survivor State Machine (ONLY if we are processing the LIVE gameweek)
-  
-  if (activeRound && !isHistoricRegrade && !isSurvivorSkipped) {
-    // Query all entries that entered this gameweek as 'alive' (or were marked eliminated in this specific gameweek during previous runs)
-    const { data: roundEntries } = await supabase
-      .from('survivor_entries')
-      .select('*')
-      .eq('round_id', activeRound.id)
-      .or(`status.eq.alive,and(status.eq.eliminated,eliminated_gameweek_id.eq.${TARGET_GW})`)
-      
-
-    let survivorsAfterGrading: any[] = []
-    let eliminatedThisGw: any[] = []
-
-    if (roundEntries && roundEntries.length > 0) {
-      for (const entry of roundEntries) {
-        // Look up user pick for this gameweek
-        const pick = teamPicks?.find(p => p.user_id === entry.user_id)
-        
-        if (!pick) {
-          if (isGameweekFullyFinished || isPastDeadline) {
-             eliminatedThisGw.push(entry)
-          } else {
-            survivorsAfterGrading.push(entry) // Waiting for deadline
-          }
-        } else {
-          // Check match outcome
-          let match = null
-          if (pick.fixture_id) {
-            match = finishedFixtures.find(f => f.id === pick.fixture_id)
-          } else {
-            match = finishedFixtures.find(f => f.home_team_id === pick.team_id || f.away_team_id === pick.team_id)
-          }
-          
-          if (match) {
-            const isHomeTeam = match.home_team_id === pick.team_id
-            const homeScore = Number(match.home_score || 0)
-            const awayScore = Number(match.away_score || 0)
-            const teamWon = isHomeTeam ? homeScore > awayScore : awayScore > homeScore
-            if (teamWon) {
-              survivorsAfterGrading.push(entry)
-            } else {
-              eliminatedThisGw.push(entry)
-            }
-          } else {
-             if (isGameweekFullyFinished) {
-                eliminatedThisGw.push(entry) // Match never played or invalid
-             } else {
-                survivorsAfterGrading.push(entry) // Match pending
-             }
-          }
-        }
-      }
-      
-      // We ONLY commit official survivor entry status transitions and round completions when the gameweek is fully finished
-      if (isGameweekFullyFinished) {
-        // Check Round Resolution (round ends when 3 or fewer survivors remain)
-        if (survivorsAfterGrading.length <= 3) {
-          // If 1-3 players survived, they win the round and get the winner bonus
-          if (survivorsAfterGrading.length > 0) {
-            for (const winner of survivorsAfterGrading) {
-              const currentPts = userTeamPicksMap.get(winner.user_id) || 0
-              userTeamPicksMap.set(winner.user_id, currentPts + 1) // +1 survivor win bonus
-              survivorEntryUpdates.push(
-                supabase.from('survivor_entries').update({ status: 'winner' }).eq('user_id', winner.user_id).eq('round_id', activeRound.id)
-              )
-              
-              // Also update the pick's points_earned in team_predictions to reflect the bonus
-              const winnerPick = teamPicks?.find(p => p.user_id === winner.user_id)
-              if (winnerPick) {
-                 const existingUpdate = teamPickPointsUpdatesMap.get(winnerPick.id) || { points_earned: 0, match_result: 'win' }
-                 teamPickPointsUpdatesMap.set(winnerPick.id, { ...existingUpdate, points_earned: existingUpdate.points_earned + 1 })
-              }
-            }
-          }
-          // If 0 players survived (total wipeout in the same week):
-          // "If everybody falls in the same week, that week scores nothing, but you keep every point already banked."
-          // Nobody receives a winner bonus. Everyone who fell this week is marked eliminated.
-          
-          // Mark all eliminated players for this round
-          for (const elim of eliminatedThisGw) {
-            survivorEntryUpdates.push(
-              supabase.from('survivor_entries').update({ status: 'eliminated', eliminated_gameweek_id: TARGET_GW }).eq('user_id', elim.user_id).eq('round_id', activeRound.id)
-            )
-          }
-
-          // Complete the active round
-          teamPickUpdates.push(
-            supabase.from('survivor_rounds').update({ status: 'completed', end_gameweek_id: TARGET_GW }).eq('id', activeRound.id)
-          )
-          
-          // Start the next round for TARGET_GW + 1 (all users re-entered with full club reset)
-          const { data: existingNextRound } = await supabase
-            .from('survivor_rounds')
-            .select('id')
-            .eq('start_gameweek_id', TARGET_GW + 1)
-            .eq('status', 'active')
-            .maybeSingle()
-
-          if (!existingNextRound) {
-            const { data: newRound } = await supabase
-              .from('survivor_rounds')
-              .insert({ start_gameweek_id: TARGET_GW + 1 })
-              .select('id')
-              .single()
-
-            if (newRound && allUsers.length > 0) {
-              const newEntries = allUsers.map(u => ({ round_id: newRound.id, user_id: u.id, status: 'alive' }))
-              teamPickUpdates.push(supabase.from('survivor_entries').insert(newEntries))
-            }
-          }
-        } else {
-          // More than 3 survivors remain: round continues to next gameweek
-          for (const elim of eliminatedThisGw) {
-            survivorEntryUpdates.push(
-              supabase.from('survivor_entries').update({ status: 'eliminated', eliminated_gameweek_id: TARGET_GW }).eq('user_id', elim.user_id).eq('round_id', activeRound.id)
-            )
-          }
-          for (const surv of survivorsAfterGrading) {
-            survivorEntryUpdates.push(
-              supabase.from('survivor_entries').update({ status: 'alive' }).eq('user_id', surv.user_id).eq('round_id', activeRound.id)
-            )
-          }
-        }
       }
     }
   }
@@ -418,16 +319,6 @@ export async function calculateScores(targetGwParam?: number) {
     }
   }
 
-  if (survivorEntryUpdates.length > 0) {
-    const promiseChunks = chunkArray(survivorEntryUpdates, 50)
-    for (const chunk of promiseChunks) {
-      const results = await Promise.all(chunk)
-      for (const res of results) {
-        if (res.error) console.error("Survivor Entry Update Error:", res.error)
-      }
-    }
-  }
-
   // 3. GRADE FANTASTIC FOUR
   const fplLiveRes = await fetchWithRetry(`https://fantasy.premierleague.com/api/event/${TARGET_GW}/live/`, { cache: 'no-store' })
   let fplLiveData: any = { elements: [] }
@@ -443,7 +334,6 @@ export async function calculateScores(targetGwParam?: number) {
     .from('fantastic_four')
     .select('*')
     .eq('gameweek_id', TARGET_GW)
-    
 
   const f4Updates: any[] = []
   const f4UpdateData: any[] = []
@@ -498,7 +388,6 @@ export async function calculateScores(targetGwParam?: number) {
       .from('bonus_predictions')
       .select('user_id, awarded_points')
       .eq('question_id', bq.id)
-      
     
     if (bPicks) {
       for (const pick of bPicks) {
@@ -565,6 +454,3 @@ export async function calculateScores(targetGwParam?: number) {
 
   return { success: true, users_processed: allUsers.length || 0, gw: TARGET_GW }
 }
-
-
-

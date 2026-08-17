@@ -1,24 +1,30 @@
 'use client'
 
-import { useState, useTransition, useEffect, memo } from 'react'
+import { useState, useTransition, useEffect, useMemo, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { submitTeamPrediction, clearSurvivorPick } from '@/lib/actions/team-prediction'
 
-const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [], fixtures = [], survivorEntry, isNewRound, actualCurrentGwId }: any) {
+const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, initialTeamPick, allUserTeamPicks = [], fixtures = [], actualCurrentGwId, allGameweeks = [] }: any) {
   const router = useRouter()
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeamPick?.team_id || null)
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(initialTeamPick ? { type: 'success', text: '✓ Your team is securely locked in' } : null)
   
-  // Clear Pick Modal
+  // Clear Pick Modal & Portal Mounted check
   const [showClearModal, setShowClearModal] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   // Modal state for DGW
   const [showModal, setShowModal] = useState(false)
   const [modalTeamId, setModalTeamId] = useState<number | null>(null)
   const [modalFixtures, setModalFixtures] = useState<any[]>([])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (initialTeamPick?.team_id) {
@@ -29,11 +35,6 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
       setMessage(null)
     }
   }, [initialTeamPick?.team_id])
-
-  const getTeamPickCount = (teamId: number) => {
-    if (!survivorEntry?.round_id) return 0;
-    return allUserTeamPicks.filter((p: any) => p.team_id === teamId && p.gameweek_id !== currentGw.id && p.survivor_round_id === survivorEntry.round_id).length;
-  }
 
   const getFixtureTeamId = (teamProp: any): number | null => {
     if (!teamProp) return null
@@ -49,8 +50,123 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
   const tableRulesApply = currentGw.id > 1 && !currentGw.is_survivor_skipped
   const selectedTeam = teams.find((t: any) => t.id === selectedTeamId)
 
+  const skippedGwsSet = useMemo(() => {
+    const set = new Set<number>()
+    allGameweeks.forEach((gw: any) => {
+      if (gw.is_survivor_skipped) set.add(gw.id)
+    })
+    return set
+  }, [allGameweeks])
+
+  // Calculate streaks and teams locked by the user's active winning streak
+  const { activeStreak, bestStreak, activeStreakTeamIds } = useMemo(() => {
+    if (!allUserTeamPicks || allUserTeamPicks.length === 0) {
+      return { activeStreak: 0, bestStreak: 0, activeStreakTeamIds: new Set<number>() }
+    }
+
+    const userPicksByGw = new Map<number, any>()
+    for (const p of allUserTeamPicks) {
+      if (p.gameweek_id < currentGw.id) {
+        userPicksByGw.set(p.gameweek_id, p)
+      }
+    }
+
+    // Trace active streak strictly checking consecutive gameweeks backwards from currentGw.id - 1
+    const activeTeams = new Set<number>()
+    let checkGw = currentGw.id - 1
+    let runningStreak = 0
+    while (checkGw >= 1) {
+      if (skippedGwsSet.has(checkGw)) {
+        checkGw -= 1
+        continue
+      }
+      const pastPick = userPicksByGw.get(checkGw)
+      if (pastPick && (pastPick.match_result === 'win' || (pastPick.points_earned && pastPick.points_earned > 0))) {
+        activeTeams.add(pastPick.team_id)
+        runningStreak += 1
+        checkGw -= 1
+      } else {
+        // Missed gameweek or loss/draw breaks active streak
+        break
+      }
+    }
+
+    // All-time best streak across entire season history
+    let maxStreak = 0
+    let tempStreak = 0
+    for (let gw = 1; gw < currentGw.id; gw++) {
+      if (skippedGwsSet.has(gw)) continue
+      const pick = userPicksByGw.get(gw)
+      if (pick && (pick.match_result === 'win' || (pick.points_earned && pick.points_earned > 0))) {
+        tempStreak += 1
+        if (tempStreak > maxStreak) maxStreak = tempStreak
+      } else {
+        tempStreak = 0
+      }
+    }
+
+    return { 
+      activeStreak: runningStreak, 
+      bestStreak: maxStreak, 
+      activeStreakTeamIds: activeTeams 
+    }
+  }, [allUserTeamPicks, currentGw.id, skippedGwsSet])
+
+  // Club Cycle Reset (Edge Case): If active streak locks leave 0 selectable teams for this GW,
+  // cycle the used teams back while maintaining the player's active streak number!
+  const effectiveActiveStreakTeamIds = useMemo(() => {
+    if (activeStreakTeamIds.size === 0 || !tableRulesApply) {
+      return activeStreakTeamIds
+    }
+
+    const validNonTableTeams = teams.filter((team: any) => {
+      const isTop3 = team.position !== null && team.position !== undefined && team.position >= 1 && team.position <= 3
+      const teamFixtures = fixtures.filter((f: any) => {
+        const hId = getFixtureTeamId(f.home_team)
+        const aId = getFixtureTeamId(f.away_team)
+        return hId === team.id || aId === team.id
+      })
+      if (teamFixtures.length === 0) return false
+
+      let isTop3Clash = false
+      let isBottom3Clash = false
+      let isVsBottom3 = false
+
+      teamFixtures.forEach((f: any) => {
+        const hId = getFixtureTeamId(f.home_team)
+        const oppId = hId === team.id ? getFixtureTeamId(f.away_team) : hId
+        const oppTeam = teams.find((t: any) => t.id === oppId)
+        
+        if (isTop3 && oppTeam && oppTeam.position !== null && oppTeam.position >= 1 && oppTeam.position <= 3) {
+          isTop3Clash = true
+        }
+        
+        const isSelfBottom3 = team.position !== null && team.position >= 18 && team.position <= 20
+        const isOppBottom3 = oppTeam && oppTeam.position !== null && oppTeam.position >= 18 && oppTeam.position <= 20
+        if (isSelfBottom3 && isOppBottom3) {
+          isBottom3Clash = true
+        } else if (isOppBottom3 && !isSelfBottom3) {
+          isVsBottom3 = true
+        }
+      })
+
+      const blockedByTop3 = isTop3 && !isTop3Clash
+      const blockedByBottom3 = isVsBottom3 && !isBottom3Clash
+
+      return !blockedByTop3 && !blockedByBottom3
+    })
+
+    const hasSelectable = validNonTableTeams.some((t: any) => !activeStreakTeamIds.has(t.id))
+    if (!hasSelectable && validNonTableTeams.length > 0) {
+      // 0 selectable teams left -> release active streak locks (Club Cycle Reset)
+      return new Set<number>()
+    }
+
+    return activeStreakTeamIds
+  }, [activeStreakTeamIds, tableRulesApply, teams, fixtures])
+
   const handleSelectTeam = (teamId: number) => {
-    if (currentGw.is_finished || currentGw.is_survivor_skipped || survivorEntry?.status === 'eliminated' || isLocked) return;
+    if (currentGw.is_finished || currentGw.is_survivor_skipped || isLocked) return;
     
     const teamFixtures = fixtures.filter((f: any) => {
       const hId = getFixtureTeamId(f.home_team)
@@ -91,7 +207,6 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to save prediction.' })
         toast.error(result.error || `Failed to lock in ${teamName}`)
-        // Revert UI selection on failure
         setSelectedTeamId(initialTeamPick?.team_id || null)
       }
     })
@@ -126,31 +241,77 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4">
-        📌 <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Survivor Rules:</strong> Pick one team to win each gameweek. 
-        If your team wins, you survive and earn <strong className="text-indigo-500 font-bold text-lg">1 pt</strong>. 
-        If they draw, lose, or you miss the deadline, you are eliminated! You can only use each team <strong>ONCE</strong> per round.
-        <div className="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
-          🚫 <strong>Banned Picks:</strong> Teams in 1st–3rd place, and non-bottom-3 clubs facing bottom-3 opponents (18th–20th) are off the board. (Gameweek 1 is exempt). 
+      {/* Rules Banner */}
+      <div className="glass rounded-2xl p-4 sm:p-5 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4 space-y-2.5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-lg">🔥</span>
+          <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base">Survivor Streak Rules:</strong>
+          <span className="font-medium">Back 1 team to win each gameweek. Build your consecutive win streak for escalating point bonuses!</span>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
+          <div className="flex items-center gap-2 bg-emerald-500/5 dark:bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+            <span className="text-emerald-500 text-sm">⚡</span>
+            <span><strong>Escalating Points:</strong> 1st win = <strong className="text-emerald-600 dark:text-emerald-400">1 pt</strong>, 2nd win = <strong className="text-emerald-600 dark:text-emerald-400">2 pts</strong>, 3rd win = <strong className="text-emerald-600 dark:text-emerald-400">3 pts</strong> (+1 bonus per streak win)!</span>
+          </div>
+          <div className="flex items-center gap-2 bg-rose-500/5 dark:bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+            <span className="text-rose-500 text-sm">💔</span>
+            <span><strong>Streak Reset:</strong> Draw or loss = <strong className="text-rose-600 dark:text-rose-400">0 pts</strong> (streak resets to 0 for next week).</span>
+          </div>
+        </div>
+
+        <div className="text-xs font-medium text-slate-600 dark:text-slate-400 pt-0.5 leading-relaxed">
+          🚫 <strong className="text-slate-800 dark:text-slate-200">Restrictions:</strong> You can only use each team <strong>once per active streak</strong>. Teams in 1st–3rd place, and clubs facing 18th–20th opponents are off the board <em>unless playing each other (Top 3 vs Top 3, or Bottom 3 vs Bottom 3)</em>. (Gameweek 1 is exempt).
           <span className="inline-block ml-2 text-emerald-600 dark:text-emerald-400 font-bold">H = Home</span>, <span className="inline-block text-sky-500 dark:text-sky-400 font-bold">A = Away</span>.
+        </div>
+      </div>
+
+      {/* Active Streak & Potential Bonus Dashboard Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="glass bg-white/70 dark:bg-black/30 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center text-center shadow-xs">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Current Streak</span>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-lg sm:text-2xl">🔥</span>
+            <span className="font-heading text-2xl sm:text-4xl text-slate-900 dark:text-white leading-none">
+              {activeStreak}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-slate-400">{activeStreak === 1 ? 'Win' : 'Wins'}</span>
+          </div>
+        </div>
+
+        <div className="glass bg-white/70 dark:bg-black/30 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center text-center shadow-xs">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Next Win Value</span>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="font-heading text-2xl sm:text-4xl text-emerald-600 dark:text-emerald-400 leading-none">
+              +{activeStreak + 1}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-emerald-600/80 dark:text-emerald-400/80">
+              {activeStreak > 0 ? `(${1} + ${activeStreak} bonus)` : 'Pt'}
+            </span>
+          </div>
+        </div>
+
+        <div className="col-span-2 sm:col-span-1 glass bg-white/70 dark:bg-black/30 border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center text-center shadow-xs">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">All-Time Best</span>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-lg sm:text-2xl">🏆</span>
+            <span className="font-heading text-2xl sm:text-4xl text-amber-500 leading-none">
+              {bestStreak}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-slate-400">{bestStreak === 1 ? 'Win' : 'Wins'}</span>
+          </div>
         </div>
       </div>
       
       {currentGw.is_survivor_skipped && (
         <div className="glass rounded-xl p-4 text-sm bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 border-l-4">
-          ⏸️ <strong className="font-bold uppercase tracking-wider">Survivor Mode Skipped:</strong> The admin has skipped this gameweek. Nobody will be eliminated this week!
-        </div>
-      )}
-
-      {survivorEntry && survivorEntry.status === 'eliminated' && (
-        <div className="glass rounded-xl p-4 text-sm bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 border-l-4">
-          💀 <strong className="font-bold uppercase tracking-wider">Eliminated:</strong> You have been eliminated from the current round. Better luck next round!
+          ⏸️ <strong className="font-bold uppercase tracking-wider">Survivor Mode Skipped:</strong> The admin has skipped this gameweek. No streak breaks will occur!
         </div>
       )}
 
       {currentGw.id > actualCurrentGwId && (
         <div className="glass rounded-xl p-4 text-sm bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 border-l-4">
-          ⏳ <strong className="font-bold uppercase tracking-wider">Future Gameweek:</strong> You can only make a survivor pick for the current active gameweek. Survive the current week first!
+          ⏳ <strong className="font-bold uppercase tracking-wider">Future Gameweek:</strong> You can only make a streak pick for the current active gameweek.
         </div>
       )}
 
@@ -177,7 +338,7 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedTeamId && !isLocked && survivorEntry?.status !== 'eliminated' && !currentGw.is_finished && !currentGw.is_survivor_skipped && (
+          {selectedTeamId && !isLocked && !currentGw.is_finished && !currentGw.is_survivor_skipped && (
             <button
               type="button"
               onClick={() => setShowClearModal(true)}
@@ -199,7 +360,7 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
         </div>
       </div>
 
-      <div className={`glass rounded-3xl p-6 sm:p-8 relative overflow-hidden group transition-colors duration-300 border border-slate-200/50 dark:border-white/5 ${(survivorEntry?.status === 'eliminated' || currentGw.id > actualCurrentGwId) ? 'opacity-60 pointer-events-none grayscale' : ''}`}>
+      <div className={`glass rounded-3xl p-6 sm:p-8 relative overflow-hidden group transition-colors duration-300 border border-slate-200/50 dark:border-white/5 ${currentGw.id > actualCurrentGwId ? 'opacity-60 pointer-events-none grayscale' : ''}`}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
         
         {message && message.type === 'success' && (
@@ -224,13 +385,12 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
         {/* 3D Grid of Teams */}
         <div className={`grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3.5 sm:gap-4 mb-8 relative z-10 transition-opacity ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
           {teams.map((team: any) => {
-            const pickCount = getTeamPickCount(team.id);
-            const isUsed = pickCount > 0;
+            const isUsedInStreak = effectiveActiveStreakTeamIds.has(team.id);
             
             // Check Top 3 (strictly 1st, 2nd, or 3rd place)
             const isTop3 = tableRulesApply && team.position !== null && team.position !== undefined && team.position >= 1 && team.position <= 3;
             
-            // Check Fixtures and Bottom 3 Opponent
+            // Check Fixtures, Clash Rules, and Bottom 3 Opponent
             const teamFixtures = fixtures.filter((f: any) => {
               const hId = getFixtureTeamId(f.home_team)
               const aId = getFixtureTeamId(f.away_team)
@@ -240,42 +400,45 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
             const hasNoFixture = teamFixtures.length === 0;
             const isSelfBottom3 = team.position !== null && team.position !== undefined && team.position >= 18 && team.position <= 20;
 
+            let isTop3Clash = false;
+            let isBottom3Clash = false;
             let isVsBottom3 = false;
-            if (tableRulesApply && !isSelfBottom3 && teamFixtures.length > 0) {
-              // If single fixture, check if opponent is bottom 3
-              if (teamFixtures.length === 1) {
-                const f = teamFixtures[0];
+
+            if (tableRulesApply && teamFixtures.length > 0) {
+              teamFixtures.forEach((f: any) => {
                 const hId = getFixtureTeamId(f.home_team);
                 const oppId = hId === team.id ? getFixtureTeamId(f.away_team) : hId;
                 const oppTeam = teams.find((t: any) => t.id === oppId);
-                if (oppTeam && oppTeam.position !== null && oppTeam.position >= 18 && oppTeam.position <= 20) {
+
+                // Top 3 vs Top 3 Clash Check
+                if (isTop3 && oppTeam && oppTeam.position !== null && oppTeam.position >= 1 && oppTeam.position <= 3) {
+                  isTop3Clash = true;
+                }
+
+                // Bottom 3 Opponent & Clash Check
+                const isOppBottom3 = oppTeam && oppTeam.position !== null && oppTeam.position >= 18 && oppTeam.position <= 20;
+                if (isSelfBottom3 && isOppBottom3) {
+                  isBottom3Clash = true;
+                } else if (isOppBottom3 && !isSelfBottom3) {
                   isVsBottom3 = true;
                 }
-              } else {
-                // If DGW, check if ALL fixtures are against bottom 3
-                const allOpponentsBottom3 = teamFixtures.every((f: any) => {
-                  const hId = getFixtureTeamId(f.home_team);
-                  const oppId = hId === team.id ? getFixtureTeamId(f.away_team) : hId;
-                  const oppTeam = teams.find((t: any) => t.id === oppId);
-                  return oppTeam && oppTeam.position !== null && oppTeam.position >= 18 && oppTeam.position <= 20;
-                });
-                if (allOpponentsBottom3) {
-                  isVsBottom3 = true;
-                }
-              }
+              });
             }
+
+            const isBlockedByTop3 = isTop3 && !isTop3Clash;
+            const isBlockedByBottom3 = isVsBottom3 && !isBottom3Clash;
 
             // Determine badge label and color
             let badgeLabel: string | null = null;
             let badgeColor = 'text-rose-500';
 
-            if (isUsed) {
-              badgeLabel = 'Used';
+            if (isUsedInStreak) {
+              badgeLabel = 'In Streak';
               badgeColor = 'text-rose-500';
-            } else if (isTop3) {
+            } else if (isBlockedByTop3) {
               badgeLabel = 'Top 3';
               badgeColor = 'text-amber-500';
-            } else if (isVsBottom3) {
+            } else if (isBlockedByBottom3) {
               badgeLabel = 'Vs Bottom 3';
               badgeColor = 'text-orange-500';
             } else if (hasNoFixture) {
@@ -283,7 +446,7 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
               badgeColor = 'text-slate-400';
             }
 
-            const isDisabled = isUsed || isTop3 || isVsBottom3 || hasNoFixture || currentGw.is_finished || currentGw.is_survivor_skipped || isLocked;
+            const isDisabled = isUsedInStreak || isBlockedByTop3 || isBlockedByBottom3 || hasNoFixture || currentGw.is_finished || currentGw.is_survivor_skipped || isLocked;
 
             return (
               <div 
@@ -305,6 +468,19 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
                 {isDisabled && badgeLabel && (
                   <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider ${badgeColor} bg-black/60 dark:bg-black/80 backdrop-blur-xs border border-white/10 z-20`}>
                     {badgeLabel}
+                  </span>
+                )}
+
+                {/* Clash Matchup Unlocked Badge (if team unlocked via special clash) */}
+                {!isDisabled && isTop3Clash && (
+                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider text-amber-500 bg-amber-500/10 border border-amber-500/30 z-20" title="Top 3 Clash: Matchup unlocked!">
+                    ⚔️ Clash
+                  </span>
+                )}
+
+                {!isDisabled && isBottom3Clash && (
+                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider text-cyan-500 bg-cyan-500/10 border border-cyan-500/30 z-20" title="Relegation Battle: Matchup unlocked!">
+                    ⚔️ Clash
                   </span>
                 )}
 
@@ -404,20 +580,26 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
       </div>
 
       {/* Clear Confirmation Modal */}
-      {showClearModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="glass max-w-md w-full p-6 rounded-3xl border border-white/10 bg-neutral-950/90 shadow-2xl space-y-6">
+      {showClearModal && mounted && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setShowClearModal(false)}
+        >
+          <div 
+            className="glass max-w-md w-full p-6 sm:p-8 rounded-3xl border border-white/10 bg-neutral-950/95 shadow-2xl space-y-6 text-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 text-rose-500">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20 shrink-0">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                 </svg>
               </div>
-              <h3 className="text-xl font-heading uppercase tracking-wider text-slate-900 dark:text-white">Clear Survivor Pick?</h3>
+              <h3 className="text-xl font-heading uppercase tracking-wider text-slate-900 dark:text-white">Clear Pick?</h3>
             </div>
             
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Are you sure you want to remove your Survivor pick ({selectedTeam?.name}) for <strong>Gameweek {currentGw.id}</strong>? You will be able to select another team before the deadline.
+              Are you sure you want to remove your streak pick ({selectedTeam?.name}) for <strong>Gameweek {currentGw.id}</strong>? You will be able to select another team before the deadline.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -446,73 +628,8 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* DGW Modal */}
-      {showModal && modalTeamId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="glass bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl relative z-10 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="font-heading text-2xl uppercase tracking-widest text-slate-900 dark:text-white mb-2 text-center">Double Gameweek</h3>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-8 text-center">Select which fixture you are backing them to win</p>
-            
-            <div className="space-y-4">
-              {modalFixtures.map(match => {
-                const formattedTime = new Date(match.kickoff_time).toLocaleDateString('en-GB', {
-                  weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                })
-                const hId = getFixtureTeamId(match.home_team)
-                const isHome = hId === modalTeamId
-                const opponentTeamObj = isHome ? getFixtureTeamObj(match.away_team) : getFixtureTeamObj(match.home_team)
-                const opponentFull = teams.find((t: any) => t.id === opponentTeamObj?.id)
-                const modalTeamFull = teams.find((t: any) => t.id === modalTeamId)
-                
-                const isOpponentBottom3 = tableRulesApply && opponentFull?.position && opponentFull.position >= 18 && opponentFull.position <= 20
-                const isSelfBottom3 = modalTeamFull?.position && modalTeamFull.position >= 18 && modalTeamFull.position <= 20
-                const isFixtureBanned = isOpponentBottom3 && !isSelfBottom3
-
-                return (
-                  <button 
-                    key={match.id}
-                    disabled={isFixtureBanned}
-                    onClick={() => {
-                      if (!isFixtureBanned) submitPick(modalTeamId, match.id)
-                    }}
-                    className={`w-full flex items-center justify-between p-4 glass rounded-2xl transition-all group border ${
-                      isFixtureBanned
-                        ? 'opacity-40 cursor-not-allowed bg-black/5 dark:bg-white/5 border-transparent'
-                        : 'bg-white/50 dark:bg-black/20 hover:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border-slate-200/50 dark:border-white/5 hover:border-indigo-500/50 cursor-pointer'
-                    }`}
-                  >
-                    <div className="flex flex-col items-start gap-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formattedTime}</span>
-                      <span className="font-heading text-xl text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        vs {opponentTeamObj?.name || 'Unknown'} {isHome ? '(H)' : '(A)'}
-                      </span>
-                      {isFixtureBanned && (
-                        <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mt-0.5">
-                          ⚠ Banned: Opponent is in bottom 3
-                        </span>
-                      )}
-                    </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      isFixtureBanned
-                        ? 'bg-slate-300 dark:bg-slate-800 text-slate-500'
-                        : 'bg-slate-200 dark:bg-slate-800 group-hover:bg-indigo-500 text-slate-400 group-hover:text-white'
-                    }`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            
-            <button onClick={() => setShowModal(false)} className="mt-8 w-full py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
-              Cancel
-            </button>
-          </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

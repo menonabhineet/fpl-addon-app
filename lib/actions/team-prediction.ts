@@ -77,92 +77,116 @@ export async function submitTeamPrediction(formData: FormData) {
       opponentTeamId = selectedFixture.home_team_id === teamId ? selectedFixture.away_team_id : selectedFixture.home_team_id
     }
 
-    // 5. Game Rule Validation: Survivor Mode
+    // 5. Game Rule Validation: Survivor Streak Mode
     
-    // a. Check Active Round & Status
-    let { data: activeRound } = await supabase
-      .from('survivor_rounds')
-      .select('id, start_gameweek_id')
-      .eq('status', 'active')
-      .maybeSingle()
-      
-    // If no active round exists at all (fresh database), auto-initialize Round 1 starting at Gameweek 1
-    if (!activeRound) {
-      const adminClient = createAdminClient()
-      const { data: newRound, error: initError } = await adminClient
-        .from('survivor_rounds')
-        .insert({ start_gameweek_id: 1, status: 'active' })
-        .select('id, start_gameweek_id')
-        .single()
-
-      if (initError || !newRound) {
-        console.error("Failed to auto-initialize Survivor round:", initError)
-        throw new Error('Failed to initialize Survivor round. Please try again.')
-      }
-      activeRound = newRound
-    }
-
-    let survivorRoundId = activeRound.id
-    
-    const { data: entry } = await supabase
-      .from('survivor_entries')
-      .select('status')
-      .eq('round_id', activeRound.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
-      
-    if (entry && entry.status === 'eliminated') {
-      throw new Error('You have been eliminated from the current Survivor round.')
-    } else if (!entry) {
-      // If they don't have an entry but the round is active, they can join IF it's the start of the round
-      if (activeRound.start_gameweek_id === gameweekId) {
-        const adminClient = createAdminClient()
-        await adminClient.from('survivor_entries').insert({ round_id: activeRound.id, user_id: user.id, status: 'alive' })
-      } else {
-         throw new Error('You cannot join a Survivor round that has already started.')
-      }
-    }
-
-      // b. Max 1 pick per team per round
-      const { data: pastPicks } = await supabase
+    // a. Fetch user's historical picks before this gameweek to calculate active streak
+    const [{ data: pastPicks }, { data: allGwRecords }] = await Promise.all([
+      supabase
         .from('team_predictions')
-        .select('team_id')
+        .select('gameweek_id, team_id, match_result, points_earned')
         .eq('user_id', user.id)
-        .eq('survivor_round_id', activeRound.id)
-        .neq('gameweek_id', gameweekId)
-        
-      if (pastPicks && pastPicks.some(p => p.team_id === teamId)) {
-        throw new Error('Limit reached: You have already selected this team in the current round.')
-      }
+        .lt('gameweek_id', gameweekId)
+        .order('gameweek_id', { ascending: false }),
+      supabase
+        .from('gameweeks')
+        .select('id, is_survivor_skipped')
+    ])
 
-    // c. Table Standings Rules (Gameweek > 1 only)
-    if (gameweekId > 1 && !gameweek.is_survivor_skipped) {
-      // 1. Fetch picked team details
-      const { data: pickedTeam } = await supabase
+    const skippedGwsSet = new Set<number>()
+    allGwRecords?.forEach(gw => {
+      if (gw.is_survivor_skipped) skippedGwsSet.add(gw.id)
+    })
+
+    const userPicksByGw = new Map<number, any>()
+    if (pastPicks) {
+      for (const p of pastPicks) {
+        userPicksByGw.set(p.gameweek_id, p)
+      }
+    }
+
+    const activeStreakTeamIds = new Set<number>()
+    let checkGw = gameweekId - 1
+    while (checkGw >= 1) {
+      if (skippedGwsSet.has(checkGw)) {
+        checkGw -= 1
+        continue
+      }
+      const pastPick = userPicksByGw.get(checkGw)
+      if (pastPick && (pastPick.match_result === 'win' || (pastPick.points_earned && pastPick.points_earned > 0))) {
+        activeStreakTeamIds.add(pastPick.team_id)
+        checkGw -= 1
+      } else {
+        // Missed gameweek or loss/draw breaks active streak
+        break
+      }
+    }
+
+    // b. Fetch picked team and opponent details
+    const { data: pickedTeam } = await supabase
+      .from('teams')
+      .select('id, position, name')
+      .eq('id', teamId)
+      .single()
+
+    let opponentTeam: any = null
+    if (opponentTeamId) {
+      const { data: oppData } = await supabase
         .from('teams')
-        .select('position, name')
-        .eq('id', teamId)
+        .select('id, position, name')
+        .eq('id', opponentTeamId)
         .single()
+      opponentTeam = oppData
+    }
 
-      // Top 3 Rule: Whoever sits 1st to 3rd is off the board (positions 1, 2, 3)
-      if (pickedTeam && pickedTeam.position !== null && pickedTeam.position >= 1 && pickedTeam.position <= 3) {
-        throw new Error('Invalid Pick: Teams currently in the top 3 (1st to 3rd place) cannot be selected.')
+    // c. Table Standings & Clash Rules (Gameweek > 1 only)
+    if (gameweekId > 1 && !gameweek.is_survivor_skipped) {
+      const isPickedTop3 = pickedTeam && pickedTeam.position !== null && pickedTeam.position >= 1 && pickedTeam.position <= 3
+      const isOpponentTop3 = opponentTeam && opponentTeam.position !== null && opponentTeam.position >= 1 && opponentTeam.position <= 3
+
+      // Top 3 Rule: Locked UNLESS Top 3 vs Top 3 Clash
+      if (isPickedTop3) {
+        const isTop3Clash = isOpponentTop3
+        if (!isTop3Clash) {
+          throw new Error('Invalid Pick: Teams currently in the top 3 (1st–3rd place) cannot be selected unless playing another top-3 team.')
+        }
       }
 
-      // 2. Bottom 3 Opponent Rule: Cannot back a team facing a bottom-3 team (positions 18, 19, 20), unless the team itself is also in bottom 3
-      if (opponentTeamId) {
-        const { data: opponentTeam } = await supabase
-          .from('teams')
-          .select('position, name')
-          .eq('id', opponentTeamId)
-          .single()
+      // Bottom 3 Opponent Rule: Cannot back a team facing a bottom-3 team (positions 18, 19, 20), unless both are in bottom 3
+      const isOpponentBottom3 = opponentTeam && opponentTeam.position !== null && opponentTeam.position >= 18 && opponentTeam.position <= 20
+      const isSelfBottom3 = pickedTeam && pickedTeam.position !== null && pickedTeam.position >= 18 && pickedTeam.position <= 20
 
-        const isOpponentBottom3 = opponentTeam && opponentTeam.position !== null && opponentTeam.position >= 18 && opponentTeam.position <= 20
-        const isSelfBottom3 = pickedTeam && pickedTeam.position !== null && pickedTeam.position >= 18 && pickedTeam.position <= 20
-
-        if (isOpponentBottom3 && !isSelfBottom3) {
-          throw new Error('Invalid Pick: You cannot pick the opponent of a bottom-3 team (unless your pick is also a bottom-3 team).')
+      if (isOpponentBottom3) {
+        const isBottom3Clash = isSelfBottom3
+        if (!isBottom3Clash) {
+          throw new Error('Invalid Pick: You cannot pick the opponent of a bottom-3 team unless your pick is also in the bottom 3.')
         }
+      }
+    }
+
+    // d. Active Streak Team Lock (with Club Cycle Reset edge-case handler)
+    if (activeStreakTeamIds.has(teamId)) {
+      // Check if user ran out of valid teams (Club Cycle Reset)
+      const { data: allTeams } = await supabase.from('teams').select('id, position')
+      const validSelectableTeams = (allTeams || []).filter(t => {
+        const isT3 = t.position !== null && t.position >= 1 && t.position <= 3
+        const tFix = allGwFixtures?.find(f => f.home_team_id === t.id || f.away_team_id === t.id)
+        if (!tFix) return false
+        const oppId = tFix.home_team_id === t.id ? tFix.away_team_id : tFix.home_team_id
+        const oppT = allTeams?.find(ot => ot.id === oppId)
+        
+        const isOppT3 = oppT && oppT.position !== null && oppT.position >= 1 && oppT.position <= 3
+        const isT3Blocked = isT3 && !isOppT3
+        
+        const isOppB3 = oppT && oppT.position !== null && oppT.position >= 18 && oppT.position <= 20
+        const isSelfB3 = t.position !== null && t.position >= 18 && t.position <= 20
+        const isB3Blocked = isOppB3 && !isSelfB3
+
+        return !isT3Blocked && !isB3Blocked
+      })
+
+      const hasSelectableOutsideStreak = validSelectableTeams.some(t => !activeStreakTeamIds.has(t.id))
+      if (hasSelectableOutsideStreak) {
+        throw new Error('Limit reached: You have already selected this team during your current active winning streak.')
       }
     }
 
@@ -174,8 +198,6 @@ export async function submitTeamPrediction(formData: FormData) {
         gameweek_id: gameweekId,
         team_id: teamId,
         fixture_id: validatedFixtureId,
-        survivor_round_id: survivorRoundId,
-        // match_result defaults to null and is graded after the match finishes
       }, {
         onConflict: 'user_id, gameweek_id' // Ensures only 1 team is picked per gameweek
       })

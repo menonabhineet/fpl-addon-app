@@ -61,6 +61,8 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
           manager_name: managerName,
           full_name: fullName,
           nickname: nickname,
+          current_streak: record.current_streak || 0,
+          best_streak: record.best_streak || 0,
           total_score_points: 0,
           total_team_points: 0,
           total_ff_points: 0,
@@ -68,6 +70,10 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
           grand_total: 0,
           previous_grand_total: 0
         })
+      } else {
+        const u = userMap.get(userId)
+        if (record.current_streak) u.current_streak = Math.max(u.current_streak, record.current_streak)
+        if (record.best_streak) u.best_streak = Math.max(u.best_streak, record.best_streak)
       }
 
       const userStat = userMap.get(userId)
@@ -112,16 +118,18 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
     }))
   }, [allScores, filter, currentGwId, sortConfig])
 
-  // Badges & Banter calculations (Rocket Man, Free Fall, Nostradamus)
+  // Badges & Banter calculations (Rocket Man, Free Fall, Nostradamus, Streak Master)
   const badgeStats = useMemo(() => {
     if (!leaderboardData || leaderboardData.length === 0) {
       return {
         rocketManUserIds: new Set<string>(),
         freeFallUserIds: new Set<string>(),
         nostradamusUserIds: new Set<string>(),
+        streakMasterUserIds: new Set<string>(),
         maxClimb: 0,
         maxDrop: 0,
-        maxScorePoints: 0
+        maxScorePoints: 0,
+        maxStreak: 0
       }
     }
 
@@ -186,13 +194,32 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
       })
     }
 
+    // Streak Master: Manager(s) with the highest active streak (>= 2)
+    let maxStreak = 0
+    leaderboardData.forEach(u => {
+      if ((u.current_streak || 0) > maxStreak) {
+        maxStreak = u.current_streak
+      }
+    })
+
+    const streakMasterUserIds = new Set<string>()
+    if (maxStreak >= 2) {
+      leaderboardData.forEach(u => {
+        if ((u.current_streak || 0) === maxStreak) {
+          streakMasterUserIds.add(u.user_id)
+        }
+      })
+    }
+
     return {
       rocketManUserIds,
       freeFallUserIds,
       nostradamusUserIds,
+      streakMasterUserIds,
       maxClimb,
       maxDrop,
-      maxScorePoints
+      maxScorePoints,
+      maxStreak
     }
   }, [leaderboardData, filter])
 
@@ -250,6 +277,7 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
             <span className="mr-auto">Rank / Manager</span>
             <div className="flex gap-4">
               <button onClick={() => handleSort('total_score_points')} className={`transition-colors ${sortConfig.key === 'total_score_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Scores {getSortIcon('total_score_points')}</button>
+              <button onClick={() => handleSort('current_streak')} className={`transition-colors ${sortConfig.key === 'current_streak' ? 'text-orange-500' : 'hover:text-orange-500'}`}>Streak 🔥 {getSortIcon('current_streak')}</button>
               <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Surv {getSortIcon('total_team_points')}</button>
               <button onClick={() => handleSort('total_ff_points')} className={`transition-colors ${sortConfig.key === 'total_ff_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>F4 {getSortIcon('total_ff_points')}</button>
               <button onClick={() => handleSort('total_penalty_points')} className={`transition-colors ${sortConfig.key === 'total_penalty_points' ? 'text-rose-500' : 'hover:text-rose-500'}`}>Pens {getSortIcon('total_penalty_points')}</button>
@@ -260,6 +288,7 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
           <div className="md:hidden flex flex-wrap items-center justify-center gap-2 px-2 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             <span className="w-full text-center mb-1">Sort by</span>
             <button onClick={() => handleSort('grand_total')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'grand_total' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Total {getSortIcon('grand_total')}</button>
+            <button onClick={() => handleSort('current_streak')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'current_streak' ? 'border-orange-500/50 bg-orange-500/10 text-orange-500' : 'border-white/10 bg-black/20'}`}>Streak 🔥 {getSortIcon('current_streak')}</button>
             <button onClick={() => handleSort('total_score_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_score_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Scores {getSortIcon('total_score_points')}</button>
             <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Surv {getSortIcon('total_team_points')}</button>
             <button onClick={() => handleSort('total_ff_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_ff_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>F4 {getSortIcon('total_ff_points')}</button>
@@ -272,6 +301,7 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
             const isRocketMan = badgeStats.rocketManUserIds.has(row.user_id);
             const isFreeFall = badgeStats.freeFallUserIds.has(row.user_id);
             const isNostradamus = badgeStats.nostradamusUserIds.has(row.user_id);
+            const isStreakMaster = badgeStats.streakMasterUserIds.has(row.user_id);
 
             let rankDisplay = <span className="font-heading text-3xl md:text-4xl text-slate-400 dark:text-slate-600">#{rank}</span>;
             let cardClasses = isCurrentUser
@@ -318,6 +348,26 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
                       {isCurrentUser && (
                         <span className="px-2.5 py-0.5 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-emerald-500 text-white rounded-full shadow-md shadow-emerald-500/30 flex items-center gap-1">
                           <span>👤</span> You
+                        </span>
+                      )}
+                      {row.current_streak > 0 && (
+                        <span 
+                          className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full flex items-center gap-1 shadow-sm ${
+                            row.current_streak >= 3
+                              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)] animate-pulse'
+                              : 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30'
+                          }`}
+                          title={`Active Streak: ${row.current_streak} wins in a row (+${row.current_streak + 1} pts on next win)`}
+                        >
+                          <span>🔥</span> {row.current_streak} Streak
+                        </span>
+                      )}
+                      {isStreakMaster && (
+                        <span 
+                          className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/40 rounded-full shadow-[0_0_12px_rgba(249,115,22,0.3)] flex items-center gap-1 animate-in zoom-in duration-300"
+                          title={`Streak Master: Longest active streak in the league (${badgeStats.maxStreak} wins)`}
+                        >
+                          <span>⚡</span> Streak Master ({badgeStats.maxStreak})
                         </span>
                       )}
                       {isRocketMan && (
@@ -367,6 +417,12 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
                     <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
                       <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Scores</span>
                       <span className="font-heading text-lg md:text-xl">{row.total_score_points}</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-orange-50/50 dark:bg-orange-950/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-orange-200/50 dark:border-orange-500/20">
+                      <span className="text-[9px] md:text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-0.5 md:mb-1">Streak</span>
+                      <span className="font-heading text-lg md:text-xl text-orange-600 dark:text-orange-400">
+                        {row.current_streak > 0 ? `🔥${row.current_streak}` : '0'}
+                      </span>
                     </div>
                     <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
                       <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">Surv</span>

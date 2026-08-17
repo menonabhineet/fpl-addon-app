@@ -74,6 +74,7 @@ export default async function DashboardPage({
     { data: allUserSurvivorEntries },
     { data: allScores, error: scoresError },
     { data: allProfiles },
+    { data: allTeamPredictions },
     userLeaguesRes,
     activeLeagueMembersData,
     fplDataResult,
@@ -85,12 +86,13 @@ export default async function DashboardPage({
     supabase.from('bonus_questions').select('*').eq('gameweek', selectedGwId).maybeSingle(),
     supabase.from('bonus_predictions').select('*').eq('user_id', user.id),
     supabase.from('fantastic_four').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId),
-    supabase.from('team_predictions').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId),
+    supabase.from('team_predictions').select('*').eq('user_id', user.id).order('gameweek_id', { ascending: true }),
     supabase.from('score_predictions').select('*').eq('user_id', user.id),
     supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
     supabase.from('vw_user_scores_with_profiles').select('*').order('total_points', { ascending: false }),
     adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url'),
+    adminClient.from('team_predictions').select('user_id, gameweek_id, match_result, points_earned'),
     getUserLeagues(user.id),
     activeLeagueId ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeagueId) : Promise.resolve({ data: null }),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
@@ -100,6 +102,56 @@ export default async function DashboardPage({
   if (scoresError) {
     console.error("Failed to fetch leaderboard data:", scoresError)
   }
+
+  // Pre-calculate streaks for all users
+  const userStreaksMap = new Map<string, { currentStreak: number; bestStreak: number }>()
+  const skippedGwsSet = new Set<number>()
+  allGameweeks?.forEach((gw: any) => {
+    if (gw.is_survivor_skipped) skippedGwsSet.add(gw.id)
+  })
+
+  const picksByUser = new Map<string, Map<number, any>>()
+  allTeamPredictions?.forEach((p: any) => {
+    if (!picksByUser.has(p.user_id)) {
+      picksByUser.set(p.user_id, new Map<number, any>())
+    }
+    picksByUser.get(p.user_id)!.set(p.gameweek_id, p)
+  })
+
+  allProfiles?.forEach((prof: any) => {
+    const userPicksByGw = picksByUser.get(prof.id) || new Map<number, any>()
+    
+    let currentStreak = 0
+    let checkGw = currentGwId - 1
+    while (checkGw >= 1) {
+      if (skippedGwsSet.has(checkGw)) {
+        checkGw -= 1
+        continue
+      }
+      const pastPick = userPicksByGw.get(checkGw)
+      if (pastPick && (pastPick.match_result === 'win' || (pastPick.points_earned && pastPick.points_earned > 0))) {
+        currentStreak += 1
+        checkGw -= 1
+      } else {
+        break
+      }
+    }
+
+    let bestStreak = 0
+    let tempStreak = 0
+    for (let gw = 1; gw <= 38; gw++) {
+      if (skippedGwsSet.has(gw)) continue
+      const pick = userPicksByGw.get(gw)
+      if (pick && (pick.match_result === 'win' || (pick.points_earned && pick.points_earned > 0))) {
+        tempStreak += 1
+        if (tempStreak > bestStreak) bestStreak = tempStreak
+      } else {
+        tempStreak = 0
+      }
+    }
+
+    userStreaksMap.set(prof.id, { currentStreak, bestStreak })
+  })
 
   const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
   const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
@@ -131,6 +183,13 @@ export default async function DashboardPage({
       }
     })
   }
+
+  // Enrich all records with current_streak and best_streak
+  groupScores.forEach((s: any) => {
+    const st = userStreaksMap.get(s.user_id)
+    s.current_streak = st?.currentStreak || 0
+    s.best_streak = st?.bestStreak || 0
+  })
 
   // Filter leaderboard scores strictly by active league if a league is selected
   let scopedScores: any[] = []
@@ -483,25 +542,13 @@ export default async function DashboardPage({
             </div>
           )}
 
-          {isNewRound && (
-            <div className="mt-4 sm:mt-6 max-w-2xl mx-auto w-full glass rounded-xl p-4 text-sm bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 border-l-4 text-left animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-              <div className="flex items-start sm:items-center gap-3">
-                <span className="text-2xl mt-0.5 sm:mt-0">🆕</span>
-                <div>
-                  <strong className="font-bold uppercase tracking-wider block mb-0.5 sm:mb-1">New Survivor Round Active!</strong> 
-                  A fresh round has started. Everyone is back in the game and teams are reset. Head over to the <strong className="text-emerald-600 dark:text-emerald-400">Survivor Mode</strong> tab to make your pick!
-                </div>
-              </div>
-            </div>
-          )}
-
           {selectedGw?.is_survivor_skipped && (
             <div className="mt-4 sm:mt-6 max-w-2xl mx-auto w-full glass rounded-xl p-4 text-sm bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 border-l-4 text-left animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
               <div className="flex items-start sm:items-center gap-3">
                 <span className="text-2xl mt-0.5 sm:mt-0">⏸️</span>
                 <div>
-                  <strong className="font-bold uppercase tracking-wider block mb-0.5 sm:mb-1">Survivor Mode Skipped</strong> 
-                  The admin has paused Survivor Mode for this gameweek. No eliminations will occur!
+                  <strong className="font-bold uppercase tracking-wider block mb-0.5 sm:mb-1">Survivor Mode Paused</strong> 
+                  The admin has paused Survivor Mode for this gameweek. No streak breaks will occur!
                 </div>
               </div>
             </div>
@@ -535,6 +582,7 @@ export default async function DashboardPage({
           actualCurrentGwId={currentGwId}
           currentUserId={user?.id}
           activeLeague={activeLeague}
+          allGameweeks={allGameweeks || []}
         />
       </main>
     </div>

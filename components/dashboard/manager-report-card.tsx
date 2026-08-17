@@ -58,6 +58,8 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
     let highestScore = -Infinity
     let lowestScore = Infinity
     let totalPoints = 0
+    const currentStreak = userScores[0]?.current_streak || 0
+    const bestStreak = userScores[0]?.best_streak || 0
 
     userScores.forEach(score => {
       const gwTotal = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0)
@@ -73,7 +75,9 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
       highestScore: highestScore === -Infinity ? 0 : highestScore,
       lowestScore: lowestScore === Infinity ? 0 : lowestScore,
       avgScore: avgScore.toFixed(1),
-      totalPoints
+      totalPoints,
+      currentStreak,
+      bestStreak
     }
   }, [managerId, allScores])
 
@@ -112,22 +116,30 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
           ) : (
             <div className="space-y-8">
               {/* Stats Overview */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Total Pts</span>
-                  <span className="font-heading text-4xl text-emerald-600 dark:text-emerald-400 drop-shadow-md">{stats.totalPoints}</span>
+                  <span className="font-heading text-3xl sm:text-4xl text-emerald-600 dark:text-emerald-400 drop-shadow-md">{stats.totalPoints}</span>
                 </div>
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+                <div className="glass bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-500/20 p-3 rounded-2xl flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1 text-center">Active Streak</span>
+                  <span className="font-heading text-3xl sm:text-4xl text-orange-600 dark:text-orange-400 drop-shadow-md">
+                    {stats.currentStreak > 0 ? `🔥 ${stats.currentStreak}` : '0'}
+                  </span>
+                </div>
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Best Streak</span>
+                  <span className="font-heading text-3xl sm:text-4xl text-slate-700 dark:text-white drop-shadow-md">
+                    {stats.bestStreak > 0 ? `🏆 ${stats.bestStreak}` : '0'}
+                  </span>
+                </div>
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Highest GW</span>
-                  <span className="font-heading text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.highestScore}</span>
+                  <span className="font-heading text-3xl sm:text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.highestScore}</span>
                 </div>
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Lowest GW</span>
-                  <span className="font-heading text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.lowestScore}</span>
-                </div>
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-4 rounded-2xl flex flex-col items-center justify-center">
+                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center col-span-2 sm:col-span-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Average</span>
-                  <span className="font-heading text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.avgScore}</span>
+                  <span className="font-heading text-3xl sm:text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.avgScore}</span>
                 </div>
               </div>
 
@@ -145,7 +157,7 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                           <th className="px-2 py-4 text-center"></th>
                           <th className="px-4 py-4 text-center">GW</th>
                           <th className="px-4 py-4 text-center">Scores</th>
-                          <th className="px-4 py-4 text-center">Survivor</th>
+                          <th className="px-4 py-4 text-center">Streak Pick</th>
                           <th className="px-4 py-4 text-center">F4</th>
                           <th className="px-4 py-4 text-center">Pens</th>
                           <th className="px-4 py-4 text-center text-emerald-500">Total</th>
@@ -174,7 +186,15 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                                 </td>
                                 <td className="px-4 py-3 font-heading text-xl text-slate-700 dark:text-slate-300 text-center">{gwId}</td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.score_points}</td>
-                                <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.team_points}</td>
+                                <td className="px-4 py-3 text-center font-bold">
+                                  {record.team_points > 0 ? (
+                                    <span className="text-orange-500 font-black flex items-center justify-center gap-0.5">
+                                      <span>🔥</span> +{record.team_points}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-500 dark:text-slate-400">0</span>
+                                  )}
+                                </td>
                                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-bold text-center">{record.fantastic_four_points}</td>
                                 <td className="px-4 py-3 text-rose-500 font-bold text-center">{record.penalty_points < 0 ? record.penalty_points : '-'}</td>
                                 <td className="px-4 py-3 font-heading text-2xl text-emerald-600 dark:text-emerald-400 drop-shadow-sm text-center">{effectiveGwTotal}</td>
@@ -205,19 +225,29 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
                                       <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
                                         <div>
                                           <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Survivor Pick</h4>
-                                            {gwPicks.eliminatedGameweekId === gwId && (
-                                              <span className="px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[9px] font-bold uppercase tracking-wider rounded border border-rose-500/30">
-                                                ❌ Eliminated
-                                              </span>
-                                            )}
+                                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Survivor Streak Pick</h4>
                                           </div>
                                           {gwPicks.teamPick ? (
-                                            <div className="bg-white/50 dark:bg-black/20 px-4 py-3 rounded-xl border border-slate-200/50 dark:border-white/5 flex items-center justify-center">
+                                            <div className="bg-white/50 dark:bg-black/20 px-4 py-3 rounded-xl border border-slate-200/50 dark:border-white/5 flex flex-col items-center justify-center gap-1">
                                               <span className="font-heading text-xl text-slate-800 dark:text-slate-100 uppercase tracking-wider">{gwPicks.teamPick.team?.name || 'Unknown Team'}</span>
+                                              {gwPicks.teamPick.match_result === 'win' && (
+                                                <span className="text-xs font-bold text-emerald-500 flex items-center gap-1">
+                                                  <span>✅</span> Won (+{gwPicks.teamPick.points_earned || 1} pts)
+                                                </span>
+                                              )}
+                                              {gwPicks.teamPick.match_result === 'draw' && (
+                                                <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
+                                                  <span>🤝</span> Draw (0 pts - Streak Reset)
+                                                </span>
+                                              )}
+                                              {gwPicks.teamPick.match_result === 'loss' && (
+                                                <span className="text-xs font-bold text-rose-500 flex items-center gap-1">
+                                                  <span>❌</span> Lost (0 pts - Streak Reset)
+                                                </span>
+                                              )}
                                             </div>
                                           ) : (
-                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No survivor pick</div>
+                                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">No streak pick</div>
                                           )}
                                         </div>
 
