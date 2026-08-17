@@ -384,7 +384,22 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
               <span>Clear Pick</span>
             </button>
           )}
-          {isLocked && (
+          {initialTeamPick?.match_result === 'win' && (
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg shadow-sm">
+              ✅ Won (+{initialTeamPick.points_earned || 1} pts)
+            </span>
+          )}
+          {initialTeamPick?.match_result === 'loss' && (
+            <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 px-2.5 py-1 rounded-lg shadow-sm">
+              ❌ Lost (0 pts)
+            </span>
+          )}
+          {initialTeamPick?.match_result === 'draw' && (
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg shadow-sm">
+              🤝 Draw (0 pts)
+            </span>
+          )}
+          {isLocked && !initialTeamPick?.match_result && (
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
               🔒 Picks Locked
             </span>
@@ -486,19 +501,19 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
                 onClick={() => {
                   if (!isDisabled) handleSelectTeam(team.id)
                 }}
-                className={`relative rounded-2xl border-2 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 transition-all duration-300 overflow-hidden ${
+                className={`relative rounded-2xl border-2 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 transition-all duration-200 overflow-hidden transform-gpu ${
                   isDisabled ? 'opacity-40 cursor-not-allowed bg-black/5 dark:bg-white/5 grayscale border-transparent' : 'cursor-pointer'
                 } ${
                   selectedTeamId === team.id && !isDisabled
                     ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 shadow-[0_0_20px_rgba(99,102,241,0.2)] scale-[1.04] z-10' 
-                    : !isDisabled ? 'border-white/10 hover:border-indigo-500/30 bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02]' : ''
+                    : !isDisabled ? 'border-slate-200 dark:border-white/10 hover:border-indigo-500/40 bg-slate-50/70 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 hover:scale-[1.02]' : ''
                 }`}
               >
                 {selectedTeamId === team.id && !isDisabled && <div className="absolute inset-0 bg-indigo-500/10 blur-xl pointer-events-none" />}
                 
                 {/* Rule badge if disabled (Top Right Corner) */}
                 {isDisabled && badgeLabel && (
-                  <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider ${badgeColor} bg-black/60 dark:bg-black/80 backdrop-blur-xs border border-white/10 z-20`}>
+                  <span className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wider ${badgeColor} bg-black/85 border border-white/10 z-20`}>
                     {badgeLabel}
                   </span>
                 )}
@@ -614,11 +629,11 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
       {/* Clear Confirmation Modal */}
       {showClearModal && mounted && createPortal(
         <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 animate-in fade-in duration-150"
           onClick={() => setShowClearModal(false)}
         >
           <div 
-            className="glass max-w-md w-full p-6 sm:p-8 rounded-3xl border border-white/10 bg-neutral-950/95 shadow-2xl space-y-6 text-slate-100"
+            className="max-w-md w-full p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-neutral-900 shadow-2xl space-y-6 text-slate-800 dark:text-slate-100 animate-in zoom-in-95 duration-150 transform-gpu"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 text-rose-500">

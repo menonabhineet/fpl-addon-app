@@ -89,22 +89,22 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-all"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 transition-colors"
       onClick={onClose}
     >
       <div
-        className="glass w-full max-w-2xl rounded-[2.5rem] shadow-2xl border border-white/10 bg-neutral-950/80 flex flex-col max-h-[90vh] overflow-hidden"
+        className="w-full max-w-2xl rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-neutral-950 flex flex-col max-h-[90vh] overflow-hidden transform-gpu animate-in zoom-in-95 duration-150 text-slate-800 dark:text-slate-100"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-white/5 bg-black/40 shrink-0">
-          <h2 className="text-2xl font-heading uppercase tracking-widest text-white flex items-center gap-3">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-neutral-900/60 shrink-0">
+          <h2 className="text-2xl font-heading uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-3">
             <span className="text-3xl drop-shadow-md">📊</span> {managerName}
           </h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-white hover:bg-black/60 transition-colors backdrop-blur-md border border-white/5"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-colors border border-slate-300 dark:border-white/5 cursor-pointer"
           >
             ✕
           </button>
@@ -117,27 +117,27 @@ export default function ManagerReportCard({ isOpen, onClose, managerId, managerN
             <div className="space-y-8">
               {/* Stats Overview */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
+                <div className="bg-slate-50 dark:bg-neutral-900 border border-slate-200/80 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Total Pts</span>
                   <span className="font-heading text-3xl sm:text-4xl text-emerald-600 dark:text-emerald-400 drop-shadow-md">{stats.totalPoints}</span>
                 </div>
-                <div className="glass bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-500/20 p-3 rounded-2xl flex flex-col items-center justify-center">
+                <div className="bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200/80 dark:border-orange-500/20 p-3 rounded-2xl flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1 text-center">Active Streak</span>
                   <span className="font-heading text-3xl sm:text-4xl text-orange-600 dark:text-orange-400 drop-shadow-md">
                     {stats.currentStreak > 0 ? `🔥 ${stats.currentStreak}` : '0'}
                   </span>
                 </div>
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
+                <div className="bg-slate-50 dark:bg-neutral-900 border border-slate-200/80 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Best Streak</span>
                   <span className="font-heading text-3xl sm:text-4xl text-slate-700 dark:text-white drop-shadow-md">
                     {stats.bestStreak > 0 ? `🏆 ${stats.bestStreak}` : '0'}
                   </span>
                 </div>
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
+                <div className="bg-slate-50 dark:bg-neutral-900 border border-slate-200/80 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Highest GW</span>
                   <span className="font-heading text-3xl sm:text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.highestScore}</span>
                 </div>
-                <div className="glass bg-white/50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center col-span-2 sm:col-span-1">
+                <div className="bg-slate-50 dark:bg-neutral-900 border border-slate-200/80 dark:border-white/5 p-3 rounded-2xl flex flex-col items-center justify-center col-span-2 sm:col-span-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center">Average</span>
                   <span className="font-heading text-3xl sm:text-4xl text-slate-700 dark:text-white drop-shadow-md">{stats.avgScore}</span>
                 </div>

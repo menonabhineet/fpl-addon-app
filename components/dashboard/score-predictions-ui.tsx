@@ -275,11 +275,11 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
       {/* Clear All Confirmation Modal */}
       {showClearModal && mounted && createPortal(
         <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 animate-in fade-in duration-150"
           onClick={() => setShowClearModal(false)}
         >
           <div 
-            className="glass max-w-md w-full p-6 sm:p-8 rounded-3xl border border-white/10 bg-neutral-950/95 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200"
+            className="max-w-md w-full p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-neutral-900 shadow-2xl space-y-6 animate-in zoom-in-95 duration-150 transform-gpu text-slate-800 dark:text-slate-100"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 text-rose-500">
@@ -551,7 +551,14 @@ function FixtureCard({
             </span>
           )}
           {hasPick && <span className="text-emerald-600 dark:text-emerald-400 drop-shadow-sm">✓ Locked</span>}
-          {match.is_finished && <span className="bg-slate-800 text-slate-200 px-2 py-0.5 rounded text-[10px]">FT</span>}
+          {match.is_finished ? (
+            <span className="bg-slate-800 text-slate-200 px-2 py-0.5 rounded text-[10px] font-bold tracking-wider">FT</span>
+          ) : (match.home_score !== null && match.away_score !== null) ? (
+            <span className="flex items-center gap-1 bg-rose-600/20 text-rose-500 border border-rose-500/30 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider shadow-[0_0_10px_rgba(244,63,94,0.2)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block"></span>
+              LIVE
+            </span>
+          ) : null}
           {hasPick && !match.is_finished && !isLocked && (
             <button
               type="button"
@@ -608,7 +615,7 @@ function FixtureCard({
                 onChange={handleHomeChange}
                 onKeyDown={handleHomeKeyDown}
                 onFocus={(e) => e.target.select()}
-                className="w-10 sm:w-12 h-10 sm:h-11 bg-white/70 dark:bg-black/30 backdrop-blur-md border-x border-slate-200/80 dark:border-white/10 text-center font-heading text-xl sm:text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-60 shadow-inner"
+                className="w-10 sm:w-12 h-10 sm:h-11 bg-white dark:bg-black/50 border-x border-slate-200/80 dark:border-white/10 text-center font-heading text-xl sm:text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-60 shadow-inner"
               />
               <button
                 type="button"
@@ -646,7 +653,7 @@ function FixtureCard({
                 onChange={handleAwayChange}
                 onKeyDown={handleAwayKeyDown}
                 onFocus={(e) => e.target.select()}
-                className="w-10 sm:w-12 h-10 sm:h-11 bg-white/70 dark:bg-black/30 backdrop-blur-md border-x border-slate-200/80 dark:border-white/10 text-center font-heading text-xl sm:text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-60 shadow-inner"
+                className="w-10 sm:w-12 h-10 sm:h-11 bg-white dark:bg-black/50 border-x border-slate-200/80 dark:border-white/10 text-center font-heading text-xl sm:text-2xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-60 shadow-inner"
               />
               <button
                 type="button"
@@ -677,9 +684,12 @@ function FixtureCard({
           <div className="text-[10px] sm:text-xs font-bold uppercase tracking-widest min-h-[1.25rem] flex items-center gap-2">
             {state.success && <span className="text-emerald-600 dark:text-emerald-400 drop-shadow-sm">✓ {state.message}</span>}
             {state.error && <span className="text-rose-600 dark:text-rose-400 drop-shadow-sm">⚠ {state.error}</span>}
-            {match.is_finished && match.home_score !== null && match.away_score !== null && (
+            {match.home_score !== null && match.away_score !== null && (
               <span className="text-slate-500 dark:text-slate-400">
-                Actual: <span className="font-heading text-lg text-slate-700 dark:text-slate-200">{match.home_score} - {match.away_score}</span>
+                {match.is_finished ? 'Actual: ' : 'Live: '}
+                <span className={`font-heading text-lg ${match.is_finished ? 'text-slate-700 dark:text-slate-200' : 'text-rose-500 font-bold'}`}>
+                  {match.home_score} - {match.away_score}
+                </span>
               </span>
             )}
             {isPending && <span className="text-emerald-500 flex items-center gap-2"><div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div> Saving...</span>}

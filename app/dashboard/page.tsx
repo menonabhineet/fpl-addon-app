@@ -239,7 +239,9 @@ export default async function DashboardPage({
         total_points: el.total_points || 0,
         selected_by_percent: parseFloat(el.selected_by_percent) || 0,
         status: el.status || 'a',
-        news: el.news || ''
+        news: el.news || '',
+        event_points: el.event_points || 0,
+        now_cost: el.now_cost ? (el.now_cost / 10).toFixed(1) : null
       }
       return acc
     }, {})
@@ -313,6 +315,8 @@ export default async function DashboardPage({
       selected_by_percent: fplData.selected_by_percent,
       status: fplData.status,
       news: fplData.news,
+      event_points: fplData.event_points || 0,
+      now_cost: fplData.now_cost || null,
       next_fixture: nextFixtureStr
     }
   })

@@ -134,7 +134,7 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-black/10 border-b border-slate-200/50 dark:border-white/5">
               <tr>
-                <th className="px-6 py-4 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10 w-48 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">Pundit</th>
+                <th className="px-6 py-4 sticky left-0 bg-white dark:bg-neutral-900 z-10 w-48 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">Pundit</th>
                 {selectedFixtures.map(f => {
                   const home = Array.isArray(f.home_team) ? f.home_team[0] : f.home_team
                   const away = Array.isArray(f.away_team) ? f.away_team[0] : f.away_team
@@ -153,7 +153,7 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
 
                 return (
                   <tr key={pundit.id} className="hover:bg-black/5 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">
+                    <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300 sticky left-0 bg-white dark:bg-neutral-900 z-10 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">
                       {pundit.name} {isMe && <span className="text-[10px] text-emerald-500 ml-1">• you</span>}
                     </td>
                     {selectedFixtures.map(f => {
@@ -255,7 +255,7 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-black/10 border-b border-slate-200/50 dark:border-white/5">
                 <tr>
-                  <th className="px-6 py-4 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10 w-48 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">Pundit</th>
+                  <th className="px-6 py-4 sticky left-0 bg-white dark:bg-neutral-900 z-10 w-48 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">Pundit</th>
                   <th className="px-6 py-4 text-center">GK</th>
                   <th className="px-6 py-4 text-center">DEF</th>
                   <th className="px-6 py-4 text-center">MID</th>
@@ -278,7 +278,7 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
                   
                   return (
                     <tr key={pundit.id} className="hover:bg-black/5 transition-colors">
-                      <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">
+                      <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300 sticky left-0 bg-white dark:bg-neutral-900 z-10 border-r border-slate-200/50 dark:border-white/5 shadow-[4px_0_12px_rgba(0,0,0,0.05)]">
                         {pundit.name} {isMe && <span className="text-[10px] text-emerald-500 ml-1">• you</span>}
                       </td>
                       <td className="px-6 py-4 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">{getPosDisplay('GK')}</td>

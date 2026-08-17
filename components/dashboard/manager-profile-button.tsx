@@ -208,11 +208,11 @@ export default function ManagerProfileButton({
       {/* Sleek Manager & Notifications Modal */}
       {isOpen && mounted && createPortal(
         <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 animate-in fade-in duration-150"
           onClick={() => setIsOpen(false)}
         >
           <div 
-            className="relative glass max-w-lg w-full p-6 sm:p-8 rounded-3xl border border-slate-700/80 dark:border-white/15 bg-neutral-950/95 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] animate-in zoom-in-95 duration-200"
+            className="relative max-w-lg w-full p-6 sm:p-8 rounded-3xl border border-slate-700/80 dark:border-white/15 bg-neutral-950 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] animate-in zoom-in-95 duration-150 transform-gpu text-slate-100"
             onClick={(e) => e.stopPropagation()}
           >
             
