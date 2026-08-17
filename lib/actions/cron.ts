@@ -144,10 +144,14 @@ export async function calculateScores(targetGwParam?: number) {
 
   // 1. GRADE SCORE PREDICTIONS
   // For actual grading, we only care about finished fixtures
-  const { data: scorePicks } = await supabase
-    .from('score_predictions')
-    .select('*')
-    .in('fixture_id', fixtureIds)
+  let scorePicks: any[] = []
+  if (fixtureIds.length > 0) {
+    const { data } = await supabase
+      .from('score_predictions')
+      .select('*')
+      .in('fixture_id', fixtureIds)
+    scorePicks = data || []
+  }
 
   const scorePickUpdates: any[] = []
   const scorePickUpdateData: any[] = []
@@ -194,11 +198,13 @@ export async function calculateScores(targetGwParam?: number) {
     .from('team_predictions')
     .select('*')
     .eq('gameweek_id', TARGET_GW)
+    .range(0, 9999)
 
   // Query all gameweeks to know if any prior gameweeks were admin-skipped
   const { data: allGwRecords } = await supabase
     .from('gameweeks')
     .select('id, is_survivor_skipped')
+    .range(0, 9999)
 
   const skippedGwsSet = new Set<number>()
   allGwRecords?.forEach(gw => {
@@ -211,6 +217,7 @@ export async function calculateScores(targetGwParam?: number) {
     .select('user_id, gameweek_id, match_result, points_earned')
     .lt('gameweek_id', TARGET_GW)
     .order('gameweek_id', { ascending: false })
+    .range(0, 9999)
 
   const userHistoricalPicksMap = new Map<string, any[]>()
   if (pastPicksBeforeGw) {
@@ -326,6 +333,7 @@ export async function calculateScores(targetGwParam?: number) {
     .from('fantastic_four')
     .select('*')
     .eq('gameweek_id', TARGET_GW)
+    .range(0, 9999)
 
   const f4Updates: any[] = []
   const f4UpdateData: any[] = []
@@ -380,6 +388,7 @@ export async function calculateScores(targetGwParam?: number) {
       .from('bonus_predictions')
       .select('user_id, awarded_points')
       .eq('question_id', bq.id)
+      .range(0, 9999)
     
     if (bPicks) {
       for (const pick of bPicks) {

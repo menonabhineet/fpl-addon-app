@@ -23,14 +23,14 @@ export default async function AdminPage({
   
   if (authError || !user) redirect('/')
   
-  // Verify admin access
-  const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-  if (!user.email || !adminEmails.includes(user.email)) {
+  // Verify admin access (case-insensitive)
+  const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+  if (!user.email || !adminEmails.includes(user.email.toLowerCase())) {
     redirect('/dashboard') // Redirect non-admins to their dashboard
   }
 
   // Determine which Gameweek to view
-  const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true })
+  const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true }).range(0, 9999)
   const currentGwObj = allGameweeks?.find(gw => gw.is_current) || allGameweeks?.[0]
   
   const currentGwId = currentGwObj?.id || 1

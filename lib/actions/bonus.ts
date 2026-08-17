@@ -15,8 +15,8 @@ export async function createBonusQuestion(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) throw new Error('Unauthorized request.')
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-    if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) throw new Error('Forbidden. Admin access required.')
 
     if (options.length !== 3) {
       throw new Error('You must provide exactly 3 options.')
@@ -74,8 +74,8 @@ export async function setBonusCorrectAnswer(questionId: string, correctAnswer: s
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) throw new Error('Unauthorized request.')
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-    if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) throw new Error('Forbidden. Admin access required.')
 
     const supabaseAdmin = createAdminClient()
 
@@ -133,27 +133,31 @@ export async function submitBonusPrediction(questionId: string, answer: string) 
 
     const supabaseAdmin = createAdminClient()
 
-    // Enforce deadline
+    // 1. Fetch the bonus question
     const { data: qData, error: qError } = await supabaseAdmin
       .from('bonus_questions')
-      .select('gameweek, gameweeks ( deadline_time )')
+      .select('id, gameweek')
       .eq('id', questionId)
       .single()
 
     if (qError || !qData) throw new Error('Question not found.')
 
-    // Cast the joined data
-    const gameweekData = qData.gameweeks as unknown as { deadline_time: string } | null;
+    // 2. Fetch the corresponding gameweek deadline
+    const { data: gwData, error: gwError } = await supabaseAdmin
+      .from('gameweeks')
+      .select('deadline_time')
+      .eq('id', qData.gameweek)
+      .single()
     
-    if (!gameweekData?.deadline_time) {
+    if (gwError || !gwData?.deadline_time) {
       throw new Error('Gameweek deadline configuration missing.')
     }
 
-    if (new Date() >= new Date(gameweekData.deadline_time)) {
+    if (new Date() >= new Date(gwData.deadline_time)) {
       throw new Error('Gameweek deadline has passed. Predictions are locked.')
     }
 
-    // Upsert the prediction
+    // 3. Upsert the prediction
     const { error } = await supabaseAdmin
       .from('bonus_predictions')
       .upsert({ 
@@ -179,8 +183,8 @@ export async function deleteBonusQuestion(questionId: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) throw new Error('Unauthorized request.')
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-    if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) throw new Error('Forbidden. Admin access required.')
 
     const supabaseAdmin = createAdminClient()
 

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function saveSelectedFixtures(gameweekId: number, selectedFixtureIds: number[]) {
@@ -9,11 +10,13 @@ export async function saveSelectedFixtures(gameweekId: number, selectedFixtureId
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) throw new Error('Unauthorized request.')
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-    if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) throw new Error('Forbidden. Admin access required.')
+
+    const adminClient = createAdminClient()
 
     // Fetch total fixtures for this gameweek to determine the selection cap
-    const { count, error: countError } = await supabase
+    const { count, error: countError } = await adminClient
       .from('fixtures')
       .select('*', { count: 'exact', head: true })
       .eq('gameweek_id', gameweekId)
@@ -28,7 +31,7 @@ export async function saveSelectedFixtures(gameweekId: number, selectedFixtureId
     }
 
     // First, set all fixtures for this gameweek to is_selected = false
-    const { error: resetError } = await supabase
+    const { error: resetError } = await adminClient
       .from('fixtures')
       .update({ is_selected: false })
       .eq('gameweek_id', gameweekId)
@@ -36,7 +39,7 @@ export async function saveSelectedFixtures(gameweekId: number, selectedFixtureId
     if (resetError) throw new Error('Failed to reset fixtures selection.')
 
     // Then, set the selected fixtures to is_selected = true
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminClient
       .from('fixtures')
       .update({ is_selected: true })
       .in('id', selectedFixtureIds)

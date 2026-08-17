@@ -10,8 +10,8 @@ export async function toggleSurvivorSkipped(gameweekId: number, isSkipped: boole
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) throw new Error('Unauthorized request.')
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-    if (!user.email || !adminEmails.includes(user.email)) throw new Error('Forbidden. Admin access required.')
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) throw new Error('Forbidden. Admin access required.')
 
     const adminClient = createAdminClient()
     const { error } = await adminClient

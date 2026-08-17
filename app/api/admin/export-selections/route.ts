@@ -14,14 +14,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    // Verify admin access
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-    if (!user.email || !adminEmails.includes(user.email)) {
+    // Verify admin access (case-insensitive)
+    const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+    if (!user.email || !adminEmails.includes(user.email.toLowerCase())) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // 1. Get current gameweek to know which gameweeks to export (only previous ones)
-    const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true })
+    const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true }).range(0, 9999)
     if (!allGameweeks || allGameweeks.length === 0) {
       return NextResponse.json({ error: 'No gameweeks found' }, { status: 404 })
     }
@@ -30,9 +30,9 @@ export async function GET() {
     const currentGwId = currentGwObj.id || 1
 
     // 2. Fetch required reference data to map IDs to readable names
-    const { data: playersData } = await supabase.from('players').select('id, name')
-    const { data: teamsData } = await supabase.from('teams').select('id, name, short_name')
-    const { data: fixturesData } = await supabase.from('fixtures').select('id, home_team:home_team_id (name, short_name), away_team:away_team_id (name, short_name)')
+    const { data: playersData } = await supabase.from('players').select('id, name').range(0, 9999)
+    const { data: teamsData } = await supabase.from('teams').select('id, name, short_name').range(0, 9999)
+    const { data: fixturesData } = await supabase.from('fixtures').select('id, home_team:home_team_id (name, short_name), away_team:away_team_id (name, short_name)').range(0, 9999)
     
     const playersMap = new Map(playersData?.map(p => [p.id, p.name]) || [])
     const teamsMap = new Map(teamsData?.map(t => [t.id, t.name]) || [])
@@ -43,7 +43,7 @@ export async function GET() {
     }) || [])
 
     // 3. Fetch user profiles and leaderboard info
-    const { data: leaderboardData } = await supabase.from('vw_user_scores_with_profiles').select('*')
+    const { data: leaderboardData } = await supabase.from('vw_user_scores_with_profiles').select('*').range(0, 9999)
     
     const userNamesMap = new Map()
 
@@ -99,11 +99,11 @@ export async function GET() {
     }
 
     // 4. Fetch the selections up to currentGwId - 1
-    const { data: scorePicks } = await supabase.from('score_predictions').select('*, fixtures!inner(gameweek_id)').lt('fixtures.gameweek_id', currentGwId)
-    const { data: teamPicks } = await supabase.from('team_predictions').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true })
-    const { data: fantasticPicks } = await supabase.from('fantastic_four').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true })
-    const { data: bonusPicks } = await supabase.from('bonus_predictions').select('*, bonus_questions!inner(gameweek, question, correct_answer)').lt('bonus_questions.gameweek', currentGwId)
-    const { data: survivorEntries } = await supabase.from('survivor_entries').select('*').order('round_id', { ascending: true })
+    const { data: scorePicks } = await supabase.from('score_predictions').select('*, fixtures!inner(gameweek_id)').lt('fixtures.gameweek_id', currentGwId).range(0, 9999)
+    const { data: teamPicks } = await supabase.from('team_predictions').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true }).range(0, 9999)
+    const { data: fantasticPicks } = await supabase.from('fantastic_four').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true }).range(0, 9999)
+    const { data: bonusPicks } = await supabase.from('bonus_predictions').select('*, bonus_questions!inner(gameweek, question, correct_answer)').lt('bonus_questions.gameweek', currentGwId).range(0, 9999)
+    const { data: survivorEntries } = await supabase.from('survivor_entries').select('*').order('round_id', { ascending: true }).range(0, 9999)
 
     // 5. Transform data for Excel Sheets
     const scoreExportData = (scorePicks || []).map(pick => ({

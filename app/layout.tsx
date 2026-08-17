@@ -49,6 +49,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          scriptProps={{ async: true }}
         >
           {children}
           <Toaster richColors position="top-right" />

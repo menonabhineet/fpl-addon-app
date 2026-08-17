@@ -377,14 +377,8 @@ function FixtureCard({
   const isMassacre = hasBothScores && goalDiff >= 4
   const isGoalFest = hasBothScores && totalGoals >= 5 && !isMassacre
 
-  // Zero-zero randomized tag: randomly select between "PARK THE BUS" and "BORE DRAW"
-  const [zeroZeroTag, setZeroZeroTag] = useState(() => Math.random() < 0.5 ? 'PARK THE BUS' : 'BORE DRAW')
-
-  useEffect(() => {
-    if (is00) {
-      setZeroZeroTag(Math.random() < 0.5 ? 'PARK THE BUS' : 'BORE DRAW')
-    }
-  }, [is00, currentHomeScore, currentAwayScore])
+  // Zero-zero tag: deterministically alternate based on match ID to avoid SSR hydration mismatch
+  const zeroZeroTag = match.id % 2 === 0 ? 'PARK THE BUS' : 'BORE DRAW'
 
   const famousDerby = useMemo(() => getFamousDerby(match.home_team, match.away_team), [match.home_team, match.away_team])
 

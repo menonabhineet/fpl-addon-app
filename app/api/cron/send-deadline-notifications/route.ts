@@ -131,6 +131,7 @@ async function handleCron(req: Request) {
     }
 
     const allPendingUserIds = Array.from(subsByUser.keys())
+    const selectedFixtureIds = selectedFixtures?.map(f => f.id) || []
 
     // Bulk fetch all picks for all pending users in a single Promise.all
     const [
@@ -138,9 +139,11 @@ async function handleCron(req: Request) {
       { data: allTeamPicks },
       { data: allFantasticPicks }
     ] = await Promise.all([
-      supabase.from('score_predictions').select('user_id, id').in('user_id', allPendingUserIds).in('fixture_id', selectedFixtures?.map(f => f.id) || []),
-      supabase.from('team_predictions').select('user_id, id').in('user_id', allPendingUserIds).eq('gameweek_id', nextGw.id),
-      supabase.from('fantastic_four').select('user_id, id').in('user_id', allPendingUserIds).eq('gameweek_id', nextGw.id)
+      selectedFixtureIds.length > 0
+        ? supabase.from('score_predictions').select('user_id, id').in('user_id', allPendingUserIds).in('fixture_id', selectedFixtureIds).range(0, 9999)
+        : Promise.resolve({ data: [] as any[] }),
+      supabase.from('team_predictions').select('user_id, id').in('user_id', allPendingUserIds).eq('gameweek_id', nextGw.id).range(0, 9999),
+      supabase.from('fantastic_four').select('user_id, id').in('user_id', allPendingUserIds).eq('gameweek_id', nextGw.id).range(0, 9999)
     ])
 
     const scorePicksByUser = new Map<string, number>()

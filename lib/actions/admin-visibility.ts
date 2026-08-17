@@ -13,8 +13,8 @@ export async function toggleGameweekVisibility(gameweekId: number, isVisible: bo
     return { success: false, error: 'Unauthorized' }
   }
 
-  const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim()) || []
-  if (!user.email || !adminEmails.includes(user.email)) {
+  const adminEmails = process.env.ADMIN_EMAIL?.split(',').map(e => e.trim().toLowerCase()) || []
+  if (!user.email || !adminEmails.includes(user.email.toLowerCase())) {
     return { success: false, error: 'Unauthorized' }
   }
 

@@ -16,6 +16,7 @@ export async function getManagerPastPicks(managerId: string) {
       .from('gameweeks')
       .select('id, deadline_time')
       .lte('deadline_time', now)
+      .range(0, 9999)
 
     if (!gameweeks || gameweeks.length === 0) return { success: true, data: {} }
 
@@ -26,6 +27,7 @@ export async function getManagerPastPicks(managerId: string) {
       .from('fixtures')
       .select('id, gameweek_id, home_team:home_team_id(short_name), away_team:away_team_id(short_name)')
       .in('gameweek_id', pastGwIds)
+      .range(0, 9999)
     
     const pastFixtureIds = pastFixtures?.map(f => f.id) || []
 
@@ -36,6 +38,7 @@ export async function getManagerPastPicks(managerId: string) {
         .select('*')
         .eq('user_id', managerId)
         .in('fixture_id', pastFixtureIds)
+        .range(0, 9999)
       scorePicks = data || []
     }
 
@@ -45,6 +48,7 @@ export async function getManagerPastPicks(managerId: string) {
       .select('*, team:team_id(name, short_name)')
       .eq('user_id', managerId)
       .in('gameweek_id', pastGwIds)
+      .range(0, 9999)
 
     // 4. Get Fantastic Four
     const { data: f4Picks } = await supabase
@@ -52,6 +56,7 @@ export async function getManagerPastPicks(managerId: string) {
       .select('*')
       .eq('user_id', managerId)
       .in('gameweek_id', pastGwIds)
+      .range(0, 9999)
 
     // Fetch team short names for the f4 picks
     const f4PlayerIds = f4Picks?.map(p => p.player_id) || []
@@ -61,6 +66,7 @@ export async function getManagerPastPicks(managerId: string) {
         .from('players')
         .select('id, teams:team_id(short_name)')
         .in('id', f4PlayerIds)
+        .range(0, 9999)
         
       if (players) {
         players.forEach(p => {
@@ -130,6 +136,7 @@ export async function getAllPicksForGameweek(gameweekId: number) {
       .from('fixtures')
       .select('id, home_team:home_team_id(short_name), away_team:away_team_id(short_name)')
       .eq('gameweek_id', gameweekId)
+      .range(0, 9999)
     
     const fixtureIds = fixtures?.map(f => f.id) || []
 
@@ -139,6 +146,7 @@ export async function getAllPicksForGameweek(gameweekId: number) {
         .from('score_predictions')
         .select('*')
         .in('fixture_id', fixtureIds)
+        .range(0, 9999)
       
       // Enrich score picks with team names
       if (data && fixtures) {
@@ -163,12 +171,14 @@ export async function getAllPicksForGameweek(gameweekId: number) {
       .from('team_predictions')
       .select('*, team:team_id(name, short_name)')
       .eq('gameweek_id', gameweekId)
+      .range(0, 9999)
 
     // 4. Get Fantastic Four
     const { data: f4Picks } = await supabase
       .from('fantastic_four')
       .select('*')
       .eq('gameweek_id', gameweekId)
+      .range(0, 9999)
 
     // 5. Get Survivor Status for the round covering this gameweek
     const { data: activeRound } = await supabase
@@ -182,6 +192,7 @@ export async function getAllPicksForGameweek(gameweekId: number) {
     let survivorEntriesQuery = supabase
       .from('survivor_entries')
       .select('user_id, status, eliminated_gameweek_id, round_id')
+      .range(0, 9999)
 
     if (activeRound?.id) {
       survivorEntriesQuery = survivorEntriesQuery.eq('round_id', activeRound.id)
@@ -197,6 +208,7 @@ export async function getAllPicksForGameweek(gameweekId: number) {
         .from('players')
         .select('id, teams:team_id(short_name)')
         .in('id', f4PlayerIds)
+        .range(0, 9999)
         
       if (players) {
         players.forEach(p => {
