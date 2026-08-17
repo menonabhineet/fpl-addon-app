@@ -148,14 +148,6 @@ export async function calculateScores(targetGwParam?: number) {
     .from('score_predictions')
     .select('*')
     .in('fixture_id', fixtureIds)
-    
-  // For penalty logic, we need to know if they made ANY picks for this gameweek
-  const { data: allScorePicksGw } = await supabase
-    .from('score_predictions')
-    .select('user_id')
-    .in('fixture_id', allFixtureIds)
-    
-  const usersWithScorePicksGw = new Set(allScorePicksGw?.map(p => p.user_id) || [])
 
   const scorePickUpdates: any[] = []
   const scorePickUpdateData: any[] = []
@@ -396,36 +388,16 @@ export async function calculateScores(targetGwParam?: number) {
     }
   }
 
-  // 4. PENALTY AUDIT & LEADERBOARD AGGREGATION
+  // 4. LEADERBOARD AGGREGATION (0-Point Floor, No Negative Penalties)
   const leaderboardUpserts: any[] = []
 
   for (const user of allUsers) {
-    let scorePts = 0, teamPts = 0, ffPts = 0, penaltyPts = 0
-
-    const hasScorePicks = usersWithScorePicksGw.has(user.id)
-    const bonusPts = userBonusMap.get(user.id) || 0
-
-    if (!hasScorePicks && isPastDeadline) {
-      scorePts = -1
-      penaltyPts -= 1
-    } else {
-      scorePts = userScorePicksMap.get(user.id) || 0
-    }
-
-    const hasTeamPick = userTeamPicksMap.has(user.id)
-    if (hasTeamPick) {
-      teamPts = userTeamPicksMap.get(user.id) || 0
-    } else {
-      teamPts = 0
-    }
-
+    const scorePts = userScorePicksMap.get(user.id) || 0
+    const teamPts = userTeamPicksMap.get(user.id) || 0
     const f4Data = userF4PicksMap.get(user.id)
-    if ((!f4Data || f4Data.count === 0) && isPastDeadline) {
-      ffPts = -5
-      penaltyPts -= 5
-    } else {
-      ffPts = f4Data ? f4Data.points : 0
-    }
+    const ffPts = f4Data ? f4Data.points : 0
+    const bonusPts = userBonusMap.get(user.id) || 0
+    const penaltyPts = 0
 
     const totalPts = scorePts + teamPts + ffPts + bonusPts
 

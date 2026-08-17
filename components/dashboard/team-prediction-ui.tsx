@@ -239,31 +239,63 @@ const TeamPredictionUI = memo(function TeamPredictionUI({ teams, currentGw, init
     }
   }
 
+  const [showRules, setShowRules] = useState(false)
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      {/* Rules Banner */}
-      <div className="glass rounded-2xl p-4 sm:p-5 text-sm text-slate-700 dark:text-slate-300 border-indigo-500/30 border-l-4 space-y-2.5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-lg">🔥</span>
-          <strong className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base">Survivor Streak Rules:</strong>
-          <span className="font-medium">Back 1 team to win each gameweek. Build your consecutive win streak for escalating point bonuses!</span>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
-          <div className="flex items-center gap-2 bg-emerald-500/5 dark:bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
-            <span className="text-emerald-500 text-sm">⚡</span>
-            <span><strong>Escalating Points:</strong> 1st win = <strong className="text-emerald-600 dark:text-emerald-400">1 pt</strong>, 2nd win = <strong className="text-emerald-600 dark:text-emerald-400">2 pts</strong>, 3rd win = <strong className="text-emerald-600 dark:text-emerald-400">3 pts</strong> (+1 bonus per streak win)!</span>
+      {/* Collapsible Rules Accordion */}
+      <div className="glass rounded-2xl border border-indigo-500/20 overflow-hidden shadow-xs transition-all">
+        <button
+          type="button"
+          onClick={() => setShowRules(prev => !prev)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-indigo-500/5 transition-colors cursor-pointer"
+          aria-expanded={showRules}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base sm:text-lg">🔥</span>
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              Survivor Streak Rules & Scoring
+            </span>
           </div>
-          <div className="flex items-center gap-2 bg-rose-500/5 dark:bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-            <span className="text-rose-500 text-sm">💔</span>
-            <span><strong>Streak Reset:</strong> Draw or loss = <strong className="text-rose-600 dark:text-rose-400">0 pts</strong> (streak resets to 0 for next week).</span>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>{showRules ? 'Hide Rules' : 'View Rules'}</span>
+            <svg
+              className={`w-4 h-4 transition-transform duration-200 ${showRules ? 'rotate-180 text-indigo-500' : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </div>
-        </div>
+        </button>
 
-        <div className="text-xs font-medium text-slate-600 dark:text-slate-400 pt-0.5 leading-relaxed">
-          🚫 <strong className="text-slate-800 dark:text-slate-200">Restrictions:</strong> You can only use each team <strong>once per active streak</strong>. Teams in 1st–3rd place, and clubs facing 18th–20th opponents are off the board <em>unless playing each other (Top 3 vs Top 3, or Bottom 3 vs Bottom 3)</em>. (Gameweek 1 is exempt).
-          <span className="inline-block ml-2 text-emerald-600 dark:text-emerald-400 font-bold">H = Home</span>, <span className="inline-block text-sky-500 dark:text-sky-400 font-bold">A = Away</span>.
-        </div>
+        {showRules && (
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-1 text-sm text-slate-700 dark:text-slate-300 space-y-2.5 border-t border-indigo-500/10 animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="font-medium text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+              Back 1 team to win each gameweek. Build your consecutive win streak for escalating point bonuses!
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
+              <div className="flex items-center gap-2 bg-emerald-500/5 dark:bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                <span className="text-emerald-500 text-sm">⚡</span>
+                <span><strong>Escalating Points:</strong> 1st win = <strong className="text-emerald-600 dark:text-emerald-400">1 pt</strong>, 2nd win = <strong className="text-emerald-600 dark:text-emerald-400">2 pts</strong>, 3rd win = <strong className="text-emerald-600 dark:text-emerald-400">3 pts</strong> (+1 bonus per streak win)!</span>
+              </div>
+              <div className="flex items-center gap-2 bg-rose-500/5 dark:bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+                <span className="text-rose-500 text-sm">💔</span>
+                <span><strong>Streak Reset:</strong> Draw or loss = <strong className="text-rose-600 dark:text-rose-400">0 pts</strong> (streak resets to 0 for next week).</span>
+              </div>
+            </div>
+
+            <div className="text-xs font-medium text-slate-600 dark:text-slate-400 pt-0.5 leading-relaxed">
+              🚫 <strong className="text-slate-800 dark:text-slate-200">Restrictions:</strong> You can only use each team <strong>once per active streak</strong>. Teams in 1st–3rd place, and clubs facing 18th–20th opponents are off the board <em>unless playing each other (Top 3 vs Top 3, or Bottom 3 vs Bottom 3)</em>. (Gameweek 1 is exempt).
+              <span className="inline-block ml-2 text-emerald-600 dark:text-emerald-400 font-bold">H = Home</span>, <span className="inline-block text-sky-500 dark:text-sky-400 font-bold">A = Away</span>.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Active Streak & Potential Bonus Dashboard Cards */}

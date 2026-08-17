@@ -260,7 +260,7 @@ export default async function DashboardPage({
   if (groupScores && groupScores.length > 0) {
     const userTotals = new Map<string, number>();
     groupScores.forEach(score => {
-      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
+      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.bonus_points || 0);
       userTotals.set(score.user_id, (userTotals.get(score.user_id) || 0) + effectivePoints);
     });
     userGrandTotal = userTotals.get(user.id) || 0;
@@ -268,7 +268,7 @@ export default async function DashboardPage({
     // Determine rank within the scoped league or global
     const scopedUserTotals = new Map<string, number>();
     scopedScores.forEach((score: any) => {
-      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.penalty_points || 0);
+      const effectivePoints = (score.score_points || 0) + (score.team_points || 0) + (score.fantastic_four_points || 0) + (score.bonus_points || 0);
       scopedUserTotals.set(score.user_id, (scopedUserTotals.get(score.user_id) || 0) + effectivePoints);
     });
 

@@ -66,7 +66,6 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
           total_score_points: 0,
           total_team_points: 0,
           total_ff_points: 0,
-          total_penalty_points: 0,
           grand_total: 0,
           previous_grand_total: 0
         })
@@ -80,8 +79,7 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
       userStat.total_score_points += record.score_points || 0
       userStat.total_team_points += record.team_points || 0
       userStat.total_ff_points += record.fantastic_four_points || 0
-      userStat.total_penalty_points += record.penalty_points || 0
-      const gwPoints = (record.score_points || 0) + (record.team_points || 0) + (record.fantastic_four_points || 0) + (record.penalty_points || 0)
+      const gwPoints = (record.score_points || 0) + (record.team_points || 0) + (record.fantastic_four_points || 0) + (record.bonus_points || 0)
       userStat.grand_total += gwPoints
 
       if (record.gameweek_id < currentGwId) {
@@ -280,7 +278,6 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
               <button onClick={() => handleSort('current_streak')} className={`transition-colors ${sortConfig.key === 'current_streak' ? 'text-orange-500' : 'hover:text-orange-500'}`}>Streak 🔥 {getSortIcon('current_streak')}</button>
               <button onClick={() => handleSort('total_team_points')} className={`transition-colors ${sortConfig.key === 'total_team_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>Surv {getSortIcon('total_team_points')}</button>
               <button onClick={() => handleSort('total_ff_points')} className={`transition-colors ${sortConfig.key === 'total_ff_points' ? 'text-emerald-500' : 'hover:text-emerald-500'}`}>F4 {getSortIcon('total_ff_points')}</button>
-              <button onClick={() => handleSort('total_penalty_points')} className={`transition-colors ${sortConfig.key === 'total_penalty_points' ? 'text-rose-500' : 'hover:text-rose-500'}`}>Pens {getSortIcon('total_penalty_points')}</button>
             </div>
             <button onClick={() => handleSort('grand_total')} className={`pl-8 transition-colors ${sortConfig.key === 'grand_total' ? 'text-emerald-500' : 'text-emerald-500/80 hover:text-emerald-500'}`}>Total {getSortIcon('grand_total')}</button>
           </div>
@@ -292,7 +289,6 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
             <button onClick={() => handleSort('total_score_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_score_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Scores {getSortIcon('total_score_points')}</button>
             <button onClick={() => handleSort('total_team_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_team_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>Surv {getSortIcon('total_team_points')}</button>
             <button onClick={() => handleSort('total_ff_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_ff_points' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-500' : 'border-white/10 bg-black/20'}`}>F4 {getSortIcon('total_ff_points')}</button>
-            <button onClick={() => handleSort('total_penalty_points')} className={`px-2 py-1 rounded-full border ${sortConfig.key === 'total_penalty_points' ? 'border-rose-500/50 bg-rose-500/10 text-rose-500' : 'border-white/10 bg-black/20'}`}>Pens {getSortIcon('total_penalty_points')}</button>
           </div>
           
           {paginatedData.map((row, index) => {
@@ -431,10 +427,6 @@ const LeaderboardUI = memo(function LeaderboardUI({ allScores, currentGwId, curr
                     <div className="flex flex-col items-center bg-white/50 dark:bg-black/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-slate-200/50 dark:border-white/5">
                       <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 md:mb-1">F4</span>
                       <span className="font-heading text-lg md:text-xl">{row.total_ff_points}</span>
-                    </div>
-                    <div className="flex flex-col items-center bg-rose-50/50 dark:bg-rose-900/20 rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-rose-200/50 dark:border-rose-500/20">
-                      <span className="text-[9px] md:text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-0.5 md:mb-1">Pens</span>
-                      <span className="font-heading text-lg md:text-xl text-rose-600 dark:text-rose-400">{row.total_penalty_points < 0 ? row.total_penalty_points : '0'}</span>
                     </div>
                   </div>
                   

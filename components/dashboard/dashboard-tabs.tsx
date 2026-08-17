@@ -31,6 +31,20 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
 
   const [visitedTabs, setVisitedTabs] = useState<Set<TabState>>(new Set(['score']))
 
+  const scrollToGameSection = () => {
+    const container = document.getElementById('dashboard-tabs-container')
+    if (container) {
+      const header = document.querySelector('header')
+      const headerHeight = header ? header.getBoundingClientRect().height : 70
+      const targetY = container.getBoundingClientRect().top + window.scrollY - headerHeight - 12
+
+      window.scrollTo({
+        top: Math.max(0, targetY),
+        behavior: 'smooth',
+      })
+    }
+  }
+
   const handleTabChange = (tab: TabState) => {
     setVisitedTabs(prev => {
       if (prev.has(tab)) return prev
@@ -39,12 +53,13 @@ export default function DashboardTabs({ currentGw, fixtures, teams, players, ini
       return next
     })
     setActiveTab(tab)
+    scrollToGameSection()
   }
 
   const activeBottomIndex = BOTTOM_NAV_ITEMS.findIndex(item => item.id === activeTab)
 
   return (
-    <div className="space-y-6">
+    <div id="dashboard-tabs-container" className="space-y-6 scroll-mt-24 sm:scroll-mt-28">
       {/* 3D Card Navigation */}
       <div className="flex overflow-x-auto lg:grid lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6 mb-4 md:mb-12 pb-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:pb-0 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {(['score', 'team', 'fantastic', 'leaderboard', 'allpicks', 'fdr'] as TabState[]).map((tab) => (

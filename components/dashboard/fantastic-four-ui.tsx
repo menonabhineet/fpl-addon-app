@@ -227,13 +227,65 @@ const FantasticFourUI = memo(function FantasticFourUI({ players = [], currentGw,
     })
   }, [playersByPosition, activeSlot, deferredSearchQuery, selectedClub, sortBy])
 
+  const [showRules, setShowRules] = useState(false)
+
   const positions = ['FWD', 'MID', 'DEF', 'GK']
   const pickedCount = positions.filter(pos => Boolean(picksByPosition[pos])).length
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-amber-500/30 border-l-4">
-        📌 <strong className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Fantastic 4 Rules:</strong> Select your Fantastic Four. <strong>DEF/MID</strong> can be picked ONCE per season. <strong>GK/FWD</strong> can be picked ONCE per half-season. Click a player to swap them. Failure to submit a draft = <strong className="text-rose-500 font-bold text-lg">-5 pts</strong> penalty.
+      {/* Collapsible Rules Accordion */}
+      <div className="glass rounded-2xl border border-amber-500/20 overflow-hidden shadow-xs transition-all">
+        <button
+          type="button"
+          onClick={() => setShowRules(prev => !prev)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-amber-500/5 transition-colors cursor-pointer"
+          aria-expanded={showRules}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base sm:text-lg">⚡</span>
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              Fantastic 4 Rules & Scoring
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>{showRules ? 'Hide Rules' : 'View Rules'}</span>
+            <svg
+              className={`w-4 h-4 transition-transform duration-200 ${showRules ? 'rotate-180 text-amber-500' : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        </button>
+
+        {showRules && (
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-1 text-sm text-slate-700 dark:text-slate-300 space-y-2.5 border-t border-amber-500/10 animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="font-medium text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+              Select 4 players (1 GK, 1 DEF, 1 MID, 1 FWD) to earn their official Premier League fantasy points for the gameweek.
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
+              <div className="flex items-center gap-2 bg-amber-500/5 dark:bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                <span className="text-amber-500 text-sm">🔒</span>
+                <span><strong>DEF & MID:</strong> Pickable <strong className="text-amber-600 dark:text-amber-400">ONCE</strong> per full season.</span>
+              </div>
+              <div className="flex items-center gap-2 bg-sky-500/5 dark:bg-sky-500/10 p-2.5 rounded-xl border border-sky-500/20">
+                <span className="text-sky-500 text-sm">🔄</span>
+                <span><strong>GK & FWD:</strong> Pickable <strong className="text-sky-600 dark:text-sky-400">ONCE</strong> per half-season (GW 1-19 & GW 20-38).</span>
+              </div>
+            </div>
+
+            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 pt-0.5 leading-relaxed">
+              💡 <strong>Tip:</strong> You can edit or swap your Fantastic 4 picks anytime until the gameweek deadline passes.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action Header: Draft Status & Clear All */}

@@ -141,10 +141,66 @@ const ScorePredictionsUI = memo(function ScorePredictionsUI({ fixtures, currentG
     }
   }
 
+  const [showRules, setShowRules] = useState(false)
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="glass rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 border-emerald-500/30 border-l-4">
-        📌 <strong className="text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Score Pick Rules:</strong> Predict the exact score for all matches. Exact score = <strong className="text-emerald-500 font-bold text-lg">3 pts</strong>. Correct outcome (win/draw/loss) = <strong className="text-emerald-500 font-bold text-lg">1 pt</strong>. High-scoring bonus (Correct outcome AND both actual & predicted total goals are 5+) = <strong className="text-emerald-500 font-bold text-lg">+1 pt</strong>. Failure to submit any predictions before the deadline = <strong className="text-rose-500 font-bold text-lg">-1 pt</strong> penalty.
+      {/* Collapsible Rules Accordion */}
+      <div className="glass rounded-2xl border border-emerald-500/20 overflow-hidden shadow-xs transition-all">
+        <button
+          type="button"
+          onClick={() => setShowRules(prev => !prev)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-emerald-500/5 transition-colors cursor-pointer"
+          aria-expanded={showRules}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base sm:text-lg">🎯</span>
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Score Pick Rules & Scoring
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>{showRules ? 'Hide Rules' : 'View Rules'}</span>
+            <svg
+              className={`w-4 h-4 transition-transform duration-200 ${showRules ? 'rotate-180 text-emerald-500' : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        </button>
+
+        {showRules && (
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-1 text-sm text-slate-700 dark:text-slate-300 space-y-2.5 border-t border-emerald-500/10 animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="font-medium text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+              Predict the full-time scores for all selected fixtures this gameweek.
+            </p>
+
+            <div className="grid sm:grid-cols-3 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
+              <div className="flex items-center gap-2 bg-emerald-500/5 dark:bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                <span className="text-emerald-500 text-sm">🎯</span>
+                <span><strong>Exact Score:</strong> <strong className="text-emerald-600 dark:text-emerald-400">3 pts</strong></span>
+              </div>
+              <div className="flex items-center gap-2 bg-sky-500/5 dark:bg-sky-500/10 p-2.5 rounded-xl border border-sky-500/20">
+                <span className="text-sky-500 text-sm">✅</span>
+                <span><strong>Correct Outcome:</strong> <strong className="text-sky-600 dark:text-sky-400">1 pt</strong> (Win/Draw)</span>
+              </div>
+              <div className="flex items-center gap-2 bg-amber-500/5 dark:bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                <span className="text-amber-500 text-sm">🔥</span>
+                <span><strong>5+ Goal Bonus:</strong> <strong className="text-amber-600 dark:text-amber-400">+1 pt</strong> (Outcome + 5+ goals)</span>
+              </div>
+            </div>
+
+            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 pt-0.5 leading-relaxed">
+              💡 <strong>Tip:</strong> Predictions can be adjusted anytime before the gameweek deadline passes.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action Header: Status & Clear All */}
