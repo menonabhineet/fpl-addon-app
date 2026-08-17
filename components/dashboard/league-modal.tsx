@@ -104,16 +104,16 @@ export default function LeagueModal({ isOpen, onClose, onLeagueCreatedOrJoined }
   const shareToWhatsApp = (league: LeagueSummary) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const link = `${origin}/join/${league.code}`
-    const text = `Join my private Premier League mini-league "${league.name}" on Pro Pundits League!\n\n👉 Join link: ${link}\n🔑 Or enter code: ${league.code}`
+    const text = `Join my private Premier League mini-league "${league.name}" on Pro Pundits League!\n\n👉 Join link: ${link}\n\n🔑 Or enter code: ${league.code}`
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
       onClick={handleClose}
     >
-      <div 
+      <div
         className="relative w-full max-w-md bg-slate-900/95 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl text-slate-100 backdrop-blur-xl animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -196,22 +196,20 @@ export default function LeagueModal({ isOpen, onClose, onLeagueCreatedOrJoined }
               <button
                 type="button"
                 onClick={() => setActiveTab('join')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'join'
+                className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${activeTab === 'join'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 Join League
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('create')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'create'
+                className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${activeTab === 'create'
                     ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 Create League
               </button>
