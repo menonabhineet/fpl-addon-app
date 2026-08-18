@@ -110,22 +110,14 @@ export async function calculateScores(targetGwParam?: number) {
     .single()
     
   const isSurvivorSkipped = gwDetails?.is_survivor_skipped || false
-  const isPastDeadline = gwDetails?.deadline_time ? new Date() > new Date(gwDetails.deadline_time) : false
 
-  // Fetch ALL users with pagination to prevent 1000-user cap
-  let allUsers: any[] = []
-  let page = 1
-  let hasMoreUsers = true
-  while (hasMoreUsers) {
-    const { data: { users: pageUsers }, error: authError } = await supabase.auth.admin.listUsers({ page, perPage: 1000 })
-    if (authError) throw authError
-    if (pageUsers && pageUsers.length > 0) {
-      allUsers.push(...pageUsers)
-      page++
-    } else {
-      hasMoreUsers = false
-    }
-  }
+  // Fetch ALL users directly from profiles table for sub-50ms execution
+  const { data: allUsers, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id')
+    .range(0, 9999)
+
+  if (profilesError) throw profilesError
 
   const { data: allFixturesGw } = await supabase
     .from('fixtures')
@@ -140,7 +132,6 @@ export async function calculateScores(targetGwParam?: number) {
   const isGameweekFullyFinished = finishedFixtures.length === allFixturesGw.length
 
   const fixtureIds = finishedFixtures.map((f) => f.id)
-  const allFixtureIds = allFixturesGw.map((f) => f.id)
 
   // 1. GRADE SCORE PREDICTIONS
   // For actual grading, we only care about finished fixtures

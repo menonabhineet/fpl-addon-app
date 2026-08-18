@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +19,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // 1. Get current gameweek to know which gameweeks to export (only previous ones)
+    // 1. Get current gameweek to know which gameweeks to export (only completed/previous ones)
     const { data: allGameweeks } = await supabase.from('gameweeks').select('*').order('id', { ascending: true }).range(0, 9999)
     if (!allGameweeks || allGameweeks.length === 0) {
       return NextResponse.json({ error: 'No gameweeks found' }, { status: 404 })
@@ -42,34 +41,32 @@ export async function GET() {
       return [f.id, `${home?.short_name || 'Home'} vs ${away?.short_name || 'Away'}`]
     }) || [])
 
-    // 3. Fetch user profiles and leaderboard info
-    const { data: leaderboardData } = await supabase.from('vw_user_scores_with_profiles').select('*').range(0, 9999)
+    // 3. Fetch user profiles directly for sub-50ms execution
+    const { data: profilesData } = await supabase.from('profiles').select('id, full_name, nickname, email, current_streak, best_streak').range(0, 9999)
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || [])
     
-    const userNamesMap = new Map()
+    const userNamesMap = new Map<string, string>()
+    profilesData?.forEach(p => {
+      const name = p.nickname || p.full_name || (p.email ? p.email.split('@')[0] : 'Unknown Manager')
+      userNamesMap.set(p.id, name)
+    })
 
-    // Fetch all users from Auth as a fallback for users without scores
-    try {
-      const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-      const { data: authData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
-      if (authData?.users) {
-        authData.users.forEach(u => {
-          const name = u.user_metadata?.name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'Unknown'
-          userNamesMap.set(u.id, name)
-        })
-      }
-    } catch (err) {
-      console.error("Failed to fetch auth users for names fallback", err)
-    }
-    const leaderboardExportData: any[] = []
-    
-    // We only want the leaderboard up to the PREVIOUS gameweek
-    const userLeaderboardMap = new Map()
+    // 4. Fetch user scores for leaderboard aggregation up to previous gameweek
+    const { data: leaderboardData } = await supabase.from('vw_user_scores_with_profiles').select('*').range(0, 9999)
+    const userLeaderboardMap = new Map<string, {
+      Manager_Name: string
+      Total_Score_Points: number
+      Total_Team_Points: number
+      Total_Fantastic_Four_Points: number
+      Total_Bonus_Points: number
+      Total_Penalty_Points: number
+      Grand_Total: number
+    }>()
     
     if (leaderboardData) {
       leaderboardData.forEach((record: any) => {
         const userId = record.user_id
-        const managerName = record.manager_name || 'Unknown Manager'
-        userNamesMap.set(userId, managerName)
+        const managerName = userNamesMap.get(userId) || record.manager_name || 'Unknown Manager'
         
         // Only sum points for gameweeks strictly prior to the current gameweek
         if (record.gameweek_id < currentGwId) {
@@ -84,7 +81,7 @@ export async function GET() {
               Grand_Total: 0
             })
           }
-          const userStat = userLeaderboardMap.get(userId)
+          const userStat = userLeaderboardMap.get(userId)!
           userStat.Total_Score_Points += record.score_points || 0
           userStat.Total_Team_Points += record.team_points || 0
           userStat.Total_Fantastic_Four_Points += record.fantastic_four_points || 0
@@ -93,19 +90,31 @@ export async function GET() {
           userStat.Grand_Total += record.total_points || 0
         }
       })
-      
-      // Sort leaderboard by Grand Total descending
-      leaderboardExportData.push(...Array.from(userLeaderboardMap.values()).sort((a: any, b: any) => b.Grand_Total - a.Grand_Total))
     }
 
-    // 4. Fetch the selections up to currentGwId - 1
+    // Build enriched Leaderboard sheet data including current & best streaks
+    const leaderboardExportData = Array.from(userLeaderboardMap.entries()).map(([userId, stat]) => {
+      const prof = profilesMap.get(userId)
+      return {
+        Manager_Name: stat.Manager_Name,
+        Current_Streak: prof?.current_streak || 0,
+        Best_Streak: prof?.best_streak || 0,
+        Total_Score_Points: stat.Total_Score_Points,
+        Total_Survivor_Points: stat.Total_Team_Points,
+        Total_Fantastic_Four_Points: stat.Total_Fantastic_Four_Points,
+        Total_Bonus_Points: stat.Total_Bonus_Points,
+        Total_Penalty_Points: stat.Total_Penalty_Points,
+        Grand_Total: stat.Grand_Total
+      }
+    }).sort((a, b) => b.Grand_Total - a.Grand_Total)
+
+    // 5. Fetch the selections up to currentGwId - 1
     const { data: scorePicks } = await supabase.from('score_predictions').select('*, fixtures!inner(gameweek_id)').lt('fixtures.gameweek_id', currentGwId).range(0, 9999)
     const { data: teamPicks } = await supabase.from('team_predictions').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true }).range(0, 9999)
     const { data: fantasticPicks } = await supabase.from('fantastic_four').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true }).range(0, 9999)
     const { data: bonusPicks } = await supabase.from('bonus_predictions').select('*, bonus_questions!inner(gameweek, question, correct_answer)').lt('bonus_questions.gameweek', currentGwId).range(0, 9999)
-    const { data: survivorEntries } = await supabase.from('survivor_entries').select('*').order('round_id', { ascending: true }).range(0, 9999)
 
-    // 5. Transform data for Excel Sheets
+    // 6. Transform data for Excel Sheets
     const scoreExportData = (scorePicks || []).map(pick => ({
       Manager_Name: userNamesMap.get(pick.user_id) || 'Unknown',
       Gameweek: (pick.fixtures as any)?.gameweek_id || 'Unknown',
@@ -116,19 +125,27 @@ export async function GET() {
       Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
     }))
 
-    const teamExportData = (teamPicks || []).map(pick => ({
-      Manager_Name: userNamesMap.get(pick.user_id) || 'Unknown',
-      Gameweek: pick.gameweek_id,
-      Predicted_Team: teamsMap.get(pick.team_id) || `Team ${pick.team_id}`,
-      Points_Earned: pick.points_earned || 0,
-      Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
-    }))
+    const teamExportData = (teamPicks || []).map(pick => {
+      let result = 'Pending'
+      if (pick.match_result === 'win') result = 'Win'
+      else if (pick.match_result === 'draw') result = 'Draw'
+      else if (pick.match_result === 'loss') result = 'Loss'
+
+      return {
+        Manager_Name: userNamesMap.get(pick.user_id) || 'Unknown',
+        Gameweek: pick.gameweek_id,
+        Predicted_Team: teamsMap.get(pick.team_id) || `Team ${pick.team_id}`,
+        Match_Result: result,
+        Points_Earned: pick.points_earned || 0,
+        Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
+      }
+    })
 
     const fantasticExportData = (fantasticPicks || []).map(pick => ({
       Manager_Name: userNamesMap.get(pick.user_id) || 'Unknown',
       Gameweek: pick.gameweek_id,
-      Player: playersMap.get(pick.player_id) || `Player ${pick.player_id}`,
-      Is_Captain: pick.is_captain ? 'Yes' : 'No',
+      Position: pick.position || 'FWD',
+      Player: playersMap.get(pick.player_id) || pick.player_name || `Player ${pick.player_id}`,
       Points_Earned: pick.points_earned || 0,
       Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
     }))
@@ -143,35 +160,43 @@ export async function GET() {
       Created_At: pick.created_at ? new Date(pick.created_at).toISOString() : ''
     }))
 
-    const survivorStatusExportData = (survivorEntries || []).map(entry => ({
-      Manager_Name: userNamesMap.get(entry.user_id) || 'Unknown',
-      Round: entry.round_id,
-      Status: entry.status,
-      Eliminated_Gameweek: entry.eliminated_gameweek_id || 'N/A'
-    }))
+    // Survivor Streak Summary Sheet (Replaces legacy tournament knockout status)
+    const survivorStreakSummaryData = Array.from(profilesMap.values()).map(prof => {
+      const name = prof.nickname || prof.full_name || (prof.email ? prof.email.split('@')[0] : 'Unknown Manager')
+      const userStat = userLeaderboardMap.get(prof.id)
+      const curStreak = prof.current_streak || 0
+      const bestStreak = prof.best_streak || 0
+      return {
+        Manager_Name: name,
+        Current_Streak: curStreak,
+        Best_Streak: bestStreak,
+        Total_Survivor_Points: userStat?.Total_Team_Points || 0,
+        Status: curStreak > 0 ? `Active 🔥 (${curStreak} consecutive wins)` : 'Streak Reset / Inactive'
+      }
+    }).sort((a, b) => b.Current_Streak - a.Current_Streak || b.Best_Streak - a.Best_Streak)
 
-    // 6. Build the Excel Workbook
+    // 7. Build the Excel Workbook
     const workbook = XLSX.utils.book_new()
 
-    // Create sheets (handle empty arrays by providing a default object structure so headers still appear)
+    // Create sheets (handle empty arrays with default headers)
     const scoreSheet = XLSX.utils.json_to_sheet(scoreExportData.length > 0 ? scoreExportData : [{ Manager_Name: '', Gameweek: '', Fixture: '', Predicted_Home_Score: '', Predicted_Away_Score: '', Points_Earned: '', Created_At: '' }])
-    const survivorSheet = XLSX.utils.json_to_sheet(teamExportData.length > 0 ? teamExportData : [{ Manager_Name: '', Gameweek: '', Predicted_Team: '', Points_Earned: '', Created_At: '' }])
-    const fantasticSheet = XLSX.utils.json_to_sheet(fantasticExportData.length > 0 ? fantasticExportData : [{ Manager_Name: '', Gameweek: '', Player: '', Is_Captain: '', Points_Earned: '', Created_At: '' }])
+    const survivorSheet = XLSX.utils.json_to_sheet(teamExportData.length > 0 ? teamExportData : [{ Manager_Name: '', Gameweek: '', Predicted_Team: '', Match_Result: '', Points_Earned: '', Created_At: '' }])
+    const fantasticSheet = XLSX.utils.json_to_sheet(fantasticExportData.length > 0 ? fantasticExportData : [{ Manager_Name: '', Gameweek: '', Position: '', Player: '', Points_Earned: '', Created_At: '' }])
     const bonusSheet = XLSX.utils.json_to_sheet(bonusExportData.length > 0 ? bonusExportData : [{ Manager_Name: '', Gameweek: '', Question: '', Manager_Answer: '', Correct_Answer: '', Points_Earned: '', Created_At: '' }])
-    const leaderboardSheet = XLSX.utils.json_to_sheet(leaderboardExportData.length > 0 ? leaderboardExportData : [{ Manager_Name: '', Total_Score_Points: '', Total_Team_Points: '', Total_Fantastic_Four_Points: '', Total_Bonus_Points: '', Total_Penalty_Points: '', Grand_Total: '' }])
-    const survivorStatusSheet = XLSX.utils.json_to_sheet(survivorStatusExportData.length > 0 ? survivorStatusExportData : [{ Manager_Name: '', Round: '', Status: '', Eliminated_Gameweek: '' }])
+    const leaderboardSheet = XLSX.utils.json_to_sheet(leaderboardExportData.length > 0 ? leaderboardExportData : [{ Manager_Name: '', Current_Streak: '', Best_Streak: '', Total_Score_Points: '', Total_Survivor_Points: '', Total_Fantastic_Four_Points: '', Total_Bonus_Points: '', Total_Penalty_Points: '', Grand_Total: '' }])
+    const survivorStreaksSheet = XLSX.utils.json_to_sheet(survivorStreakSummaryData.length > 0 ? survivorStreakSummaryData : [{ Manager_Name: '', Current_Streak: '', Best_Streak: '', Total_Survivor_Points: '', Status: '' }])
 
     XLSX.utils.book_append_sheet(workbook, scoreSheet, "Score Predictions")
     XLSX.utils.book_append_sheet(workbook, survivorSheet, "Survivor Mode")
     XLSX.utils.book_append_sheet(workbook, fantasticSheet, "Fantastic 4")
     XLSX.utils.book_append_sheet(workbook, bonusSheet, "Bonus Question")
     XLSX.utils.book_append_sheet(workbook, leaderboardSheet, "Leaderboard")
-    XLSX.utils.book_append_sheet(workbook, survivorStatusSheet, "Survivor Status")
+    XLSX.utils.book_append_sheet(workbook, survivorStreaksSheet, "Survivor Streaks")
 
-    // 7. Write the file to a buffer
+    // 8. Write the file to a buffer
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
 
-    // 8. Return response
+    // 9. Return response
     return new NextResponse(buffer, {
       status: 200,
       headers: {
