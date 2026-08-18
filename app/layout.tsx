@@ -16,6 +16,9 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Pro Pundits League',
   description: 'Custom Fantasy Premier League Addon',
+  verification: {
+    google: 'google3b5a8e3f54fbfe61',
+  },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
