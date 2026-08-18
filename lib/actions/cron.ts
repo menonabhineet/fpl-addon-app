@@ -40,7 +40,7 @@ export async function syncResults() {
     )
   })
 
-  const updatePromises = changedFixtures.map(async (fixture: any) => {
+  for (const fixture of changedFixtures) {
     const { error } = await supabase
       .from('fixtures')
       .update({
@@ -55,9 +55,7 @@ export async function syncResults() {
     } else {
       updateCount++
     }
-  })
-
-  await Promise.all(updatePromises)
+  }
   
   // Also sync Gameweeks (Deadlines and is_current status) to catch any pushed deadlines in real-time
   // (Disabled during local development so it doesn't overwrite your manual test deadlines)
@@ -203,12 +201,22 @@ export async function calculateScores(targetGwParam?: number) {
   })
 
   // Query past picks before TARGET_GW to accurately calculate each user's consecutive winning streak
-  const { data: pastPicksBeforeGw } = await supabase
-    .from('team_predictions')
-    .select('user_id, gameweek_id, match_result, points_earned')
-    .lt('gameweek_id', TARGET_GW)
-    .order('gameweek_id', { ascending: false })
-    .range(0, 9999)
+  let pastPicksBeforeGw: any[] = []
+  let fetchStart = 0
+  const fetchLimit = 1000
+  while (true) {
+    const { data: batch, error } = await supabase
+      .from('team_predictions')
+      .select('user_id, gameweek_id, match_result, points_earned')
+      .lt('gameweek_id', TARGET_GW)
+      .order('gameweek_id', { ascending: false })
+      .range(fetchStart, fetchStart + fetchLimit - 1)
+    
+    if (error || !batch || batch.length === 0) break
+    pastPicksBeforeGw = pastPicksBeforeGw.concat(batch)
+    if (batch.length < fetchLimit) break
+    fetchStart += fetchLimit
+  }
 
   const userHistoricalPicksMap = new Map<string, any[]>()
   if (pastPicksBeforeGw) {
@@ -357,11 +365,10 @@ export async function calculateScores(targetGwParam?: number) {
     }
   }
 
-  // Execute all updates simultaneously in chunks of 50 to avoid connection pooling exhaustion
-  const allPromises = [...scorePickUpdates, ...teamPickUpdates, ...f4Updates]
-  const promiseChunks = chunkArray(allPromises, 50)
-  for (const chunk of promiseChunks) {
-    await Promise.all(chunk)
+  // Execute all updates sequentially to avoid connection pooling exhaustion on Supabase Free Tier
+  const allUpsertQueries = [...scorePickUpdates, ...teamPickUpdates, ...f4Updates]
+  for (const query of allUpsertQueries) {
+    await query
   }
 
   // ==========================================

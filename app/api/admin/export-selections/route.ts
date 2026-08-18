@@ -3,6 +3,30 @@ import { createClient } from '@/lib/supabase/server'
 import * as XLSX from 'xlsx'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
+async function fetchAllSupabaseData(supabase: any, table: string, selectQuery: string, currentGwId: number, ltColumn: string, orderByColumn?: string) {
+  let allData: any[] = []
+  let fetchStart = 0
+  const fetchLimit = 1000
+  while (true) {
+    let query = supabase.from(table).select(selectQuery).lt(ltColumn, currentGwId)
+    if (orderByColumn) {
+      query = query.order(orderByColumn, { ascending: true })
+    }
+    const { data: batch, error } = await query.range(fetchStart, fetchStart + fetchLimit - 1)
+    
+    if (error) {
+      console.error(`Error fetching ${table}:`, error)
+      break
+    }
+    if (!batch || batch.length === 0) break
+    allData = allData.concat(batch)
+    if (batch.length < fetchLimit) break
+    fetchStart += fetchLimit
+  }
+  return allData
+}
 
 export async function GET() {
   try {
@@ -109,10 +133,10 @@ export async function GET() {
     }).sort((a, b) => b.Grand_Total - a.Grand_Total)
 
     // 5. Fetch the selections up to currentGwId - 1
-    const { data: scorePicks } = await supabase.from('score_predictions').select('*, fixtures!inner(gameweek_id)').lt('fixtures.gameweek_id', currentGwId).range(0, 9999)
-    const { data: teamPicks } = await supabase.from('team_predictions').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true }).range(0, 9999)
-    const { data: fantasticPicks } = await supabase.from('fantastic_four').select('*').lt('gameweek_id', currentGwId).order('gameweek_id', { ascending: true }).range(0, 9999)
-    const { data: bonusPicks } = await supabase.from('bonus_predictions').select('*, bonus_questions!inner(gameweek, question, correct_answer)').lt('bonus_questions.gameweek', currentGwId).range(0, 9999)
+    const scorePicks = await fetchAllSupabaseData(supabase, 'score_predictions', '*, fixtures!inner(gameweek_id)', currentGwId, 'fixtures.gameweek_id')
+    const teamPicks = await fetchAllSupabaseData(supabase, 'team_predictions', '*', currentGwId, 'gameweek_id', 'gameweek_id')
+    const fantasticPicks = await fetchAllSupabaseData(supabase, 'fantastic_four', '*', currentGwId, 'gameweek_id', 'gameweek_id')
+    const bonusPicks = await fetchAllSupabaseData(supabase, 'bonus_predictions', '*, bonus_questions!inner(gameweek, question, correct_answer)', currentGwId, 'bonus_questions.gameweek')
 
     // 6. Transform data for Excel Sheets
     const scoreExportData = (scorePicks || []).map(pick => ({
