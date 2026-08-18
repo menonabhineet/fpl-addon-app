@@ -35,11 +35,11 @@ export default function LoginPage() {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 w-full max-w-lg space-y-6 my-8">
-        {/* Glassmorphic Card */}
+      <div className="relative z-10 w-full max-w-xl space-y-6 my-8">
+        {/* Glassmorphic Hero & Login Card */}
         <div className="glass glass-hover rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden shadow-2xl border border-slate-200/50 dark:border-white/10">
           {/* Official Logo */}
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden shadow-xl shadow-emerald-500/20 hover:scale-105 transition-transform">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden shadow-xl shadow-emerald-500/20 hover:scale-105 transition-transform">
             <Image
               src="/icon.svg"
               alt="Pro Pundits League Logo"
@@ -53,13 +53,16 @@ export default function LoginPage() {
           <h1 className="mb-2 text-3xl sm:text-4xl font-heading uppercase tracking-wide text-slate-900 dark:text-white drop-shadow-sm">
             Pro Pundits League
           </h1>
-          <p className="mb-6 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            The premier companion prediction platform for Fantasy Premier League football managers. Predict weekly match scores, build winning Survivor streaks, and compete in private mini-leagues.
+          <p className="text-xs uppercase font-bold tracking-widest text-emerald-600 dark:text-emerald-400 mb-3">
+            Fantasy Premier League Companion Platform
+          </p>
+          <p className="mb-6 text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-md mx-auto">
+            Welcome to <strong className="text-slate-900 dark:text-white">Pro Pundits League</strong>. Predict weekly Premier League match scores, build winning Survivor streaks, draft Fantastic Four players, and climb custom mini-league leaderboards with friends.
           </p>
 
           <button
             onClick={handleGoogleLogin}
-            className="group relative flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 active:scale-[0.98] border border-slate-200"
+            className="group relative flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 active:scale-[0.98] border border-slate-200 cursor-pointer"
           >
             <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
               <path
@@ -83,41 +86,62 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Public App Overview & Features (Explains App Purpose) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
-              ⚽ Match Predictions
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Predict exact scores and outcomes for 5 curated Premier League fixtures every gameweek.
-            </p>
+        {/* Application Purpose & Features Section */}
+        <section aria-labelledby="features-heading" className="space-y-3">
+          <h2 id="features-heading" className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 text-center">
+            How Pro Pundits League Works
+          </h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base">⚽</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Match Score Predictions
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Submit exact score predictions for 5 curated matchday fixtures each gameweek to earn accuracy points.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base">🔥</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                  Survivor Streak Mode
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Select 1 team to win each gameweek without repeating clubs. Consecutive wins earn escalating streak bonuses.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base">⭐</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  Fantastic Four Drafting
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Pick 4 players (Goalkeeper, Defender, Midfielder, Forward) to score official FPL live points for your team.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base">🏆</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                  Private Mini-Leagues
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Create and join private leagues using 6-character invite codes with dedicated gameweek leaderboards.
+              </p>
+            </div>
           </div>
-          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">
-              🔥 Survivor Streaks
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Pick one winning team each gameweek to build escalating consecutive win streaks.
-            </p>
-          </div>
-          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-              ⭐ Fantastic Four
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Select 4 key players (GK, DEF, MID, FWD) whose official FPL performance earns bonus points.
-            </p>
-          </div>
-          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
-              🏆 Private Mini-Leagues
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Create and join invite-only mini-leagues to compete with friends and colleagues.
-            </p>
-          </div>
-        </div>
+        </section>
 
         {/* Footer with Clickable Legal Links */}
         <footer className="text-center space-y-2 pt-2">

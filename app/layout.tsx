@@ -14,8 +14,10 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Pro Pundits League',
-  description: 'Custom Fantasy Premier League Addon',
+  metadataBase: new URL('https://pro-pundits-league.vercel.app'),
+  title: 'Pro Pundits League - Fantasy Premier League Prediction Platform',
+  description: 'Pro Pundits League is the companion fantasy prediction platform for Premier League managers. Predict match scores, build Survivor streaks, pick Fantastic Four players, and compete in private mini-leagues.',
+  applicationName: 'Pro Pundits League',
   verification: {
     google: 'google3b5a8e3f54fbfe61',
   },
@@ -24,6 +26,14 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'Pro Pundits League',
+  },
+  openGraph: {
+    title: 'Pro Pundits League',
+    description: 'The companion fantasy prediction platform for Fantasy Premier League football managers.',
+    url: 'https://pro-pundits-league.vercel.app',
+    siteName: 'Pro Pundits League',
+    type: 'website',
+    images: [{ url: '/icon.svg', width: 512, height: 512, alt: 'Pro Pundits League' }],
   },
   icons: {
     icon: [
