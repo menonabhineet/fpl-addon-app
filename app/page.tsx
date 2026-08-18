@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
 
 export default function LoginPage() {
@@ -20,8 +21,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-6 selection:bg-emerald-500/30">
-      {/* Background Ambient Glows (Hardware Accelerated) */}
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4 sm:p-6 selection:bg-emerald-500/30">
+      {/* Background Ambient Glows */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none gpu-accelerated">
         <div 
           className="absolute -top-[10%] -left-[10%] h-[500px] w-[500px] rounded-full opacity-60 dark:opacity-30 pointer-events-none"
@@ -31,17 +32,14 @@ export default function LoginPage() {
           className="absolute -bottom-[10%] -right-[10%] h-[600px] w-[600px] rounded-full opacity-60 dark:opacity-30 pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, rgba(16,185,129,0) 70%)' }}
         />
-        <div 
-          className="absolute top-[40%] left-[50%] -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full opacity-40 dark:opacity-20 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0) 70%)' }}
-        />
       </div>
+
       {/* Content Container */}
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-lg space-y-6 my-8">
         {/* Glassmorphic Card */}
-        <div className="glass glass-hover rounded-2xl p-10 text-center relative overflow-hidden">
+        <div className="glass glass-hover rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden shadow-2xl border border-slate-200/50 dark:border-white/10">
           {/* Official Logo */}
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden shadow-xl shadow-emerald-500/20 hover:scale-105 transition-transform">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden shadow-xl shadow-emerald-500/20 hover:scale-105 transition-transform">
             <Image
               src="/icon.svg"
               alt="Pro Pundits League Logo"
@@ -51,16 +49,17 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <h1 className="mb-3 text-4xl font-heading uppercase tracking-wide text-slate-900 dark:text-white drop-shadow-sm">
+
+          <h1 className="mb-2 text-3xl sm:text-4xl font-heading uppercase tracking-wide text-slate-900 dark:text-white drop-shadow-sm">
             Pro Pundits League
           </h1>
-          <p className="mb-8 text-sm text-slate-600 dark:text-slate-400">
-            Elevate your Fantasy Premier League experience. Sign in to submit your predictions and join the competition.
+          <p className="mb-6 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            The premier companion prediction platform for Fantasy Premier League football managers. Predict weekly match scores, build winning Survivor streaks, and compete in private mini-leagues.
           </p>
 
           <button
             onClick={handleGoogleLogin}
-            className="group relative flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all duration-200 hover:bg-slate-100 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-[0.98]"
+            className="group relative flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 active:scale-[0.98] border border-slate-200"
           >
             <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
               <path
@@ -80,13 +79,61 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            Continue with Google
+            Sign in with Google
           </button>
         </div>
-        {/* Footer info */}
-        <p className="mt-8 text-center text-xs text-slate-500">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
-        </p>
+
+        {/* Public App Overview & Features (Explains App Purpose) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+              ⚽ Match Predictions
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Predict exact scores and outcomes for 5 curated Premier League fixtures every gameweek.
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">
+              🔥 Survivor Streaks
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Pick one winning team each gameweek to build escalating consecutive win streaks.
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+              ⭐ Fantastic Four
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Select 4 key players (GK, DEF, MID, FWD) whose official FPL performance earns bonus points.
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 backdrop-blur-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+              🏆 Private Mini-Leagues
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Create and join invite-only mini-leagues to compete with friends and colleagues.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer with Clickable Legal Links */}
+        <footer className="text-center space-y-2 pt-2">
+          <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <Link href="/privacy" className="hover:text-emerald-500 underline transition-colors">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-emerald-500 underline transition-colors">
+              Terms of Service
+            </Link>
+          </div>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            © {new Date().getFullYear()} Pro Pundits League. All rights reserved.
+          </p>
+        </footer>
       </div>
     </main>
   )
