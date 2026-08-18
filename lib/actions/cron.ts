@@ -207,9 +207,10 @@ export async function calculateScores(targetGwParam?: number) {
   while (true) {
     const { data: batch, error } = await supabase
       .from('team_predictions')
-      .select('user_id, gameweek_id, match_result, points_earned')
+      .select('id, user_id, gameweek_id, match_result, points_earned')
       .lt('gameweek_id', TARGET_GW)
       .order('gameweek_id', { ascending: false })
+      .order('id', { ascending: false })
       .range(fetchStart, fetchStart + fetchLimit - 1)
     
     if (error || !batch || batch.length === 0) break
@@ -434,8 +435,18 @@ export async function calculateScores(targetGwParam?: number) {
       }
     }
 
+    const targetGwPick = userPicksByGw.get(TARGET_GW)
+    const isTargetGwPickFinalized = targetGwPick && (targetGwPick.match_result === 'win' || targetGwPick.match_result === 'loss' || targetGwPick.match_result === 'draw')
+
     let curStreak = 0
     let checkGw = TARGET_GW
+
+    // If target gameweek pick is still in progress / pending (and gameweek is not fully finished),
+    // evaluate active streak starting from TARGET_GW - 1 so active streaks are preserved during live matches.
+    if (!isTargetGwPickFinalized && !isGameweekFullyFinished) {
+      checkGw = TARGET_GW - 1
+    }
+
     while (checkGw >= 1) {
       if (skippedGwsSet.has(checkGw)) {
         checkGw -= 1
@@ -458,9 +469,13 @@ export async function calculateScores(targetGwParam?: number) {
       if (pick && (pick.match_result === 'win' || (pick.points_earned && pick.points_earned > 0))) {
         tmpStreak += 1
         if (tmpStreak > bstStreak) bstStreak = tmpStreak
-      } else {
+      } else if (gw < TARGET_GW || (gw === TARGET_GW && isTargetGwPickFinalized)) {
         tmpStreak = 0
       }
+    }
+
+    if (curStreak > bstStreak) {
+      bstStreak = curStreak
     }
 
     userProfileStreakUpdates.push({
