@@ -2,19 +2,21 @@
     "crons": [
         {
             "path": "/api/cron/sync-static",
-            "schedule": "0 12 */2 * *"
+            "schedule": "0 6 * * *"
         },
         {
             "path": "/api/cron/sync-fixtures",
-            "schedule": "5 12 */2 * *"
+            "schedule": "0 12 * * *"
         },
         {
             "path": "/api/cron/sync-results",
-            "schedule": "15 12 */2 * *"
+            "schedule": "0 22 * * *"
         },
         {
             "path": "/api/cron/calculate-scores",
-            "schedule": "30 12 */2 * *"
+            "schedule": "0 3 * * *"
         }
     ]
-}
+}
+
+

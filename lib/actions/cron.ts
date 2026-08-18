@@ -399,6 +399,7 @@ export async function calculateScores(targetGwParam?: number) {
 
   // 4. LEADERBOARD AGGREGATION (0-Point Floor, No Negative Penalties)
   const leaderboardUpserts: any[] = []
+  const userProfileStreakUpdates: { id: string; current_streak: number; best_streak: number }[] = []
 
   for (const user of allUsers) {
     const scorePts = userScorePicksMap.get(user.id) || 0
@@ -420,6 +421,55 @@ export async function calculateScores(targetGwParam?: number) {
       bonus_points: bonusPts,
       total_points: totalPts,
     })
+
+    // Compute updated streaks for profiles
+    const userHistory = userHistoricalPicksMap.get(user.id) || []
+    const userPicksByGw = new Map<number, any>()
+    for (const hp of userHistory) {
+      userPicksByGw.set(hp.gameweek_id, hp)
+    }
+    const currentPick = teamPicks?.find(p => p.user_id === user.id)
+    if (currentPick) {
+      const updatedPick = teamPickPointsUpdatesMap.get(currentPick.id)
+      if (updatedPick) {
+        userPicksByGw.set(TARGET_GW, { ...currentPick, ...updatedPick })
+      }
+    }
+
+    let curStreak = 0
+    let checkGw = TARGET_GW
+    while (checkGw >= 1) {
+      if (skippedGwsSet.has(checkGw)) {
+        checkGw -= 1
+        continue
+      }
+      const pastPick = userPicksByGw.get(checkGw)
+      if (pastPick && (pastPick.match_result === 'win' || (pastPick.points_earned && pastPick.points_earned > 0))) {
+        curStreak += 1
+        checkGw -= 1
+      } else {
+        break
+      }
+    }
+
+    let bstStreak = 0
+    let tmpStreak = 0
+    for (let gw = 1; gw <= 38; gw++) {
+      if (skippedGwsSet.has(gw)) continue
+      const pick = userPicksByGw.get(gw)
+      if (pick && (pick.match_result === 'win' || (pick.points_earned && pick.points_earned > 0))) {
+        tmpStreak += 1
+        if (tmpStreak > bstStreak) bstStreak = tmpStreak
+      } else {
+        tmpStreak = 0
+      }
+    }
+
+    userProfileStreakUpdates.push({
+      id: user.id,
+      current_streak: curStreak,
+      best_streak: bstStreak,
+    })
   }
 
   if (leaderboardUpserts.length > 0) {
@@ -430,6 +480,19 @@ export async function calculateScores(targetGwParam?: number) {
         .upsert(chunk, { onConflict: 'user_id, gameweek_id' })
 
       if (upsertError) throw upsertError
+    }
+  }
+
+  if (userProfileStreakUpdates.length > 0) {
+    const profileChunks = chunkArray(userProfileStreakUpdates, 500)
+    for (const chunk of profileChunks) {
+      const { error: profError } = await supabase
+        .from('profiles')
+        .upsert(chunk, { onConflict: 'id' })
+
+      if (profError) {
+        console.error('Error updating profile streaks:', profError)
+      }
     }
   }
 

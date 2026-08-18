@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 import { NextResponse } from 'next/server'
-import { calculateScores, calculateActiveScoresWindow } from '@/lib/actions/cron'
+import { syncResults, calculateScores, calculateActiveScoresWindow } from '@/lib/actions/cron'
 
 export async function GET(request: Request) {
   // 1. Authorization Guard (Enforced in Production)
@@ -16,6 +16,9 @@ export async function GET(request: Request) {
   }
 
   try {
+    // 1.5 Auto-sync latest finished match scores before grading
+    await syncResults().catch(err => console.warn('Fixture auto-sync warning before grading:', err))
+
     const url = new URL(request.url)
     const paramGw = url.searchParams.get('gw')
 

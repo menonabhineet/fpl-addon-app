@@ -6,6 +6,7 @@ import DashboardTabs from '@/components/dashboard/dashboard-tabs'
 import ThemeToggle from '@/components/theme-toggle'
 import GameweekSelector from '@/components/dashboard/gameweek-selector'
 import { getCachedBootstrapStatic, getCachedFixtures } from '@/lib/fpl-api'
+import { getCachedPlayers, getCachedTeams } from '@/lib/supabase/cached'
 import DeadlineBanner from '@/components/dashboard/deadline-banner'
 import AnimatedNumber from '@/components/dashboard/animated-number'
 import BonusQuestionClient from '@/components/dashboard/bonus-question-client'
@@ -60,11 +61,11 @@ export default async function DashboardPage({
 
   const adminClient = createAdminClient()
 
-  // Batch 2: Execute all independent read queries, user leagues, and cached FPL data concurrently in parallel
+  // Batch 2: Execute scoped read queries, user leagues, and cached data concurrently in parallel
   const [
     { data: fixtures },
-    { data: teams },
-    { data: players },
+    teams,
+    players,
     { data: bonusQuestion },
     { data: allUserBonusPredictions },
     { data: allUserFantasticPicks },
@@ -74,15 +75,14 @@ export default async function DashboardPage({
     { data: allUserSurvivorEntries },
     { data: allScores, error: scoresError },
     { data: allProfiles },
-    { data: allTeamPredictions },
     userLeaguesRes,
     activeLeagueMembersData,
     fplDataResult,
     fplFixturesResult
   ] = await Promise.all([
     supabase.from('fixtures').select('id, home_score, away_score, kickoff_time, is_finished, is_selected, home_team:home_team_id (id, name, short_name, code), away_team:away_team_id (id, name, short_name, code)').eq('gameweek_id', selectedGwId).order('kickoff_time', { ascending: true }),
-    supabase.from('teams').select('*').order('name', { ascending: true }),
-    supabase.from('players').select('id, name, position, teams:team_id(code, short_name, name)').order('name', { ascending: true }).range(0, 9999),
+    getCachedTeams(),
+    getCachedPlayers(),
     supabase.from('bonus_questions').select('*').eq('gameweek', selectedGwId).maybeSingle(),
     supabase.from('bonus_predictions').select('*').eq('user_id', user.id).range(0, 9999),
     supabase.from('fantastic_four').select('*').eq('user_id', user.id).eq('gameweek_id', selectedGwId),
@@ -91,8 +91,7 @@ export default async function DashboardPage({
     supabase.from('survivor_rounds').select('*').eq('status', 'active').maybeSingle(),
     supabase.from('survivor_entries').select('*').eq('user_id', user.id),
     supabase.from('vw_user_scores_with_profiles').select('*').order('total_points', { ascending: false }).range(0, 9999),
-    adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url').range(0, 9999),
-    adminClient.from('team_predictions').select('user_id, gameweek_id, match_result, points_earned').range(0, 9999),
+    adminClient.from('profiles').select('id, full_name, nickname, email, avatar_url, current_streak, best_streak').range(0, 9999),
     getUserLeagues(user.id),
     activeLeagueId ? adminClient.from('league_members').select('user_id').eq('league_id', activeLeagueId).range(0, 9999) : Promise.resolve({ data: null }),
     getCachedBootstrapStatic().catch((err: any) => { console.error('Failed to get bootstrap static:', err); return null; }),
@@ -103,60 +102,16 @@ export default async function DashboardPage({
     console.error("Failed to fetch leaderboard data:", scoresError)
   }
 
-  // Pre-calculate streaks for all users
-  const userStreaksMap = new Map<string, { currentStreak: number; bestStreak: number }>()
-  const skippedGwsSet = new Set<number>()
-  allGameweeks?.forEach((gw: any) => {
-    if (gw.is_survivor_skipped) skippedGwsSet.add(gw.id)
-  })
-
-  const picksByUser = new Map<string, Map<number, any>>()
-  allTeamPredictions?.forEach((p: any) => {
-    if (!picksByUser.has(p.user_id)) {
-      picksByUser.set(p.user_id, new Map<number, any>())
-    }
-    picksByUser.get(p.user_id)!.set(p.gameweek_id, p)
-  })
-
+  // Pre-indexed streaks from profiles
+  const profileMap = new Map<string, any>()
   allProfiles?.forEach((prof: any) => {
-    const userPicksByGw = picksByUser.get(prof.id) || new Map<number, any>()
-    
-    let currentStreak = 0
-    let checkGw = currentGwId - 1
-    while (checkGw >= 1) {
-      if (skippedGwsSet.has(checkGw)) {
-        checkGw -= 1
-        continue
-      }
-      const pastPick = userPicksByGw.get(checkGw)
-      if (pastPick && (pastPick.match_result === 'win' || (pastPick.points_earned && pastPick.points_earned > 0))) {
-        currentStreak += 1
-        checkGw -= 1
-      } else {
-        break
-      }
-    }
-
-    let bestStreak = 0
-    let tempStreak = 0
-    for (let gw = 1; gw <= 38; gw++) {
-      if (skippedGwsSet.has(gw)) continue
-      const pick = userPicksByGw.get(gw)
-      if (pick && (pick.match_result === 'win' || (pick.points_earned && pick.points_earned > 0))) {
-        tempStreak += 1
-        if (tempStreak > bestStreak) bestStreak = tempStreak
-      } else {
-        tempStreak = 0
-      }
-    }
-
-    userStreaksMap.set(prof.id, { currentStreak, bestStreak })
+    profileMap.set(prof.id, prof)
   })
 
   const userLeagues = userLeaguesRes.success && userLeaguesRes.leagues ? userLeaguesRes.leagues : []
   const activeLeague = userLeagues.find(l => l.id === activeLeagueId) || null
 
-  const myProfile = allProfiles?.find((p: any) => p.id === user.id) || null
+  const myProfile = profileMap.get(user.id) || null
 
   // Synthesize complete leaderboard records including freshly registered users
   let groupScores: any[] = [...(allScores || [])]
@@ -178,17 +133,19 @@ export default async function DashboardPage({
           manager_name: displayName,
           full_name: prof.full_name,
           nickname: prof.nickname,
-          avatar_url: prof.avatar_url || null
+          avatar_url: prof.avatar_url || null,
+          current_streak: prof.current_streak || 0,
+          best_streak: prof.best_streak || 0
         })
       }
     })
   }
 
-  // Enrich all records with current_streak and best_streak
+  // Enrich all records with current_streak and best_streak directly from profiles
   groupScores.forEach((s: any) => {
-    const st = userStreaksMap.get(s.user_id)
-    s.current_streak = st?.currentStreak || 0
-    s.best_streak = st?.bestStreak || 0
+    const prof = profileMap.get(s.user_id)
+    s.current_streak = prof?.current_streak ?? s.current_streak ?? 0
+    s.best_streak = prof?.best_streak ?? s.best_streak ?? 0
   })
 
   // Filter leaderboard scores strictly by active league if a league is selected

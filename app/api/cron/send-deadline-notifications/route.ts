@@ -155,6 +155,18 @@ async function handleCron(req: Request) {
     const fantasticPicksByUser = new Map<string, number>()
     allFantasticPicks?.forEach(p => fantasticPicksByUser.set(p.user_id, (fantasticPicksByUser.get(p.user_id) || 0) + 1))
 
+    // Prepare all individual push delivery tasks
+    interface PushTask {
+      userId: string
+      subId: string
+      endpoint: string
+      p256dh: string
+      auth: string
+      payload: string
+    }
+
+    const pushTasks: PushTask[] = []
+
     for (const [userId, userSubs] of Array.from(subsByUser.entries())) {
       const scoreCount = scorePicksByUser.get(userId) || 0
       const hasSurvivor = hasSurvivorByUser.has(userId)
@@ -186,29 +198,60 @@ async function handleCron(req: Request) {
         tag: `gw-${nextGw.id}-deadline`
       })
 
-      // Send to all devices registered by this user
       for (const sub of userSubs) {
-        try {
+        pushTasks.push({
+          userId,
+          subId: sub.id,
+          endpoint: sub.endpoint,
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+          payload
+        })
+      }
+    }
+
+    // Execute in parallel batches of 25 to ensure completion under 3 seconds
+    const expiredSubIds: string[] = []
+    const BATCH_SIZE = 25
+
+    for (let i = 0; i < pushTasks.length; i += BATCH_SIZE) {
+      const batch = pushTasks.slice(i, i + BATCH_SIZE)
+      const results = await Promise.allSettled(
+        batch.map(async (task) => {
           const pushSubscription = {
-            endpoint: sub.endpoint,
+            endpoint: task.endpoint,
             keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
+              p256dh: task.p256dh,
+              auth: task.auth
             }
           }
-          await webpush.sendNotification(pushSubscription, payload)
+          await webpush.sendNotification(pushSubscription, task.payload)
+          return task
+        })
+      )
+
+      for (let j = 0; j < results.length; j++) {
+        const res = results[j]
+        const task = batch[j]
+
+        if (res.status === 'fulfilled') {
           successCount++
-          notifiedUserIds.add(userId)
-        } catch (err: any) {
+          notifiedUserIds.add(task.userId)
+        } else {
           failureCount++
-          // If subscription has expired or unsubscribed (410 or 404), clean it from DB
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            await supabase.from('push_subscriptions').delete().eq('id', sub.id)
+          const err = res.reason
+          if (err?.statusCode === 410 || err?.statusCode === 404) {
+            expiredSubIds.push(task.subId)
           } else {
-            console.error(`[send-deadline-notifications] Error sending push to user ${userId}:`, err.message)
+            console.error(`[send-deadline-notifications] Error sending push to user ${task.userId}:`, err?.message || err)
           }
         }
       }
+    }
+
+    // Bulk cleanup expired / unsubscribed endpoints
+    if (expiredSubIds.length > 0) {
+      await supabase.from('push_subscriptions').delete().in('id', expiredSubIds)
     }
 
     // 8. Record sent notifications in database to prevent re-sending
