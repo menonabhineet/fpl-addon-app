@@ -88,14 +88,18 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
 
   // Pre-index user score picks for O(1) table lookup
   const userScorePicksLookup = useMemo(() => {
-    if (!picksData) return new Map<string, Map<number, string>>()
-    const map = new Map<string, Map<number, string>>()
+    if (!picksData) return new Map<string, Map<number, { text: string; points: number | null; isFinished: boolean }>>()
+    const map = new Map<string, Map<number, { text: string; points: number | null; isFinished: boolean }>>()
 
     for (const [userId, uData] of Object.entries(picksData)) {
-      const userMap = new Map<number, string>()
+      const userMap = new Map<number, { text: string; points: number | null; isFinished: boolean }>()
       if (uData?.isRevealed && Array.isArray(uData.scorePicks)) {
         for (const sp of uData.scorePicks) {
-          userMap.set(sp.fixture_id, `${sp.predicted_home_score}-${sp.predicted_away_score}`)
+          userMap.set(sp.fixture_id, {
+            text: `${sp.predicted_home_score}-${sp.predicted_away_score}`,
+            points: sp.points_earned !== undefined ? sp.points_earned : null,
+            isFinished: !!sp.is_finished
+          })
         }
       }
       map.set(userId, userMap)
@@ -157,10 +161,40 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
                       {pundit.name} {isMe && <span className="text-[10px] text-emerald-500 ml-1">• you</span>}
                     </td>
                     {selectedFixtures.map(f => {
-                      const display = userScores?.get(f.id) || '—'
+                      if (!deadlinePassed && !isMe) {
+                        return (
+                          <td key={f.id} className="px-6 py-4 text-center text-xs font-semibold text-slate-400">
+                            <span className="inline-flex items-center justify-center gap-1 opacity-70">
+                              <span>🔒</span> Hidden
+                            </span>
+                          </td>
+                        )
+                      }
+
+                      const scoreItem = userScores?.get(f.id)
+                      if (!scoreItem) {
+                        return (
+                          <td key={f.id} className="px-6 py-4 text-center font-heading text-lg text-slate-400">
+                            —
+                          </td>
+                        )
+                      }
+
+                      const isGraded = scoreItem.points !== null && scoreItem.points !== undefined
                       return (
-                        <td key={f.id} className="px-6 py-4 text-center font-heading text-lg text-slate-600 dark:text-slate-400">
-                          {display}
+                        <td key={f.id} className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-heading text-lg text-slate-700 dark:text-slate-200">{scoreItem.text}</span>
+                            {isGraded && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${
+                                scoreItem.points! > 0
+                                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                  : 'text-slate-400 dark:text-slate-500 bg-slate-500/10 border-slate-500/20'
+                              }`}>
+                                {scoreItem.points! > 0 ? `+${scoreItem.points}` : 0}
+                              </span>
+                            )}
+                          </div>
                         </td>
                       )
                     })}
@@ -194,7 +228,6 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
               <tbody className="divide-y divide-slate-200/50 dark:divide-white/5">
                 {paginatedPundits.map(pundit => {
                   const userPicksData = picksData?.[pundit.id]
-                  const isRevealed = userPicksData?.isRevealed
                   const isMe = userPicksData?.isCurrentUser
 
                   return (
@@ -204,33 +237,41 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
                       </td>
                       <td className="px-6 py-4 text-center font-heading text-lg text-slate-600 dark:text-slate-400">
                         {(() => {
-                          if (isRevealed) {
-                            if (userPicksData?.teamPick) {
-                              const teamName = userPicksData.teamPick.team?.short_name || userPicksData.teamPick.team?.name || '—'
-                              const result = userPicksData.teamPick.match_result
-                              return (
-                                <div className="flex items-center justify-center gap-2">
-                                  <span>{teamName}</span>
-                                  {result === 'win' && (
-                                    <span className="text-xs text-emerald-500 font-bold" title="Win (+ points awarded)">✅</span>
-                                  )}
-                                  {result === 'draw' && (
-                                    <span className="text-xs text-amber-500 font-bold" title="Draw (0 points - Streak reset)">🤝</span>
-                                  )}
-                                  {result === 'loss' && (
-                                    <span className="text-xs text-rose-500 font-bold" title="Loss (0 points - Streak reset)">❌</span>
-                                  )}
-                                </div>
-                              )
-                            }
-                            return <span className="text-slate-400">—</span>
+                          if (!deadlinePassed && !isMe) {
+                            return (
+                              <span className="text-slate-400 text-sm font-semibold inline-flex items-center justify-center gap-1 opacity-70">
+                                <span>🔒</span> Hidden
+                              </span>
+                            )
                           }
 
-                          return (
-                            <span className="text-slate-400 text-sm font-semibold flex items-center justify-center gap-1">
-                              <span>🔒</span> Hidden
-                            </span>
-                          )
+                          if (userPicksData?.teamPick) {
+                            const teamName = userPicksData.teamPick.team?.short_name || userPicksData.teamPick.team?.name || '—'
+                            const result = userPicksData.teamPick.match_result
+                            const points = userPicksData.teamPick.points_earned
+                            return (
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{teamName}</span>
+                                {result === 'win' && (
+                                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 flex items-center gap-1" title="Win (+ points awarded)">
+                                    <span>✅</span> +{points || 1}
+                                  </span>
+                                )}
+                                {result === 'draw' && (
+                                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-500/20 flex items-center gap-1" title="Draw (0 points - Streak reset)">
+                                    <span>🤝</span> 0
+                                  </span>
+                                )}
+                                {result === 'loss' && (
+                                  <span className="text-[11px] text-rose-600 dark:text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20 flex items-center gap-1" title="Loss (0 points - Streak reset)">
+                                    <span>❌</span> 0
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          }
+
+                          return <span className="text-slate-400 font-normal">—</span>
                         })()}
                       </td>
                     </tr>
@@ -265,15 +306,40 @@ const AllPicksUI = memo(function AllPicksUI({ currentGw, fixtures, leaderboard }
               <tbody className="divide-y divide-slate-200/50 dark:divide-white/5">
                 {paginatedPundits.map(pundit => {
                   const userPicksData = picksData?.[pundit.id]
-                  const isRevealed = userPicksData?.isRevealed
                   const isMe = userPicksData?.isCurrentUser
                   
                   const getPosDisplay = (posCode: string) => {
-                    if (isRevealed && userPicksData?.f4Picks) {
-                      const pick = userPicksData.f4Picks.find((p: any) => p.position === posCode)
-                      if (pick) return pick.player_name || '—'
+                    if (!deadlinePassed && !isMe) {
+                      return (
+                        <span className="text-slate-400 text-xs font-semibold inline-flex items-center justify-center gap-1 opacity-70">
+                          <span>🔒</span> Hidden
+                        </span>
+                      )
                     }
-                    return '—'
+
+                    if (userPicksData?.f4Picks && userPicksData.f4Picks.length > 0) {
+                      const pick = userPicksData.f4Picks.find((p: any) => p.position === posCode)
+                      if (pick && pick.player_name) {
+                        const isGraded = pick.points_earned !== null && pick.points_earned !== undefined
+                        return (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {pick.player_name}
+                            </span>
+                            {isGraded && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${
+                                pick.points_earned > 0
+                                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                  : 'text-slate-400 dark:text-slate-500 bg-slate-500/10 border-slate-500/20'
+                              }`}>
+                                {pick.points_earned > 0 ? `+${pick.points_earned}` : 0}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      }
+                    }
+                    return <span className="text-slate-400 font-normal">—</span>
                   }
                   
                   return (

@@ -465,16 +465,24 @@ function FixtureCard({
 
   const handleHomeStep = (delta: number) => {
     if (isLocked || match.is_finished) return
-    const current = currentHomeScore === '' ? 0 : Number(currentHomeScore)
-    const next = Math.max(0, Math.min(20, current + delta))
+    let next: number
+    if (currentHomeScore === '') {
+      next = delta < 0 ? 0 : 1
+    } else {
+      next = Math.max(0, Math.min(20, Number(currentHomeScore) + delta))
+    }
     setCurrentHomeScore(String(next))
     triggerAutoSave(next, currentAwayScore)
   }
 
   const handleAwayStep = (delta: number) => {
     if (isLocked || match.is_finished) return
-    const current = currentAwayScore === '' ? 0 : Number(currentAwayScore)
-    const next = Math.max(0, Math.min(20, current + delta))
+    let next: number
+    if (currentAwayScore === '') {
+      next = delta < 0 ? 0 : 1
+    } else {
+      next = Math.max(0, Math.min(20, Number(currentAwayScore) + delta))
+    }
     setCurrentAwayScore(String(next))
     triggerAutoSave(currentHomeScore, next)
   }
@@ -590,7 +598,7 @@ function FixtureCard({
             <div className="flex flex-col items-center">
               <button
                 type="button"
-                disabled={match.is_finished || isLocked || Number(currentHomeScore) >= 20}
+                disabled={match.is_finished || isLocked || (currentHomeScore !== '' && Number(currentHomeScore) >= 20)}
                 onClick={() => handleHomeStep(1)}
                 className="w-10 sm:w-12 h-5 rounded-t-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-t border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
                 title="Increase home score"
@@ -613,7 +621,7 @@ function FixtureCard({
               />
               <button
                 type="button"
-                disabled={match.is_finished || isLocked || Number(currentHomeScore) <= 0 || currentHomeScore === ''}
+                disabled={match.is_finished || isLocked || (currentHomeScore !== '' && Number(currentHomeScore) <= 0)}
                 onClick={() => handleHomeStep(-1)}
                 className="w-10 sm:w-12 h-5 rounded-b-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-b border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
                 title="Decrease home score"
@@ -628,7 +636,7 @@ function FixtureCard({
             <div className="flex flex-col items-center">
               <button
                 type="button"
-                disabled={match.is_finished || isLocked || Number(currentAwayScore) >= 20}
+                disabled={match.is_finished || isLocked || (currentAwayScore !== '' && Number(currentAwayScore) >= 20)}
                 onClick={() => handleAwayStep(1)}
                 className="w-10 sm:w-12 h-5 rounded-t-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-t border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
                 title="Increase away score"
@@ -651,7 +659,7 @@ function FixtureCard({
               />
               <button
                 type="button"
-                disabled={match.is_finished || isLocked || Number(currentAwayScore) <= 0 || currentAwayScore === ''}
+                disabled={match.is_finished || isLocked || (currentAwayScore !== '' && Number(currentAwayScore) <= 0)}
                 onClick={() => handleAwayStep(-1)}
                 className="w-10 sm:w-12 h-5 rounded-b-lg bg-white/60 dark:bg-white/5 hover:bg-emerald-500/20 active:bg-emerald-500/30 flex items-center justify-center text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-b border-x border-slate-200/80 dark:border-white/10 transition-colors disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
                 title="Decrease away score"
